@@ -612,12 +612,14 @@
         }
       }
 
-      // Скорость: 75% для обычных призраков, 50% для испуганных, 4px для глаз
+      // Скорость призраков: 50% для обычных (в 2 раза медленнее Пакмана), 33% для испуганных
       let canMoveThisFrame = true;
       if (g.state === 'normal') {
-        canMoveThisFrame = (frameCount % 4 !== 0);
-      } else if (g.state === 'frightened') {
+        // Обычные призраки ходят со скоростью 50% (каждый 2-й кадр)
         canMoveThisFrame = (frameCount % 2 === 0);
+      } else if (g.state === 'frightened') {
+        // Испуганные призраки ходят со скоростью 33% (каждый 3-й кадр)
+        canMoveThisFrame = (frameCount % 3 === 0);
       }
 
       if (canMoveThisFrame) {
