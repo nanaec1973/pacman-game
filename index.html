@@ -303,6 +303,7 @@
     let frightenedTimer = 0;
     let totalDots = 0;
     let dotsEaten = 0;
+    let frameCount = 0;
 
     document.getElementById('high-score').innerText = highScore;
 
@@ -371,6 +372,7 @@
       score = 0;
       lives = 3;
       frightenedTimer = 0;
+      frameCount = 0;
       document.getElementById('score').innerText = '0';
       updateLivesDisplay();
       initMap();
@@ -388,6 +390,7 @@
     // --- Игровой цикл ---
     function gameLoop() {
       if (!gameRunning) return;
+      frameCount++;
 
       update();
       draw();
@@ -557,9 +560,21 @@
         }
       }
 
-      const spd = g.state === 'frightened' ? 1 : 2;
-      g.x += g.dirX * spd;
-      g.y += g.dirY * spd;
+      // Регулировка скорости призраков (делаем их медленнее Пакмана)
+      let canMoveThisFrame = true;
+      if (g.state === 'normal') {
+        // Обычные призраки двигаются со скоростью 75% от Пакмана (пропускают 1 кадр из 4)
+        canMoveThisFrame = (frameCount % 4 !== 0);
+      } else if (g.state === 'frightened') {
+        // Испуганные призраки двигаются со скоростью 50%
+        canMoveThisFrame = (frameCount % 2 === 0);
+      }
+
+      if (canMoveThisFrame) {
+        const spd = g.state === 'eaten' ? 4 : 2;
+        g.x += g.dirX * spd;
+        g.y += g.dirY * spd;
+      }
 
       // Туннели
       if (g.x < 0) g.x = canvas.width;
