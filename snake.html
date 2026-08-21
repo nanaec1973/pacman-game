@@ -279,7 +279,7 @@
     let highScore = parseInt(localStorage.getItem('snake_high') || '0', 10);
     let gameRunning = false;
     let frameTimer = 0;
-    let speedTicks = 9; // Чем меньше, тем быстрее
+    let speedTicks = 12; // 25% медленнее для идеального комфортного управления
     let particles = [];
     let popups = [];
 
@@ -294,7 +294,7 @@
       dirX = 0; dirY = -1;
       nextDirX = 0; nextDirY = -1;
       score = 0;
-      speedTicks = 9;
+      speedTicks = 12;
       particles = [];
       popups = [];
       document.getElementById('score').innerText = '0';
@@ -343,11 +343,11 @@
 
       const head = { x: snake[0].x + dirX, y: snake[0].y + dirY };
 
-      // Телепортация через границы поля (wrap-around)
-      if (head.x < 0) head.x = COLS - 1;
-      if (head.x >= COLS) head.x = 0;
-      if (head.y < 0) head.y = ROWS - 1;
-      if (head.y >= ROWS) head.y = 0;
+      // Классическое правило: Столкновение со стеной = Game Over!
+      if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+        handleGameOver();
+        return;
+      }
 
       // Проверка врезания в свой хвост
       for (let i = 0; i < snake.length; i++) {
@@ -385,8 +385,8 @@
         playSound(apple.isGold ? 'gold' : 'eat');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(apple.isGold ? 'success' : 'warning');
 
-        // Увеличение скорости
-        if (speedTicks > 4 && snake.length % 4 === 0) {
+        // Плавное ускорение по мере роста длины
+        if (speedTicks > 7 && snake.length % 5 === 0) {
           speedTicks--;
         }
 
