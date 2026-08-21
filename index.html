@@ -304,6 +304,7 @@
     let totalDots = 0;
     let dotsEaten = 0;
     let frameCount = 0;
+    let readyTimer = 90; // ~1.5 сек пауза READY! перед стартом
 
     document.getElementById('high-score').innerText = highScore;
 
@@ -323,12 +324,13 @@
       mouthDir: 1,
     };
 
-    // 4 призрака спавнятся в 4 коридорах вокруг карты
+    // Классический спавн 4 призраков:
+    // Blinky снаружи, остальные внутри с таймером выхода
     const ghosts = [
-      { name: 'Blinky', color: '#ff0000', startX: 9,  startY: 4,  dirX: -1, dirY: 0, state: 'normal' },
-      { name: 'Pinky',  color: '#ffb8ff', startX: 4,  startY: 8,  dirX: 0,  dirY: 1, state: 'normal' },
-      { name: 'Inky',   color: '#00ffff', startX: 14, startY: 8,  dirX: 0,  dirY: 1, state: 'normal' },
-      { name: 'Clyde',  color: '#ffb852', startX: 9,  startY: 14, dirX: 1,  dirY: 0, state: 'normal' },
+      { name: 'Blinky', color: '#ff0000', startX: 190, startY: 150, startDirX: -1, startDirY: 0, state: 'normal',   houseTimer: 0,   bobDir: 1 },
+      { name: 'Pinky',  color: '#ffb8ff', startX: 190, startY: 190, startDirX: 0,  startDirY: -1, state: 'exiting',  houseTimer: 0,   bobDir: 1 },
+      { name: 'Inky',   color: '#00ffff', startX: 170, startY: 210, startDirX: 0,  startDirY: 1,  state: 'in_house', houseTimer: 180, bobDir: 1 },
+      { name: 'Clyde',  color: '#ffb852', startX: 210, startY: 210, startDirX: 0,  startDirY: 1,  state: 'in_house', houseTimer: 360, bobDir: 1 },
     ];
 
     function initMap() {
@@ -350,15 +352,12 @@
       pacman.nextDirX = 0;
       pacman.nextDirY = 0;
 
-      ghosts.forEach(g => {
-        g.x = g.startX * TILE_SIZE + 10;
-        g.y = g.startY * TILE_SIZE + 10;
-        g.state = 'normal';
-      });
-      ghosts[0].dirX = -1; ghosts[0].dirY = 0;
-      ghosts[1].dirX = 0; ghosts[1].dirY = 1;
-      ghosts[2].dirX = 0; ghosts[2].dirY = 1;
-      ghosts[3].dirX = 1; ghosts[3].dirY = 0;
+      readyTimer = 90; // 1.5 сек READY!
+
+      ghosts[0].x = ghosts[0].startX; ghosts[0].y = ghosts[0].startY; ghosts[0].dirX = ghosts[0].startDirX; ghosts[0].dirY = ghosts[0].startDirY; ghosts[0].state = 'normal';
+      ghosts[1].x = ghosts[1].startX; ghosts[1].y = ghosts[1].startY; ghosts[1].dirX = ghosts[1].startDirX; ghosts[1].dirY = ghosts[1].startDirY; ghosts[1].state = 'exiting';
+      ghosts[2].x = ghosts[2].startX; ghosts[2].y = ghosts[2].startY; ghosts[2].dirX = ghosts[2].startDirX; ghosts[2].dirY = ghosts[2].startDirY; ghosts[2].state = 'in_house'; ghosts[2].houseTimer = 180;
+      ghosts[3].x = ghosts[3].startX; ghosts[3].y = ghosts[3].startY; ghosts[3].dirX = ghosts[3].startDirX; ghosts[3].dirY = ghosts[3].startDirY; ghosts[3].state = 'in_house'; ghosts[3].houseTimer = 360;
     }
 
     function updateLivesDisplay() {
@@ -399,6 +398,11 @@
     }
 
     function update() {
+      if (readyTimer > 0) {
+        readyTimer--;
+        return; // Во время надписи READY! никто не ходит
+      }
+
       // 1. Поворот Пакмана на перекрёстках
       const isAtPacCenter = (pacman.x - 10) % TILE_SIZE === 0 && (pacman.y - 10) % TILE_SIZE === 0;
       const curCol = Math.floor(pacman.x / TILE_SIZE);
@@ -444,7 +448,7 @@
           score += 50;
           dotsEaten++;
           frightenedTimer = 350; // ~6-7 сек
-          ghosts.forEach(g => { if (g.state !== 'eaten') g.state = 'frightened'; });
+          ghosts.forEach(g => { if (g.state !== 'eaten' && g.state !== 'in_house' && g.state !== 'exiting') g.state = 'frightened'; });
           playSound('power');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
         }
@@ -476,44 +480,78 @@
       ghosts.forEach(ghost => {
         updateGhost(ghost);
 
-        // Столкновение с Пакманом
-        const dist = Math.hypot(ghost.x - pacman.x, ghost.y - pacman.y);
-        if (dist < 14) {
-          if (ghost.state === 'frightened') {
-            ghost.state = 'eaten';
-            score += 200;
-            playSound('eat_ghost');
-            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-          } else if (ghost.state === 'normal') {
-            handlePacmanDeath();
+        // Столкновение с Пакманом (только если призрак в лабиринте)
+        if (ghost.state !== 'in_house' && ghost.state !== 'exiting') {
+          const dist = Math.hypot(ghost.x - pacman.x, ghost.y - pacman.y);
+          if (dist < 14) {
+            if (ghost.state === 'frightened') {
+              ghost.state = 'eaten';
+              score += 200;
+              playSound('eat_ghost');
+              if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            } else if (ghost.state === 'normal') {
+              handlePacmanDeath();
+            }
           }
         }
       });
     }
 
     function updateGhost(g) {
+      // 1. Ожидание в домике
+      if (g.state === 'in_house') {
+        g.houseTimer--;
+        g.y += g.bobDir * 0.5;
+        if (g.y > 214) g.bobDir = -1;
+        if (g.y < 206) g.bobDir = 1;
+
+        if (g.houseTimer <= 0) {
+          g.state = 'exiting';
+        }
+        return;
+      }
+
+      // 2. Выход из домика через дверь
+      if (g.state === 'exiting') {
+        if (Math.abs(g.x - 190) > 1) {
+          g.x += g.x < 190 ? 1 : -1;
+        } else {
+          g.x = 190;
+          g.y -= 1.5;
+          if (g.y <= 150) {
+            g.y = 150;
+            g.dirX = -1;
+            g.dirY = 0;
+            g.state = 'normal';
+          }
+        }
+        return;
+      }
+
+      // 3. Возврат съеденных глаз в домик
+      if (g.state === 'eaten') {
+        const targetX = 190;
+        const targetY = 190;
+        if (Math.hypot(g.x - targetX, g.y - targetY) < 6) {
+          g.x = 190;
+          g.y = 190;
+          g.state = 'exiting';
+          return;
+        }
+      }
+
+      // 4. Обычное движение в лабиринте
       const isAtTileCenter = (g.x - 10) % TILE_SIZE === 0 && (g.y - 10) % TILE_SIZE === 0;
       const gCol = Math.floor(g.x / TILE_SIZE);
       const gRow = Math.floor(g.y / TILE_SIZE);
-
-      // Возврат глаз на исходную позицию
-      if (g.state === 'eaten') {
-        const targetX = g.startX * TILE_SIZE + 10;
-        const targetY = g.startY * TILE_SIZE + 10;
-        if (Math.hypot(g.x - targetX, g.y - targetY) < 10) {
-          g.state = 'normal';
-        }
-      }
 
       if (isAtTileCenter) {
         const allDirs = [
           { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }
         ];
 
-        // Доступные направления (не в стену)
         let validDirs = allDirs.filter(d => !isWall(gCol + d.x, gRow + d.y));
 
-        // Исключаем разворот назад (если есть другие варианты)
         let forwardDirs = validDirs.filter(d => !(d.x === -g.dirX && d.y === -g.dirY));
         if (forwardDirs.length > 0) {
           validDirs = forwardDirs;
@@ -521,18 +559,16 @@
 
         if (validDirs.length > 0) {
           if (g.state === 'frightened') {
-            // Случайное движение при испуге
             const chosen = validDirs[Math.floor(Math.random() * validDirs.length)];
             g.dirX = chosen.x;
             g.dirY = chosen.y;
           } else {
-            // Преследование Пакмана
             let targetX = pacman.x;
             let targetY = pacman.y;
 
             if (g.state === 'eaten') {
-              targetX = g.startX * TILE_SIZE + 10;
-              targetY = g.startY * TILE_SIZE + 10;
+              targetX = 190;
+              targetY = 190;
             } else if (g.name === 'Pinky') {
               targetX += pacman.dirX * 4 * TILE_SIZE;
               targetY += pacman.dirY * 4 * TILE_SIZE;
@@ -560,13 +596,11 @@
         }
       }
 
-      // Регулировка скорости призраков (делаем их медленнее Пакмана)
+      // Скорость: 75% для обычных призраков, 50% для испуганных, 4px для глаз
       let canMoveThisFrame = true;
       if (g.state === 'normal') {
-        // Обычные призраки двигаются со скоростью 75% от Пакмана (пропускают 1 кадр из 4)
         canMoveThisFrame = (frameCount % 4 !== 0);
       } else if (g.state === 'frightened') {
-        // Испуганные призраки двигаются со скоростью 50%
         canMoveThisFrame = (frameCount % 2 === 0);
       }
 
@@ -652,6 +686,10 @@
         }
       }
 
+      // Дверь домика призраков
+      ctx.fillStyle = '#ffb8ff';
+      ctx.fillRect(9 * TILE_SIZE, 8 * TILE_SIZE + 8, TILE_SIZE, 4);
+
       // 2. Пакман
       ctx.fillStyle = '#ffff00';
       ctx.beginPath();
@@ -699,6 +737,14 @@
         ctx.arc(g.x + 3 + g.dirX, g.y - 2 + g.dirY, 1.2, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      // 4. Баннер READY!
+      if (readyTimer > 0) {
+        ctx.fillStyle = '#ffff00';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('READY!', 9 * TILE_SIZE + 10, 11 * TILE_SIZE + 15);
+      }
     }
 
     // --- Управление (Клавиатура, Свайпы, Экранные кнопки) ---
