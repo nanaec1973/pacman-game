@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Snake Mini App</title>
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      -webkit-overscroll-behavior: none;
+      background-color: #090a10;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      touch-action: none;
+    }
+    #header {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 2px solid #141724;
+    }
+    .score-box {
+      display: flex;
+      flex-direction: column;
+    }
+    .score-label {
+      font-size: 10px;
+      color: #888;
+    }
+    .score-val {
+      color: #00ff88;
+      font-size: 20px;
+      text-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+    }
+    .length-box {
+      font-size: 14px;
+      color: #00e5ff;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-grow: 1;
+      padding: 4px;
+    }
+    canvas {
+      background-color: #0f111a;
+      border: 3px solid #00ff88;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.3);
+      max-width: 100%;
+      max-height: 62vh;
+    }
+    /* Экранный джойстик */
+    #dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(2, 48px);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .dpad-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      color: #fff;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 0.1s, transform 0.1s;
+    }
+    .dpad-btn:active {
+      background: rgba(0, 255, 136, 0.3);
+      transform: scale(0.92);
+    }
+    #btn-up { grid-column: 2; grid-row: 1; }
+    #btn-left { grid-column: 1; grid-row: 2; }
+    #btn-down { grid-column: 2; grid-row: 2; }
+    #btn-right { grid-column: 3; grid-row: 2; }
+
+    /* Оверлей меню / Game Over */
+    #overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.88);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      border-radius: 12px;
+      text-align: center;
+      padding: 20px;
+    }
+    #overlay h2 {
+      font-size: 28px;
+      color: #00ff88;
+      margin-bottom: 8px;
+      text-shadow: 0 0 12px rgba(0, 255, 136, 0.8);
+    }
+    #overlay p {
+      font-size: 15px;
+      color: #ddd;
+      margin-bottom: 20px;
+    }
+    .btn-action {
+      background: #00ff88;
+      color: #000;
+      border: none;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.8);
+      margin-bottom: 10px;
+      transition: transform 0.1s;
+    }
+    .btn-action:active {
+      transform: scale(0.95);
+    }
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <div class="score-box">
+      <span class="score-label">СЧЁТ</span>
+      <span id="score" class="score-val">0</span>
+    </div>
+    <div class="score-box">
+      <span class="score-label">РЕКОРД</span>
+      <span id="high-score" class="score-val">0</span>
+    </div>
+    <div class="length-box" id="length-display">
+      🐍 Длина: 3
+    </div>
+  </div>
+
+  <div id="game-container">
+    <canvas id="canvas" width="340" height="420"></canvas>
+    
+    <div id="overlay">
+      <h2 id="overlay-title">SNAKE 🐍</h2>
+      <p id="overlay-desc">Собирай яблоки и не врезайся в хвост!</p>
+      <button class="btn-action" id="btn-start" onclick="startGame()">ИГРАТЬ 🕹️</button>
+      <button class="btn-action btn-secondary" id="btn-send-score" style="display:none;" onclick="sendScoreToTelegram()">СОХРАНИТЬ РЕКОРД 🏆</button>
+    </div>
+  </div>
+
+  <!-- Экранный джойстик -->
+  <div id="dpad">
+    <button class="dpad-btn" id="btn-up">⬆️</button>
+    <button class="dpad-btn" id="btn-left">⬅️</button>
+    <button class="dpad-btn" id="btn-down">⬇️</button>
+    <button class="dpad-btn" id="btn-right">➡️</button>
+  </div>
+
+  <script>
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) {
+      tg.expand();
+      tg.ready();
+      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      if (tg.isVerticalSwipesEnabled !== undefined) tg.isVerticalSwipesEnabled = false;
+    }
+
+    // --- Web Audio API Синтезатор звуков ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+
+      if (type === 'eat') {
+        // Хруст яблочка
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(700, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'gold') {
+        // Колокольчик золотого яблока
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'die') {
+        // Удар при столкновении
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      }
+    }
+
+    // --- Параметры игры ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const COLS = 17;
+    const ROWS = 21;
+    const TILE = 20;
+    canvas.width = COLS * TILE;
+    canvas.height = ROWS * TILE;
+
+    let snake = [];
+    let dirX = 0;
+    let dirY = -1;
+    let nextDirX = 0;
+    let nextDirY = -1;
+    let apple = { x: 8, y: 5, isGold: false };
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('snake_high') || '0', 10);
+    let gameRunning = false;
+    let frameTimer = 0;
+    let speedTicks = 9; // Чем меньше, тем быстрее
+    let particles = [];
+    let popups = [];
+
+    document.getElementById('high-score').innerText = highScore;
+
+    function resetGame() {
+      snake = [
+        { x: 8, y: 12 },
+        { x: 8, y: 13 },
+        { x: 8, y: 14 }
+      ];
+      dirX = 0; dirY = -1;
+      nextDirX = 0; nextDirY = -1;
+      score = 0;
+      speedTicks = 9;
+      particles = [];
+      popups = [];
+      document.getElementById('score').innerText = '0';
+      document.getElementById('length-display').innerText = `🐍 Длина: ${snake.length}`;
+      spawnApple();
+    }
+
+    function spawnApple() {
+      let valid = false;
+      let newX = 0, newY = 0;
+      while (!valid) {
+        newX = Math.floor(Math.random() * COLS);
+        newY = Math.floor(Math.random() * ROWS);
+        valid = !snake.some(segment => segment.x === newX && segment.y === newY);
+      }
+      const isGold = Math.random() < 0.15; // 15% шанс золотого яблока
+      apple = { x: newX, y: newY, isGold: isGold };
+    }
+
+    function startGame() {
+      initAudio();
+      resetGame();
+      document.getElementById('overlay').style.display = 'none';
+      gameRunning = true;
+      frameTimer = 0;
+      requestAnimationFrame(gameLoop);
+    }
+
+    // --- Игровой цикл ---
+    function gameLoop(time) {
+      if (!gameRunning) return;
+
+      frameTimer++;
+      if (frameTimer >= speedTicks) {
+        frameTimer = 0;
+        update();
+      }
+
+      draw(time);
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update() {
+      dirX = nextDirX;
+      dirY = nextDirY;
+
+      const head = { x: snake[0].x + dirX, y: snake[0].y + dirY };
+
+      // Телепортация через границы поля (wrap-around)
+      if (head.x < 0) head.x = COLS - 1;
+      if (head.x >= COLS) head.x = 0;
+      if (head.y < 0) head.y = ROWS - 1;
+      if (head.y >= ROWS) head.y = 0;
+
+      // Проверка врезания в свой хвост
+      for (let i = 0; i < snake.length; i++) {
+        if (snake[i].x === head.x && snake[i].y === head.y) {
+          handleGameOver();
+          return;
+        }
+      }
+
+      snake.unshift(head);
+
+      // Проверка поедания яблока
+      if (head.x === apple.x && head.y === apple.y) {
+        const pts = apple.isGold ? 50 : 10;
+        score += pts;
+        document.getElementById('score').innerText = score;
+        document.getElementById('length-display').innerText = `🐍 Длина: ${snake.length}`;
+
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('snake_high', highScore);
+          document.getElementById('high-score').innerText = highScore;
+        }
+
+        // Партиклы и звук
+        spawnParticles(head.x * TILE + 10, head.y * TILE + 10, apple.isGold ? '#ffd700' : '#ff3366');
+        popups.push({
+          text: apple.isGold ? '+50 🌟' : '+10 🍎',
+          x: head.x * TILE + 10,
+          y: head.y * TILE,
+          alpha: 1.0,
+          color: apple.isGold ? '#ffd700' : '#ff3366'
+        });
+
+        playSound(apple.isGold ? 'gold' : 'eat');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(apple.isGold ? 'success' : 'warning');
+
+        // Увеличение скорости
+        if (speedTicks > 4 && snake.length % 4 === 0) {
+          speedTicks--;
+        }
+
+        spawnApple();
+      } else {
+        snake.pop();
+      }
+    }
+
+    function spawnParticles(x, y, color) {
+      for (let i = 0; i < 14; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = Math.random() * 3 + 1;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          size: Math.random() * 3.5 + 1.5,
+          alpha: 1.0,
+          color: color
+        });
+      }
+    }
+
+    function handleGameOver() {
+      playSound('die');
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      gameRunning = false;
+      document.getElementById('overlay-title').innerText = '💀 GAME OVER 💀';
+      document.getElementById('overlay-desc').innerText = `Длина змейки: ${snake.length} | Счёт: ${score}`;
+      document.getElementById('btn-start').innerText = '🔄 СЫГРАТЬ СНОВА';
+      document.getElementById('btn-send-score').style.display = 'inline-block';
+      document.getElementById('overlay').style.display = 'flex';
+    }
+
+    function sendScoreToTelegram() {
+      fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0,
+          user_name: tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : 'Игрок',
+          game: 'snake',
+          score: score
+        })
+      }).catch(err => console.log(err));
+
+      if (tg) tg.close();
+      else alert('Результат ' + score + ' сохранен!');
+    }
+
+    // --- Отрисовка графики ---
+    function draw(time) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Сетка фона
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      for (let c = 0; c <= COLS; c++) {
+        ctx.beginPath(); ctx.moveTo(c * TILE, 0); ctx.lineTo(c * TILE, canvas.height); ctx.stroke();
+      }
+      for (let r = 0; r <= ROWS; r++) {
+        ctx.beginPath(); ctx.moveTo(0, r * TILE); ctx.lineTo(canvas.width, r * TILE); ctx.stroke();
+      }
+
+      // 2. Отрисовка красивого яблока
+      drawApple(apple.x, apple.y, apple.isGold, time);
+
+      // 3. Отрисовка красивой змейки
+      drawSnake();
+
+      // 4. Отрисовка партиклов
+      drawParticles();
+
+      // 5. Всплывающие очки
+      drawPopups();
+    }
+
+    function drawApple(gx, gy, isGold, time) {
+      const cx = gx * TILE + 10;
+      const cy = gy * TILE + 10;
+      const pulse = 1.0 + 0.08 * Math.sin((time || 0) * 0.006);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(pulse, pulse);
+
+      // Свечение яблока
+      ctx.shadowColor = isGold ? '#ffd700' : '#ff3366';
+      ctx.shadowBlur = 10;
+
+      // Тело яблока (Градиент)
+      const grad = ctx.createRadialGradient(-2, -3, 1, 0, 0, 8);
+      if (isGold) {
+        grad.addColorStop(0, '#fff6a3');
+        grad.addColorStop(0.5, '#ffd700');
+        grad.addColorStop(1, '#cc9900');
+      } else {
+        grad.addColorStop(0, '#ff758c');
+        grad.addColorStop(0.5, '#ff0844');
+        grad.addColorStop(1, '#8b0024');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 1, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Блик на яблоке
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.arc(-2.5, -2.5, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Черенок (веточка)
+      ctx.strokeStyle = '#5c3d2e';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.quadraticCurveTo(2, -9, 3, -10);
+      ctx.stroke();
+
+      // Зелёный листочек
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.ellipse(3, -9, 3.5, 1.8, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawSnake() {
+      for (let i = snake.length - 1; i >= 0; i--) {
+        const seg = snake[i];
+        const cx = seg.x * TILE + 10;
+        const cy = seg.y * TILE + 10;
+        const radius = i === 0 ? 8.5 : Math.max(5.5, 8 - (i / snake.length) * 2.5);
+
+        ctx.save();
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = i === 0 ? 12 : 5;
+
+        // Градиент от изумрудного к бирюзовому
+        const ratio = i / Math.max(1, snake.length - 1);
+        const grad = ctx.createRadialGradient(cx - 2, cy - 2, 1, cx, cy, radius);
+        if (i === 0) {
+          grad.addColorStop(0, '#70ffb6');
+          grad.addColorStop(1, '#00c853');
+        } else {
+          grad.addColorStop(0, `rgb(${Math.floor(0 + ratio * 0)}, ${Math.floor(255 - ratio * 40)}, ${Math.floor(136 + ratio * 119)})`);
+          grad.addColorStop(1, `rgb(${Math.floor(0)}, ${Math.floor(180 - ratio * 40)}, ${Math.floor(100 + ratio * 100)})`);
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Рисуем милые анимированные глазки на голове змейки
+        if (i === 0) {
+          ctx.shadowBlur = 0;
+          let eyeOffsetX1 = 0, eyeOffsetY1 = 0, eyeOffsetX2 = 0, eyeOffsetY2 = 0;
+
+          if (dirX === 1) { // Вправо
+            eyeOffsetX1 = 3; eyeOffsetY1 = -4; eyeOffsetX2 = 3; eyeOffsetY2 = 4;
+          } else if (dirX === -1) { // Влево
+            eyeOffsetX1 = -3; eyeOffsetY1 = -4; eyeOffsetX2 = -3; eyeOffsetY2 = 4;
+          } else if (dirY === 1) { // Вниз
+            eyeOffsetX1 = -4; eyeOffsetY1 = 3; eyeOffsetX2 = 4; eyeOffsetY2 = 3;
+          } else { // Вверх
+            eyeOffsetX1 = -4; eyeOffsetY1 = -3; eyeOffsetX2 = 4; eyeOffsetY2 = -3;
+          }
+
+          // Белки глаз
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(cx + eyeOffsetX1, cy + eyeOffsetY1, 2.5, 0, Math.PI * 2);
+          ctx.arc(cx + eyeOffsetX2, cy + eyeOffsetY2, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Зрачки (смотрят по ходу движения)
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(cx + eyeOffsetX1 + dirX * 0.8, cy + eyeOffsetY1 + dirY * 0.8, 1.3, 0, Math.PI * 2);
+          ctx.arc(cx + eyeOffsetX2 + dirX * 0.8, cy + eyeOffsetY2 + dirY * 0.8, 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.035;
+        p.size *= 0.96;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawPopups() {
+      for (let i = popups.length - 1; i >= 0; i--) {
+        const pop = popups[i];
+        pop.y -= 0.8;
+        pop.alpha -= 0.025;
+
+        if (pop.alpha <= 0) {
+          popups.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = pop.alpha;
+        ctx.fillStyle = pop.color;
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(pop.text, pop.x, pop.y);
+        ctx.restore();
+      }
+    }
+
+    // --- Управление (Жесты, Кнопки, Клавиатура) ---
+    function setDirection(dx, dy) {
+      initAudio();
+      // Защита от разворота на 180 градусов
+      if (dx === -dirX && dy === -dirY) return;
+      nextDirX = dx;
+      nextDirY = dy;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    }
+
+    window.addEventListener('keydown', e => {
+      if (['ArrowUp', 'KeyW'].includes(e.code)) setDirection(0, -1);
+      if (['ArrowDown', 'KeyS'].includes(e.code)) setDirection(0, 1);
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) setDirection(-1, 0);
+      if (['ArrowRight', 'KeyD'].includes(e.code)) setDirection(1, 0);
+    });
+
+    document.getElementById('btn-up').addEventListener('touchstart', e => { e.preventDefault(); setDirection(0, -1); }, { passive: false });
+    document.getElementById('btn-down').addEventListener('touchstart', e => { e.preventDefault(); setDirection(0, 1); }, { passive: false });
+    document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); setDirection(-1, 0); }, { passive: false });
+    document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); setDirection(1, 0); }, { passive: false });
+    document.getElementById('btn-up').addEventListener('click', () => setDirection(0, -1));
+    document.getElementById('btn-down').addEventListener('click', () => setDirection(0, 1));
+    document.getElementById('btn-left').addEventListener('click', () => setDirection(-1, 0));
+    document.getElementById('btn-right').addEventListener('click', () => setDirection(1, 0));
+
+    // --- Жестовое непрерывное управление с жесткой фиксацией экрана ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchActive = false;
+
+    window.addEventListener('touchstart', e => {
+      if (e.target.tagName === 'BUTTON') return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchActive = true;
+      initAudio();
+    }, { passive: false });
+
+    window.addEventListener('touchmove', e => {
+      e.preventDefault(); // Блокирует сдвиг/скролл экрана на iPhone!
+      if (!touchActive || e.touches.length === 0) return;
+      const touch = e.touches[0];
+      const diffX = touch.clientX - touchStartX;
+      const diffY = touch.clientY - touchStartY;
+      const threshold = 12;
+
+      if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX > 0) setDirection(1, 0);   // Вправо
+          else setDirection(-1, 0);            // Влево
+        } else {
+          if (diffY > 0) setDirection(0, 1);   // Вниз
+          else setDirection(0, -1);            // Вверх
+        }
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', e => {
+      if (e.target.tagName !== 'BUTTON') e.preventDefault();
+      touchActive = false;
+    }, { passive: false });
+  </script>
+</body>
+</html>
