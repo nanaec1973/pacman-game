@@ -708,8 +708,27 @@
       ctx.fillStyle = '#ffb8ff';
       ctx.fillRect(9 * TILE_SIZE, 8 * TILE_SIZE + 8, TILE_SIZE, 4);
 
-      // 2. Пакман
-      ctx.fillStyle = '#ffff00';
+      // 2. Пакман (с изменением цвета при энерджайзере и 3 морганиями)
+      let pacColor = '#ffff00';
+      let pacGlow = 'rgba(255, 255, 0, 0.5)';
+
+      if (frightenedTimer > 0) {
+        if (frightenedTimer < 90) {
+          // 3 предупреждающих моргания перед окончанием действия энерджайзера
+          const isBlink = Math.floor(frightenedTimer / 15) % 2 === 0;
+          pacColor = isBlink ? '#ffffff' : '#00ffff';
+          pacGlow = isBlink ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 255, 255, 0.9)';
+        } else {
+          // Режим супер-силы: яркий неоновый электрик с аурой
+          pacColor = '#00ffff';
+          pacGlow = 'rgba(0, 255, 255, 0.8)';
+        }
+      }
+
+      ctx.save();
+      ctx.shadowColor = pacGlow;
+      ctx.shadowBlur = frightenedTimer > 0 ? 16 : 4;
+      ctx.fillStyle = pacColor;
       ctx.beginPath();
       let angle = 0;
       if (pacman.dirX === 1) angle = 0;
@@ -720,12 +739,14 @@
       ctx.arc(pacman.x, pacman.y, pacman.radius, angle + pacman.mouthAngle, angle + Math.PI * 2 - pacman.mouthAngle);
       ctx.lineTo(pacman.x, pacman.y);
       ctx.fill();
+      ctx.restore();
 
       // 3. Призраки
       ghosts.forEach(g => {
         let ghostColor = g.color;
         if (g.state === 'frightened') {
-          ghostColor = (frightenedTimer < 60 && Math.floor(frightenedTimer / 10) % 2 === 0) ? '#ffffff' : '#2121de';
+          // Синхронные 3 моргания с Пакманом
+          ghostColor = (frightenedTimer < 90 && Math.floor(frightenedTimer / 15) % 2 === 0) ? '#ffffff' : '#2121de';
         }
 
         if (g.state !== 'eaten') {
