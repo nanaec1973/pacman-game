@@ -165,14 +165,14 @@
       background: #333;
       box-shadow: none;
     }
-    /* Ползунок скорости */
+    /* Ползунок и кнопки скорости */
     .settings-box {
       width: 100%;
-      max-width: 280px;
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      max-width: 290px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 14px;
-      padding: 10px 14px;
+      padding: 10px 12px;
       margin-bottom: 15px;
       display: flex;
       flex-direction: column;
@@ -192,12 +192,39 @@
       font-size: 13px;
       font-weight: 700;
     }
+    .speed-btn-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      margin: 4px 0;
+    }
+    .speed-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      color: #bbb;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 7px 2px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.15s;
+    }
+    .speed-pill:active {
+      transform: scale(0.94);
+    }
+    .speed-pill.active {
+      background: #2121de;
+      border-color: #00ffff;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+    }
     input[type=range] {
       width: 100%;
       accent-color: #2121de;
       cursor: pointer;
-      height: 6px;
-      border-radius: 3px;
+      height: 8px;
+      border-radius: 4px;
       margin: 4px 0 2px 0;
     }
   </style>
@@ -233,6 +260,12 @@
         <div class="setting-label-row">
           <span>Скорость призраков:</span>
           <span id="ghost-speed-val" class="setting-val">🚶 Релакс (50%)</span>
+        </div>
+        <div class="speed-btn-row">
+          <button class="speed-pill" id="g-spd-1" onclick="onGhostSpeedChange(1)">🐢 33%</button>
+          <button class="speed-pill active" id="g-spd-2" onclick="onGhostSpeedChange(2)">🚶 50%</button>
+          <button class="speed-pill" id="g-spd-3" onclick="onGhostSpeedChange(3)">⚡ 75%</button>
+          <button class="speed-pill" id="g-spd-4" onclick="onGhostSpeedChange(4)">🚀 100%</button>
         </div>
         <input type="range" id="ghost-speed-slider" min="1" max="4" value="2" step="1" oninput="onGhostSpeedChange(this.value)">
       </div>
@@ -456,6 +489,14 @@
       const label = document.getElementById('ghost-speed-val');
       if (slider) slider.value = ghostSpeedLevel;
       if (label) label.innerText = ghostSpeedNames[ghostSpeedLevel] || '🚶 Релакс (50%)';
+
+      for (let i = 1; i <= 4; i++) {
+        const pill = document.getElementById(`g-spd-${i}`);
+        if (pill) {
+          if (i === ghostSpeedLevel) pill.classList.add('active');
+          else pill.classList.remove('active');
+        }
+      }
     }
 
     function onGhostSpeedChange(val) {
@@ -1005,7 +1046,10 @@
     let touchActive = false;
 
     window.addEventListener('touchstart', e => {
-      if (e.target.tagName === 'BUTTON') return;
+      // Разрешаем все взаимодействия с оверлеем, настройками, кнопками и ползунками
+      if (!gameRunning || e.target.closest('#overlay') || e.target.closest('#dpad') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+        return;
+      }
       e.preventDefault();
       const touch = e.touches[0];
       touchStartX = touch.clientX;
@@ -1015,8 +1059,8 @@
     }, { passive: false });
 
     window.addEventListener('touchmove', e => {
+      if (!gameRunning || !touchActive || e.touches.length === 0 || e.target.closest('#overlay')) return;
       e.preventDefault();
-      if (!touchActive || e.touches.length === 0) return;
       const touch = e.touches[0];
       const diffX = touch.clientX - touchStartX;
       const diffY = touch.clientY - touchStartY;
@@ -1036,7 +1080,11 @@
     }, { passive: false });
 
     window.addEventListener('touchend', e => {
-      if (e.target.tagName !== 'BUTTON') e.preventDefault();
+      if (!gameRunning || e.target.closest('#overlay') || e.target.closest('#dpad') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+        touchActive = false;
+        return;
+      }
+      e.preventDefault();
       touchActive = false;
     }, { passive: false });
   </script>
