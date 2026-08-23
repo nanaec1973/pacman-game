@@ -165,6 +165,41 @@
       background: #333;
       box-shadow: none;
     }
+    /* Ползунок скорости */
+    .settings-box {
+      width: 100%;
+      max-width: 280px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+    .setting-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #bbb;
+      font-weight: 600;
+    }
+    .setting-val {
+      color: #00ffff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: #2121de;
+      cursor: pointer;
+      height: 6px;
+      border-radius: 3px;
+      margin: 4px 0 2px 0;
+    }
   </style>
 </head>
 <body>
@@ -193,6 +228,15 @@
     <div id="overlay">
       <h2 id="overlay-title">PAC-MAN 🕹️</h2>
       <p id="overlay-desc">Пройди все 3 уровня, собери точки и берегись призраков!</p>
+
+      <div class="settings-box">
+        <div class="setting-label-row">
+          <span>Скорость призраков:</span>
+          <span id="ghost-speed-val" class="setting-val">🚶 Релакс (50%)</span>
+        </div>
+        <input type="range" id="ghost-speed-slider" min="1" max="4" value="2" step="1" oninput="onGhostSpeedChange(this.value)">
+      </div>
+
       <button class="btn-action" id="btn-start" onclick="handleOverlayClick()">ИГРАТЬ 🕹️</button>
       <button class="btn-action btn-secondary" id="btn-send-score" style="display:none;" onclick="sendScoreToTelegram()">СОХРАНИТЬ РЕКОРД 🏆</button>
     </div>
@@ -398,7 +442,31 @@
     let readyTimer = 90;
     let overlayMode = 'start'; // 'start', 'next_level', 'game_over', 'win'
 
+    // Настройка скорости призраков (ползунок)
+    const ghostSpeedNames = {
+      1: '🐢 Черепаха (33%)',
+      2: '🚶 Релакс (50%)',
+      3: '⚡ Классика (75%)',
+      4: '🚀 Хардкор (100%)'
+    };
+    let ghostSpeedLevel = parseInt(localStorage.getItem('pacman_ghost_speed') || '2', 10);
+
+    function updateGhostSpeedUI() {
+      const slider = document.getElementById('ghost-speed-slider');
+      const label = document.getElementById('ghost-speed-val');
+      if (slider) slider.value = ghostSpeedLevel;
+      if (label) label.innerText = ghostSpeedNames[ghostSpeedLevel] || '🚶 Релакс (50%)';
+    }
+
+    function onGhostSpeedChange(val) {
+      ghostSpeedLevel = parseInt(val, 10);
+      localStorage.setItem('pacman_ghost_speed', ghostSpeedLevel);
+      updateGhostSpeedUI();
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    }
+
     document.getElementById('high-score').innerText = highScore;
+    updateGhostSpeedUI();
 
     // --- Сущности ---
     const pacman = {
@@ -735,12 +803,16 @@
         }
       }
 
-      // Скорость призраков: 50% для обычных (в 2 раза медленнее Пакмана), 33% для испуганных
+      // Скорость призраков по ползунку пользователя:
       let canMoveThisFrame = true;
       if (g.state === 'normal') {
-        canMoveThisFrame = (frameCount % 2 === 0);
+        if (ghostSpeedLevel === 1) canMoveThisFrame = (frameCount % 3 === 0);       // 33% (Очень медленно)
+        else if (ghostSpeedLevel === 2) canMoveThisFrame = (frameCount % 2 === 0);  // 50% (Релакс)
+        else if (ghostSpeedLevel === 3) canMoveThisFrame = (frameCount % 4 !== 0);  // 75% (Классика)
+        else if (ghostSpeedLevel === 4) canMoveThisFrame = true;                    // 100% (Хардкор)
       } else if (g.state === 'frightened') {
-        canMoveThisFrame = (frameCount % 3 === 0);
+        if (ghostSpeedLevel === 1) canMoveThisFrame = (frameCount % 4 === 0);
+        else canMoveThisFrame = (frameCount % 3 === 0);
       }
 
       if (canMoveThisFrame) {
