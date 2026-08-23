@@ -158,14 +158,14 @@
       color: #fff;
       box-shadow: none;
     }
-    /* Ползунок скорости */
+    /* Ползунок и кнопки скорости */
     .settings-box {
       width: 100%;
-      max-width: 270px;
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      max-width: 290px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 14px;
-      padding: 10px 14px;
+      padding: 10px 12px;
       margin-bottom: 15px;
       display: flex;
       flex-direction: column;
@@ -185,12 +185,39 @@
       font-size: 13px;
       font-weight: 700;
     }
+    .speed-btn-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      margin: 4px 0;
+    }
+    .speed-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      color: #bbb;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 7px 2px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.15s;
+    }
+    .speed-pill:active {
+      transform: scale(0.94);
+    }
+    .speed-pill.active {
+      background: #00ff88;
+      border-color: #00ff88;
+      color: #000;
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+    }
     input[type=range] {
       width: 100%;
       accent-color: #00ff88;
       cursor: pointer;
-      height: 6px;
-      border-radius: 3px;
+      height: 8px;
+      border-radius: 4px;
       margin: 4px 0 2px 0;
     }
   </style>
@@ -222,6 +249,12 @@
         <div class="setting-label-row">
           <span>Скорость змейки:</span>
           <span id="snake-speed-val" class="setting-val">🚶 Комфортно (2/4)</span>
+        </div>
+        <div class="speed-btn-row">
+          <button class="speed-pill" id="s-spd-1" onclick="onSnakeSpeedChange(1)">🐢 1x</button>
+          <button class="speed-pill active" id="s-spd-2" onclick="onSnakeSpeedChange(2)">🚶 2x</button>
+          <button class="speed-pill" id="s-spd-3" onclick="onSnakeSpeedChange(3)">⚡ 3x</button>
+          <button class="speed-pill" id="s-spd-4" onclick="onSnakeSpeedChange(4)">🚀 4x</button>
         </div>
         <input type="range" id="snake-speed-slider" min="1" max="4" value="2" step="1" oninput="onSnakeSpeedChange(this.value)">
       </div>
@@ -341,6 +374,14 @@
       const cfg = snakeSpeedConfig[snakeSpeedLevel] || snakeSpeedConfig[2];
       if (slider) slider.value = snakeSpeedLevel;
       if (label) label.innerText = cfg.name;
+
+      for (let i = 1; i <= 4; i++) {
+        const pill = document.getElementById(`s-spd-${i}`);
+        if (pill) {
+          if (i === snakeSpeedLevel) pill.classList.add('active');
+          else pill.classList.remove('active');
+        }
+      }
     }
 
     function onSnakeSpeedChange(val) {
@@ -731,7 +772,10 @@
     let touchActive = false;
 
     window.addEventListener('touchstart', e => {
-      if (e.target.tagName === 'BUTTON') return;
+      // Разрешаем все взаимодействия с оверлеем, настройками, кнопками и ползунками
+      if (!gameRunning || e.target.closest('#overlay') || e.target.closest('#dpad') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+        return;
+      }
       e.preventDefault();
       const touch = e.touches[0];
       touchStartX = touch.clientX;
@@ -741,8 +785,8 @@
     }, { passive: false });
 
     window.addEventListener('touchmove', e => {
-      e.preventDefault(); // Блокирует сдвиг/скролл экрана на iPhone!
-      if (!touchActive || e.touches.length === 0) return;
+      if (!gameRunning || !touchActive || e.touches.length === 0 || e.target.closest('#overlay')) return;
+      e.preventDefault(); // Блокирует сдвиг/скролл экрана на iPhone во время игры!
       const touch = e.touches[0];
       const diffX = touch.clientX - touchStartX;
       const diffY = touch.clientY - touchStartY;
@@ -762,7 +806,11 @@
     }, { passive: false });
 
     window.addEventListener('touchend', e => {
-      if (e.target.tagName !== 'BUTTON') e.preventDefault();
+      if (!gameRunning || e.target.closest('#overlay') || e.target.closest('#dpad') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+        touchActive = false;
+        return;
+      }
+      e.preventDefault();
       touchActive = false;
     }, { passive: false });
   </script>
