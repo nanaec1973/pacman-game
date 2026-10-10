@@ -484,6 +484,7 @@
       margin-bottom: 14px;
       padding-bottom: 8px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
     }
     .sheet-title {
       font-size: 19px;
@@ -503,6 +504,7 @@
       height: 32px;
       border-radius: 50%;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     /* Подвкладки */
@@ -510,21 +512,31 @@
       display: flex;
       gap: 6px;
       margin-bottom: 14px;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.4);
       padding: 4px;
-      border-radius: 12px;
+      border-radius: 14px;
+      flex-shrink: 0;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .subtabs-bar::-webkit-scrollbar {
+      display: none;
     }
     .subtab-btn {
-      flex: 1;
+      flex: 1 0 auto;
+      min-width: max-content;
       background: transparent;
       border: none;
       color: #aaa;
       font-size: 11px;
       font-weight: 800;
-      padding: 8px 0;
+      padding: 8px 12px;
       border-radius: 10px;
       cursor: pointer;
       transition: all 0.2s;
+      white-space: nowrap;
     }
     .subtab-btn.active {
       background: #ffb86c;
@@ -870,7 +882,7 @@
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
 
-    <div class="subtabs-bar" style="overflow-x: auto; flex-wrap: wrap;">
+    <div class="subtabs-bar">
       <button class="subtab-btn active" id="subtab-click" onclick="switchShopCategory('click')">🐾 Когти</button>
       <button class="subtab-btn" id="subtab-passive" onclick="switchShopCategory('passive')">🛋️ Домик</button>
       <button class="subtab-btn" id="subtab-kittens" onclick="switchShopCategory('kittens')">🐱 Котята</button>
@@ -999,7 +1011,7 @@
     </button>
 
     <!-- Фильтры категорий -->
-    <div class="subtabs-bar" style="margin-top: 12px; overflow-x: auto; flex-wrap: wrap;">
+    <div class="subtabs-bar" style="margin-top: 12px;">
       <button class="subtab-btn active" id="lbtab-fish" onclick="switchLeaderboardCategory('fish')">🐟 Рыбки</button>
       <button class="subtab-btn" id="lbtab-bosses" onclick="switchLeaderboardCategory('bosses')">⚔️ Боссы</button>
       <button class="subtab-btn" id="lbtab-mouse" onclick="switchLeaderboardCategory('mouse')">🐭 Мышки</button>
@@ -3005,16 +3017,4 @@
     }
 
     function closeWelcome() {
-      playSound('buy');
-      document.getElementById('welcome-modal').style.display = 'none';
-    }
-
-    // Инициализация
-    calculatePassive();
-    updateUI();
-    checkOfflineEarnings();
-    catLoop();
-    scheduleButterfly();
-  </script>
-</body>
-</html>
+      playSound('b
