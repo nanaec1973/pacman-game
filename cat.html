@@ -1068,13 +1068,21 @@
       if (tg.isVerticalSwipesEnabled !== undefined) tg.isVerticalSwipesEnabled = false;
     }
 
-    // --- Звуковой синтезатор Web Audio API ---
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    // --- Звуковой синтезатор Web Audio API (Безопасная инициализация) ---
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
 
     function initAudio() {
-      if (!audioCtx) audioCtx = new AudioContext();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      try {
+        if (!audioCtx && AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx && audioCtx.state === 'suspended' && audioCtx.resume) {
+          audioCtx.resume().catch(() => {});
+        }
+      } catch (e) {
+        console.warn('AudioContext disabled/unsupported:', e);
+      }
     }
 
     function playSound(type) {
@@ -1169,7 +1177,7 @@
       }
     }
 
-    // --- Состояние игры ---
+    // --- Состояние игры и гарантированная инициализация ---
     let state = {
       fish: 0,
       totalEarned: 0,
@@ -1184,41 +1192,48 @@
       fishingHighScore: 0,
       laserHighScore: 0,
       ownedRoomDecor: [],
-      activePotions: {
-        energy: 0,
-        magnet: 0,
-        bite: 0
-      },
+      activePotions: { energy: 0, magnet: 0, bite: 0 },
       upgrades: {
-        fish_treat: 0,
-        mint: 0,
-        claws: 0,
-        post: 0,
-        laser_paws: 0,
-        diamond_claws: 0,
-        mouse: 0,
-        feeder: 0,
-        vacuum: 0,
-        tree: 0,
-        aquarium: 0,
-        mansion: 0
+        fish_treat: 0, mint: 0, claws: 0, post: 0, laser_paws: 0, diamond_claws: 0,
+        mouse: 0, feeder: 0, vacuum: 0, tree: 0, aquarium: 0, mansion: 0
       },
       lastSavedTime: Date.now()
     };
 
-    const saved = localStorage.getItem('cat_clicker_save_v5');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        state = { ...state, ...parsed, upgrades: { ...state.upgrades, ...parsed.upgrades } };
-        if (!state.bossesDefeated) state.bossesDefeated = [];
-        if (state.mouseHighScore === undefined) state.mouseHighScore = 0;
-        if (state.fishingHighScore === undefined) state.fishingHighScore = 0;
-        if (state.laserHighScore === undefined) state.laserHighScore = 0;
-        if (!state.ownedRoomDecor) state.ownedRoomDecor = [];
-        if (!state.activePotions) state.activePotions = { energy: 0, magnet: 0, bite: 0 };
-      } catch (e) {}
+    function ensureStateDefaults() {
+      if (!state || typeof state !== 'object') state = {};
+      if (typeof state.fish !== 'number') state.fish = 0;
+      if (typeof state.totalEarned !== 'number') state.totalEarned = 0;
+      if (typeof state.livesLevel !== 'number' || state.livesLevel < 1) state.livesLevel = 1;
+      if (typeof state.passivePerSec !== 'number') state.passivePerSec = 0;
+      if (!Array.isArray(state.ownedSkins)) state.ownedSkins = ['classic'];
+      if (typeof state.equippedSkin !== 'string') state.equippedSkin = 'classic';
+      if (!Array.isArray(state.unlockedKittens)) state.unlockedKittens = [];
+      if (!Array.isArray(state.bossesDefeated)) state.bossesDefeated = [];
+      if (!Array.isArray(state.ownedRoomDecor)) state.ownedRoomDecor = [];
+      if (!state.activePotions || typeof state.activePotions !== 'object') {
+        state.activePotions = { energy: 0, magnet: 0, bite: 0 };
+      }
+      if (typeof state.activePotions.energy !== 'number') state.activePotions.energy = 0;
+      if (typeof state.activePotions.magnet !== 'number') state.activePotions.magnet = 0;
+      if (typeof state.activePotions.bite !== 'number') state.activePotions.bite = 0;
+      if (typeof state.mouseHighScore !== 'number') state.mouseHighScore = 0;
+      if (typeof state.fishingHighScore !== 'number') state.fishingHighScore = 0;
+      if (typeof state.laserHighScore !== 'number') state.laserHighScore = 0;
+      if (!state.upgrades || typeof state.upgrades !== 'object') state.upgrades = {};
+      if (typeof state.lastSavedTime !== 'number') state.lastSavedTime = Date.now();
     }
+
+    try {
+      const saved = localStorage.getItem('cat_clicker_save_v5');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        state = { ...state, ...parsed, upgrades: { ...state.upgrades, ...(parsed.upgrades || {}) } };
+      }
+    } catch (e) {
+      console.warn('Could not load save:', e);
+    }
+    ensureStateDefaults();
 
     const currentDay = Math.floor(Date.now() / 86400000);
     if (state.lastSpinDay !== currentDay) {
@@ -1226,6 +1241,7 @@
     }
 
     function updateKittensUnlock() {
+      ensureStateDefaults();
       if (state.livesLevel >= 2 && !state.unlockedKittens.includes('snowball')) {
         state.unlockedKittens.push('snowball');
       }
@@ -1318,8 +1334,10 @@
       const cx = canvas.width / 2;
       const cy = canvas.height / 2 + 35;
 
+      const decorList = Array.isArray(state.ownedRoomDecor) ? state.ownedRoomDecor : [];
+
       // 1. Декор: Панорамное окно (звездное небо)
-      if (state.ownedRoomDecor.includes('window')) {
+      if (decorList.includes('window')) {
         ctx.save();
         for (let i = 0; i < 15; i++) {
           const starX = (Math.sin(i * 99 + catAnimTime * 0.2) * 0.5 + 0.5) * canvas.width;
@@ -1333,7 +1351,7 @@
       }
 
       // 2. Декор: Неоновая гирлянда сверху
-      if (state.ownedRoomDecor.includes('garland')) {
+      if (decorList.includes('garland')) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = 2;
@@ -1360,13 +1378,12 @@
       }
 
       // 3. Декор: Камин слева
-      if (state.ownedRoomDecor.includes('fireplace')) {
+      if (decorList.includes('fireplace')) {
         ctx.save();
         ctx.fillStyle = '#442211';
         ctx.fillRect(14, canvas.height - 95, 55, 65);
         ctx.fillStyle = '#110c08';
         ctx.fillRect(22, canvas.height - 75, 39, 45);
-        // Пламя
         const flameH = 18 + Math.sin(catAnimTime * 12) * 5;
         ctx.fillStyle = '#ff5555';
         ctx.beginPath();
@@ -1382,7 +1399,7 @@
       }
 
       // 4. Декор: Растение справа
-      if (state.ownedRoomDecor.includes('plant')) {
+      if (decorList.includes('plant')) {
         ctx.save();
         ctx.fillStyle = '#c0392b';
         ctx.fillRect(canvas.width - 60, canvas.height - 65, 36, 32);
@@ -1399,7 +1416,7 @@
       ctx.translate(cx, cy);
 
       // Декор: Персидский коврик под котиком
-      if (state.ownedRoomDecor.includes('rug')) {
+      if (decorList.includes('rug')) {
         ctx.save();
         ctx.fillStyle = 'rgba(255, 121, 198, 0.35)';
         ctx.strokeStyle = '#f1fa8c';
@@ -1413,10 +1430,11 @@
 
       // Аура активных зелий
       const now = Date.now();
-      const hasPotion = (state.activePotions.energy > now) || (state.activePotions.magnet > now) || (state.activePotions.bite > now);
+      const pots = state.activePotions || {};
+      const hasPotion = ((pots.energy || 0) > now) || ((pots.magnet || 0) > now) || ((pots.bite || 0) > now);
       if (hasPotion) {
         ctx.save();
-        ctx.strokeStyle = state.activePotions.bite > now ? '#ff5555' : (state.activePotions.energy > now ? '#f1fa8c' : '#8be9fd');
+        ctx.strokeStyle = (pots.bite || 0) > now ? '#ff5555' : ((pots.energy || 0) > now ? '#f1fa8c' : '#8be9fd');
         ctx.lineWidth = 3;
         ctx.shadowColor = ctx.strokeStyle;
         ctx.shadowBlur = 15;
@@ -1638,25 +1656,33 @@
     }
 
     function catLoop() {
-      catAnimTime += 0.04;
-      eyeBlink = (eyeBlink + 1) % 180;
+      try {
+        catAnimTime += 0.04;
+        eyeBlink = (eyeBlink + 1) % 180;
 
-      catScaleX += (1.0 - catScaleX) * 0.15;
-      catScaleY += (1.0 - catScaleY) * 0.15;
+        catScaleX += (1.0 - catScaleX) * 0.15;
+        catScaleY += (1.0 - catScaleY) * 0.15;
 
-      if (frenzyVal > 0) {
-        frenzyVal -= 0.18;
-        if (frenzyVal <= 0) {
-          frenzyVal = 0;
-          frenzyActive = false;
-          frenzyMultiplier = 3;
-          document.getElementById('frenzy-label').innerText = '⚡ РАЖ x1';
-          document.getElementById('frenzy-label').style.color = '#ff79c6';
+        if (frenzyVal > 0) {
+          frenzyVal -= 0.18;
+          if (frenzyVal <= 0) {
+            frenzyVal = 0;
+            frenzyActive = false;
+            frenzyMultiplier = 3;
+            const lbl = document.getElementById('frenzy-label');
+            if (lbl) {
+              lbl.innerText = '⚡ РАЖ x1';
+              lbl.style.color = '#ff79c6';
+            }
+          }
+          const bar = document.getElementById('frenzy-bar');
+          if (bar) bar.style.width = frenzyVal + '%';
         }
-        document.getElementById('frenzy-bar').style.width = frenzyVal + '%';
-      }
 
-      drawCat();
+        drawCat();
+      } catch (err) {
+        console.error('catLoop render error:', err);
+      }
       requestAnimationFrame(catLoop);
     }
 
@@ -3017,4 +3043,21 @@
     }
 
     function closeWelcome() {
-      playSound('b
+      playSound('buy');
+      document.getElementById('welcome-modal').style.display = 'none';
+    }
+
+    // Инициализация
+    try {
+      ensureStateDefaults();
+      calculatePassive();
+      updateUI();
+      checkOfflineEarnings();
+      catLoop();
+      scheduleButterfly();
+    } catch (err) {
+      console.error('Init error:', err);
+    }
+  </script>
+</body>
+</html>
