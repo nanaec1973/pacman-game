@@ -282,7 +282,7 @@
       cursor: pointer;
     }
 
-    /* Подвкладки внутри магазина (3 штуки) */
+    /* Подвкладки */
     .subtabs-bar {
       display: flex;
       gap: 6px;
@@ -309,7 +309,7 @@
       box-shadow: 0 0 10px rgba(255, 184, 108, 0.4);
     }
 
-    /* Карточки товаров и скинов */
+    /* Карточки */
     .item-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -447,7 +447,7 @@
       filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8));
     }
 
-    /* Мини-игра «Рыбалка» */
+    /* Игры: Рыбалка и Норки с Мышами */
     #fishing-area {
       position: relative;
       width: 100%;
@@ -465,6 +465,42 @@
       font-size: 36px;
       cursor: pointer;
       transition: transform 0.1s;
+    }
+
+    /* Сетка норок для игры «Поймай мышку» */
+    #moles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      width: 100%;
+      height: 360px;
+      background: #2a2015;
+      padding: 16px;
+      border-radius: 16px;
+      border: 3px solid #573b22;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    }
+    .mole-hole {
+      background: #110c08;
+      border-radius: 50%;
+      border: 3px solid #3d2918;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      box-shadow: inset 0 10px 15px rgba(0,0,0,0.9);
+    }
+    .mole-character {
+      font-size: 42px;
+      position: absolute;
+      bottom: -60px;
+      transition: bottom 0.12s ease-out;
+      cursor: pointer;
+      user-select: none;
+    }
+    .mole-character.up {
+      bottom: 6px;
     }
 
     /* Окно оффлайн дохода / Престижа */
@@ -511,7 +547,6 @@
 
   <!-- Главный игровой экран -->
   <div id="game-stage">
-    <!-- Летающая Золотая Бабочка -->
     <div id="flying-butterfly" onclick="catchButterfly(event)">🦋</div>
 
     <div id="frenzy-bar-wrap">
@@ -527,7 +562,7 @@
     </div>
   </div>
 
-  <!-- Вкладки навигации (5 кнопок) -->
+  <!-- Нижнее меню вкладок (5 кнопок) -->
   <div id="nav-bar">
     <button class="nav-btn active" id="tab-cat" onclick="switchTab('stage')">
       <span class="icon">🐱</span>
@@ -546,7 +581,7 @@
       <span>Гардероб</span>
     </button>
     <button class="nav-btn" id="tab-game" onclick="switchTab('minigame')">
-      <span class="icon">🎣</span>
+      <span class="icon">🎮</span>
       <span>Игры</span>
     </button>
   </div>
@@ -623,21 +658,50 @@
     <div class="item-grid" id="wardrobe-grid"></div>
   </div>
 
-  <!-- Модалка: Мини-игры (Рыбалка) -->
+  <!-- Модалка: Игровой Центр (Рыбалка + Поймай Мышку) -->
   <div class="sheet-modal" id="modal-minigame">
     <div class="sheet-header">
-      <span class="sheet-title">🎣 Рыбалка лапкой</span>
+      <span class="sheet-title">🎮 Мини-Игры</span>
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
+
+    <!-- Переключатель между Рыбалкой и Норками -->
+    <div class="subtabs-bar">
+      <button class="subtab-btn active" id="subtab-fishing" onclick="switchGameMode('fishing')">🎣 Рыбалка лапкой</button>
+      <button class="subtab-btn" id="subtab-mouse" onclick="switchGameMode('mouse')">🐭 Поймай мышку</button>
+    </div>
+
     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 800;">
       <span style="color: #ff5555;">⏱️ Время: <b id="game-timer">30</b>с</span>
-      <span style="color: #50fa7b;">🐟 Поймано: <b id="game-score">0</b></span>
+      <span style="color: #50fa7b;">🏆 Набрано: <b id="game-score">0</b> 🐟</span>
     </div>
-    <div id="fishing-area">
-      <div id="fishing-start-screen" style="text-align: center;">
-        <h3 style="color:#ffb86c; font-size:22px; margin-bottom:8px;">Поймай как можно больше рыб!</h3>
-        <p style="font-size:13px; color:#ddd; margin-bottom:15px;">Лови золотых рыб 🌟 и не трогай башмаки 👞!</p>
-        <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">НАЧАТЬ РЫБАЛКУ 🎣</button>
+
+    <!-- Игра 1: Рыбалка -->
+    <div id="game-view-fishing">
+      <div id="fishing-area">
+        <div id="fishing-start-screen" style="text-align: center;">
+          <h3 style="color:#ffb86c; font-size:22px; margin-bottom:8px;">Поймай как можно больше рыб!</h3>
+          <p style="font-size:13px; color:#ddd; margin-bottom:15px;">Лови золотых рыб 🌟 и не трогай башмаки 👞!</p>
+          <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">НАЧАТЬ РЫБАЛКУ 🎣</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Игра 2: Поймай Мышку в норке -->
+    <div id="game-view-mouse" style="display: none;">
+      <div id="moles-start-screen" style="text-align: center; margin-bottom: 14px;">
+        <h3 style="color:#ffb86c; font-size:20px; margin-bottom:4px;">Бей лапкой по мышкам! 🐾</h3>
+        <p style="font-size:12px; color:#ddd; margin-bottom:12px;">Тапай по мышкам 🐭 и золотым мышам ✨, но не трогай колючих ежей 🦔!</p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startMouseGame()">НАЧАТЬ ОХОТУ 🐭</button>
+      </div>
+
+      <div id="moles-grid">
+        <div class="mole-hole"><div class="mole-character" id="mole-0" onclick="hitMole(0)">🐭</div></div>
+        <div class="mole-hole"><div class="mole-character" id="mole-1" onclick="hitMole(1)">🐭</div></div>
+        <div class="mole-hole"><div class="mole-character" id="mole-2" onclick="hitMole(2)">🐭</div></div>
+        <div class="mole-hole"><div class="mole-character" id="mole-3" onclick="hitMole(3)">🐭</div></div>
+        <div class="mole-hole"><div class="mole-character" id="mole-4" onclick="hitMole(4)">🐭</div></div>
+        <div class="mole-hole"><div class="mole-character" id="mole-5" onclick="hitMole(5)">🐭</div></div>
       </div>
     </div>
   </div>
@@ -737,6 +801,18 @@
         gain.connect(audioCtx.destination);
         osc.start(now);
         osc.stop(now + 0.1);
+      } else if (type === 'squeak') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(900, now);
+        osc.frequency.exponentialRampToValueAtTime(1600, now + 0.08);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
       } else if (type === 'buy') {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -780,12 +856,12 @@
     let state = {
       fish: 0,
       totalEarned: 0,
-      livesLevel: 1, // 1 из 9 жизней
+      livesLevel: 1,
       freeSpinAvailable: true,
       lastSpinDay: 0,
       equippedSkin: 'classic',
       ownedSkins: ['classic'],
-      unlockedKittens: [], // Список открытых котят: 'snowball', 'coal', 'tiger', 'princess', 'gentleman'
+      unlockedKittens: [],
       upgrades: {
         fish_treat: 0,
         mint: 0,
@@ -803,7 +879,7 @@
       lastSavedTime: Date.now()
     };
 
-    const saved = localStorage.getItem('cat_clicker_save_v4');
+    const saved = localStorage.getItem('cat_clicker_save_v5');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -816,7 +892,6 @@
       state.freeSpinAvailable = true;
     }
 
-    // Проверка автоматических котят по Жизням и Достижениям
     function updateKittensUnlock() {
       if (state.livesLevel >= 2 && !state.unlockedKittens.includes('snowball')) {
         state.unlockedKittens.push('snowball');
@@ -836,7 +911,7 @@
       { id: 'godzilla', name: 'Дино-Годзилла',  icon: '🦖', maxHp: 5000, time: 35, reward: 120000, desc: 'Великан вторгся в кошачий город!' }
     ];
 
-    // --- Каталог Котят-Питомцев ---
+    // --- Каталог Котят ---
     const kittensCatalog = [
       { id: 'snowball', name: 'Снежок 🤍', icon: '🐱', req: '⭐ 2-я Жизнь Котика', desc: 'Белый пушистик! +10 🐟/сек пассивно.', unlocked: () => state.livesLevel >= 2 },
       { id: 'coal', name: 'Уголёк 🖤', icon: '🐱‍👤', req: '🌪️ Победить Злого Пылесоса', desc: 'Бесстрашный боец! Помогает в битвах с боссами (+25 к урону).', unlocked: () => state.unlockedKittens.includes('coal') },
@@ -875,11 +950,11 @@
       { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 80000, desc: 'Радужный рог и магия! Даёт постоянный бонус +200% ко всему!', bonus: '+200% ко всему 🌈' }
     ];
 
-    // --- Раж ---
     let frenzyVal = 0;
     let frenzyActive = false;
     let frenzyMultiplier = 3;
     let currentShopSubtab = 'click';
+    let currentGameMode = 'fishing';
 
     // --- Canvas Анимация Котика и Котят ---
     const canvas = document.getElementById('cat-canvas');
@@ -897,7 +972,6 @@
       ctx.save();
       ctx.translate(cx, cy);
 
-      // Аура Престижа (Золотые звезды)
       if (state.livesLevel > 1) {
         ctx.save();
         ctx.strokeStyle = 'rgba(241, 250, 140, 0.45)';
@@ -912,13 +986,13 @@
 
       ctx.scale(catScaleX * 1.1, catScaleY * 1.1);
 
-      // 1. Тень
+      // Тень
       ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
       ctx.beginPath();
       ctx.ellipse(0, 75, 70, 18, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 2. Хвост
+      // Хвост
       ctx.save();
       ctx.translate(50, 40);
       ctx.rotate(Math.sin(catAnimTime * 3) * 0.25);
@@ -931,7 +1005,7 @@
       ctx.stroke();
       ctx.restore();
 
-      // 3. Тело котика
+      // Тело котика
       ctx.fillStyle = state.equippedSkin === 'unicorn' ? '#fff0f5' : '#ff9f43';
       ctx.beginPath();
       ctx.ellipse(0, 30, 60, 50, 0, 0, Math.PI * 2);
@@ -943,7 +1017,7 @@
       ctx.ellipse(0, 35, 38, 32, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 4. Голова
+      // Голова
       ctx.fillStyle = state.equippedSkin === 'unicorn' ? '#fff0f5' : '#ff9f43';
       ctx.beginPath();
       ctx.arc(0, -35, 50, 0, Math.PI * 2);
@@ -1014,14 +1088,14 @@
         ctx.fill();
       }
 
-      // 5. Лапки
+      // Лапки
       ctx.fillStyle = '#fff5ea';
       ctx.beginPath();
       ctx.ellipse(-26, 68, 14, 10, 0, 0, Math.PI * 2);
       ctx.ellipse(26, 68, 14, 10, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 6. Скины
+      // Скины
       const skin = state.equippedSkin;
       if (skin === 'pirate') {
         ctx.fillStyle = '#222';
@@ -1075,10 +1149,9 @@
         ctx.fill();
       }
 
-      // --- 7. Отрисовка ЗАСЛУЖЕННЫХ КОТЯТ-ПОМОЩНИКОВ НА ЭКРАНЕ ---
-      
-      // 1. Белый котёнок «Снежок» (Только со 2-й Жизни!)
+      // Отрисовка разблокированных котят
       if (state.livesLevel >= 2) {
+        // Белый котёнок «Снежок» слева
         ctx.save();
         ctx.translate(-95, 45);
         ctx.scale(0.48, 0.48);
@@ -1093,8 +1166,8 @@
         ctx.restore();
       }
 
-      // 2. Чёрный котёнок «Уголёк» (После победы над Пылесосом)
       if (state.unlockedKittens.includes('coal')) {
+        // Чёрный котёнок «Уголёк» справа
         ctx.save();
         ctx.translate(95, 45);
         ctx.scale(0.48, 0.48);
@@ -1147,7 +1220,7 @@
 
       let isCrit = false;
       let critChance = 0.20;
-      if (state.livesLevel >= 4) critChance += 0.30; // Тигрёнок увеличивает крит
+      if (state.livesLevel >= 4) critChance += 0.30;
 
       if (state.equippedSkin === 'pirate' && Math.random() < critChance) {
         power *= 10;
@@ -1217,7 +1290,7 @@
       });
       if (state.equippedSkin === 'cosmonaut') total = Math.floor(total * 1.5);
       if (state.equippedSkin === 'unicorn') total = Math.floor(total * 3.0);
-      if (state.livesLevel >= 2) total += 10; // Бонус от белого котёнка Снежка
+      if (state.livesLevel >= 2) total += 10;
       total *= state.livesLevel;
       state.passivePerSec = total;
     }
@@ -1226,7 +1299,7 @@
       const count = state.upgrades[u.id] || 0;
       let cost = Math.floor(u.basePrice * Math.pow(1.16, count));
       if (state.equippedSkin === 'king') cost = Math.floor(cost * 0.75);
-      if (state.unlockedKittens.includes('gentleman')) cost = Math.floor(cost * 0.85); // Скидка от Джентльмена 15%
+      if (state.unlockedKittens.includes('gentleman')) cost = Math.floor(cost * 0.85);
       return cost;
     }
 
@@ -1294,13 +1367,13 @@
       saveGame();
     }
 
-    // --- Золотая Бабочка и Рыбный Дождь ---
+    // --- Золотая Бабочка ---
     const butterfly = document.getElementById('flying-butterfly');
     let butterflyActive = false;
 
     function scheduleButterfly() {
       let delay = 45000 + Math.random() * 30000;
-      if (state.unlockedKittens.includes('princess')) delay /= 2; // Принцесса зовет бабочек в 2 раза чаще
+      if (state.unlockedKittens.includes('princess')) delay /= 2;
 
       setTimeout(() => {
         spawnButterfly();
@@ -1537,7 +1610,7 @@
       }
     }
 
-    // --- Рендеринг Магазина (Включая Котят) ---
+    // --- Рендеринг Магазина ---
     function switchShopCategory(cat) {
       initAudio();
       currentShopSubtab = cat;
@@ -1685,7 +1758,7 @@
       initAudio();
 
       let dmg = calculateClickPower();
-      if (state.unlockedKittens.includes('coal')) dmg += 25; // Помощь Уголька в битве!
+      if (state.unlockedKittens.includes('coal')) dmg += 25;
 
       if (state.equippedSkin === 'pirate' && Math.random() < 0.20) {
         dmg *= 10;
@@ -1719,7 +1792,6 @@
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         addFish(activeBoss.reward);
 
-        // Если побежден Злой Пылесос — открываем котёнка Уголька!
         if (activeBoss.id === 'vacuum' && !state.unlockedKittens.includes('coal')) {
           state.unlockedKittens.push('coal');
           alert(`🎉 ПОБЕДА НАД ПЫЛЕСОСОМ!\nТы получил награду +${activeBoss.reward.toLocaleString('ru-RU')} 🐟 и ЗАСЛУЖИЛ ЧЁРНОГО КОТЁНКА «УГОЛЬКА» 🖤!`);
@@ -1751,7 +1823,21 @@
       }
     }
 
-    // --- Мини-игра «Рыбалка» ---
+    // --- Игровой Центр (Мини-игры) ---
+    function switchGameMode(mode) {
+      initAudio();
+      currentGameMode = mode;
+      document.getElementById('subtab-fishing').classList.toggle('active', mode === 'fishing');
+      document.getElementById('subtab-mouse').classList.toggle('active', mode === 'mouse');
+
+      document.getElementById('game-view-fishing').style.display = mode === 'fishing' ? 'block' : 'none';
+      document.getElementById('game-view-mouse').style.display = mode === 'mouse' ? 'block' : 'none';
+
+      document.getElementById('game-score').innerText = '0';
+      document.getElementById('game-timer').innerText = '30';
+    }
+
+    // 1. Мини-игра «Рыбалка»
     let fishGameActive = false;
     let fishGameScore = 0;
     let fishGameTime = 30;
@@ -1826,6 +1912,102 @@
       `;
     }
 
+    // 2. Мини-игра «Поймай мышку в норке» (Whack-a-Mole)
+    let mouseGameActive = false;
+    let mouseGameScore = 0;
+    let mouseGameTime = 30;
+    let mouseGameInterval = null;
+    let mousePopInterval = null;
+    let activeMoleIndex = -1;
+    let moleType = 'mouse'; // 'mouse', 'gold', 'hedgehog'
+
+    function startMouseGame() {
+      initAudio();
+      document.getElementById('moles-start-screen').style.display = 'none';
+      mouseGameActive = true;
+      mouseGameScore = 0;
+      mouseGameTime = 30;
+      document.getElementById('game-score').innerText = '0';
+      document.getElementById('game-timer').innerText = '30';
+
+      mouseGameInterval = setInterval(() => {
+        mouseGameTime--;
+        document.getElementById('game-timer').innerText = mouseGameTime;
+        if (mouseGameTime <= 0) endMouseGame();
+      }, 1000);
+
+      mousePopInterval = setInterval(popRandomMole, 700);
+    }
+
+    function popRandomMole() {
+      if (!mouseGameActive) return;
+
+      // Спрятать предыдущего
+      if (activeMoleIndex !== -1) {
+        const el = document.getElementById(`mole-${activeMoleIndex}`);
+        if (el) el.classList.remove('up');
+      }
+
+      // Выбрать новую норку
+      activeMoleIndex = Math.floor(Math.random() * 6);
+      const rand = Math.random();
+      if (rand < 0.20) {
+        moleType = 'hedgehog'; // 🦔 Ежик
+      } else if (rand < 0.40) {
+        moleType = 'gold'; // ✨ Золотая мышь
+      } else {
+        moleType = 'mouse'; // 🐭 Обычная мышь
+      }
+
+      const moleEl = document.getElementById(`mole-${activeMoleIndex}`);
+      if (moleEl) {
+        moleEl.innerText = moleType === 'hedgehog' ? '🦔' : (moleType === 'gold' ? '✨' : '🐭');
+        moleEl.classList.add('up');
+        playSound('tick');
+      }
+    }
+
+    function hitMole(index) {
+      if (!mouseGameActive || index !== activeMoleIndex) return;
+      initAudio();
+
+      const moleEl = document.getElementById(`mole-${index}`);
+      if (!moleEl || !moleEl.classList.contains('up')) return;
+
+      moleEl.classList.remove('up');
+      activeMoleIndex = -1;
+
+      if (moleType === 'hedgehog') {
+        mouseGameScore = Math.max(0, mouseGameScore - 30);
+        playSound('hit');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      } else {
+        const pts = moleType === 'gold' ? 50 : 15;
+        mouseGameScore += pts;
+        playSound('squeak');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      }
+
+      document.getElementById('game-score').innerText = mouseGameScore;
+    }
+
+    function endMouseGame() {
+      mouseGameActive = false;
+      clearInterval(mouseGameInterval);
+      clearInterval(mousePopInterval);
+      if (activeMoleIndex !== -1) {
+        const el = document.getElementById(`mole-${activeMoleIndex}`);
+        if (el) el.classList.remove('up');
+      }
+      playSound('victory');
+
+      const finalReward = mouseGameScore * state.livesLevel;
+      addFish(finalReward);
+
+      alert(`🎉 ОХОТА НА МЫШЕЙ ЗАВЕРШЕНА!\nТы наловил мышек на: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
+      document.getElementById('moles-start-screen').style.display = 'block';
+    }
+
     // --- Переключение вкладок ---
     function switchTab(tab) {
       initAudio();
@@ -1860,6 +2042,8 @@
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-cat').classList.add('active');
       if (bossInterval) clearInterval(bossInterval);
+      if (fishGameInterval) clearInterval(fishGameInterval);
+      if (mouseGameInterval) clearInterval(mouseGameInterval);
     }
 
     // --- Пассивный доход в секунду ---
@@ -1872,7 +2056,7 @@
 
     function saveGame() {
       state.lastSavedTime = Date.now();
-      localStorage.setItem('cat_clicker_save_v4', JSON.stringify(state));
+      localStorage.setItem('cat_clicker_save_v5', JSON.stringify(state));
     }
 
     function checkOfflineEarnings() {
