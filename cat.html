@@ -21,6 +21,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: var(--tg-viewport-stable-height, 100vh);
       overflow: hidden;
       overscroll-behavior: none;
       -webkit-overscroll-behavior: none;
@@ -30,6 +31,8 @@
       display: flex;
       flex-direction: column;
       touch-action: none;
+      padding-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
+      padding-bottom: var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     }
 
     /* Верхняя панель */
@@ -1334,6 +1337,70 @@
       margin-bottom: 12px;
       text-align: center;
     }
+
+    /* Игровые тосты и всплывающие уведомления */
+    #toast-container {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      width: 90%;
+      max-width: 360px;
+    }
+    .toast-msg {
+      background: rgba(22, 20, 42, 0.96);
+      border: 1.5px solid rgba(255, 121, 198, 0.6);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 121, 198, 0.25);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 16px;
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      text-align: center;
+      animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), toastOut 0.35s forwards 2.65s;
+      pointer-events: auto;
+      max-width: 100%;
+      line-height: 1.35;
+    }
+    .toast-msg.success { border-color: #50fa7b; box-shadow: 0 0 16px rgba(80, 250, 123, 0.3); }
+    .toast-msg.warning { border-color: #ffb86c; box-shadow: 0 0 16px rgba(255, 184, 108, 0.3); }
+    .toast-msg.info { border-color: #8be9fd; box-shadow: 0 0 16px rgba(139, 233, 253, 0.3); }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(-20px) scale(0.92); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 0; transform: translateY(-16px) scale(0.95); }
+    }
+
+    /* Блокировки по прогрессу */
+    .locked-card {
+      opacity: 0.6;
+      filter: grayscale(0.5);
+      position: relative;
+    }
+    .lock-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 85, 85, 0.2);
+      border: 1px solid rgba(255, 85, 85, 0.4);
+      color: #ffb86c;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -1354,6 +1421,7 @@
       <button class="top-badge-btn" onclick="openAchievementsModal()" title="Достижения">🏆</button>
       <button class="top-badge-btn" onclick="openKitchenModal()" title="Кошачья Кухня">🍱</button>
       <button class="top-badge-btn" onclick="openArtifactsModal()" title="Реликвии и Артефакты">🔮</button>
+      <button class="top-badge-btn" id="sound-toggle-btn" onclick="toggleSound()" title="Звук">🔊</button>
       <button class="wheel-shortcut-btn" onclick="switchTab('wheel')" title="Колесо Фортуны">🎁</button>
       <div class="level-badge" id="lvl-badge" onclick="openPrestigeModal()">
         <span>⭐ <span id="lives-val">1</span>/9</span> • <span id="lvl-name">Гостиная</span>
@@ -1442,12 +1510,17 @@
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
     <div style="text-align:center;">
-      <p style="font-size:13px; color:#ddd; margin-bottom:4px;">Крути рулетку и выигрывай горы рыбок и призы!</p>
+      <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:6px;">
+        <span style="font-size:13px; color:#ddd;">Твои билеты:</span>
+        <span class="ticket-badge" style="background:#ff79c6; color:#fff; font-weight:bold; padding:2px 10px; border-radius:12px; font-size:13px;">🎟️ <span id="wheel-tickets-count">1</span></span>
+      </div>
+      <p style="font-size:12px; color:#aaa; margin-bottom:8px;">1 бесплатный спин в день + билеты за квесты 📋</p>
       <div class="wheel-pointer"></div>
       <canvas id="wheel-canvas" width="280" height="280"></canvas>
-      <button class="card-btn" id="spin-btn" style="padding:12px 30px; font-size:16px; margin-top:14px;" onclick="spinWheel()">
+      <button class="card-btn" id="spin-btn" style="padding:12px 24px; font-size:15px; margin-top:14px;" onclick="spinWheel()">
         КРУТИТЬ! (БЕСПЛАТНО 🎁)
       </button>
+      <div id="wheel-status-hint" style="font-size:11px; color:#ffb86c; margin-top:6px;"></div>
     </div>
   </div>
 
@@ -1567,12 +1640,16 @@
 
     <!-- Игра 1: Рыбалка -->
     <div id="game-view-fishing">
-      <div id="fishing-area">
-        <div id="fishing-start-screen" style="text-align: center;">
-          <h3 style="color:#ffb86c; font-size:22px; margin-bottom:8px;">Поймай как можно больше рыб!</h3>
-          <p style="font-size:13px; color:#ddd; margin-bottom:15px;">Лови золотых рыб 🌟 и не трогай башмаки 👞!</p>
-          <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">НАЧАТЬ РЫБАЛКУ 🎣</button>
-        </div>
+      <div id="fishing-start-screen" style="text-align: center; padding: 20px 10px;">
+        <h3 style="color:#ffb86c; font-size:20px; margin-bottom:6px;">Поймай как можно больше рыб! 🎣</h3>
+        <p style="font-size:12px; color:#ddd; margin-bottom:14px;">Лови рыбок 🐟 и золотых рыб 🌟, но не трогай башмаки 👞 и медуз 🪼!</p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">НАЧАТЬ РЫБАЛКУ 🎣</button>
+      </div>
+      <div id="fishing-area" style="display:none;"></div>
+      <div id="fishing-result-screen" style="display:none; text-align:center; padding: 20px 10px;">
+        <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Время вышло! 🎉</h3>
+        <p style="font-size:15px; color:#fff; margin-bottom:14px;">Ты наловил: <b id="fishing-result-gained" style="color:#f1fa8c;">+0 🐟</b></p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">ИГРАТЬ СНОВА 🎣</button>
       </div>
     </div>
 
@@ -1583,7 +1660,11 @@
         <p style="font-size:12px; color:#ddd; margin-bottom:12px;">Тапай по мышкам 🐭 и золотым мышам ✨, но не трогай колючих ежей 🦔!</p>
         <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startMouseGame()">НАЧАТЬ ОХОТУ 🐭</button>
       </div>
-
+      <div id="moles-result-screen" style="display:none; text-align:center; margin-bottom: 14px;">
+        <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Охота завершена! 🎉</h3>
+        <p style="font-size:15px; color:#fff; margin-bottom:14px;">Ты наловил мышек на: <b id="moles-result-gained" style="color:#f1fa8c;">+0 🐟</b></p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startMouseGame()">ИГРАТЬ СНОВА 🐭</button>
+      </div>
       <div id="moles-grid">
         <div class="mole-hole"><div class="mole-character" id="mole-0" onclick="hitMole(0)">🐭</div></div>
         <div class="mole-hole"><div class="mole-character" id="mole-1" onclick="hitMole(1)">🐭</div></div>
@@ -1601,7 +1682,11 @@
         <p style="font-size:12px; color:#ddd; margin-bottom:12px;">Тапай по быстрой красной точке! За серию попаданий растет комбо x2, x3, x5, x10!</p>
         <button class="card-btn" style="padding:12px 30px; font-size:16px; background:#ff5555; color:#fff;" onclick="startLaserGame()">НАЧАТЬ ОХОТУ 🔴</button>
       </div>
-
+      <div id="laser-result-screen" style="display:none; text-align:center; margin-bottom: 14px;">
+        <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Охота на лазер завершена! 🎉</h3>
+        <p style="font-size:15px; color:#fff; margin-bottom:14px;">Ты заработал: <b id="laser-result-gained" style="color:#f1fa8c;">+0 🐟</b></p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px; background:#ff5555; color:#fff;" onclick="startLaserGame()">ИГРАТЬ СНОВА 🔴</button>
+      </div>
       <div id="laser-area">
         <div id="laser-combo-badge">COMBO x1 ⚡</div>
         <div id="laser-dot" onpointerdown="hitLaserDot(event)"></div>
@@ -1615,7 +1700,11 @@
         <p style="font-size:12px; color:#ddd; margin-bottom:12px;">Сбрасывай клубки прямо в центр башни! Идеальные попадания растят комбо x2, x3... ✨</p>
         <button class="card-btn" style="padding:12px 30px; font-size:16px; background:#f1fa8c; color:#111;" onclick="startTowerGame()">НАЧАТЬ СТРОИТЕЛЬСТВО 🧶</button>
       </div>
-
+      <div id="tower-result-screen" style="display:none; text-align:center; margin-bottom: 14px;">
+        <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Строительство завершено! 🎉</h3>
+        <p style="font-size:15px; color:#fff; margin-bottom:14px;">Ты построил башню: <b id="tower-result-height" style="color:#ffb86c;">0 🧶</b> и заработал <b id="tower-result-gained" style="color:#f1fa8c;">+0 🐟</b></p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px; background:#f1fa8c; color:#111;" onclick="startTowerGame()">СТРОИТЬ СНОВА 🧶</button>
+      </div>
       <div id="tower-area" onclick="dropTowerYarn(event)">
         <div id="tower-combo-badge" style="position: absolute; top: 8px; left: 10px; font-size: 13px; font-weight: 800; color: #50fa7b; z-index: 10;">COMBO x1 ⚡</div>
         <div id="tower-height-badge" style="position: absolute; top: 8px; right: 10px; font-size: 13px; font-weight: 800; color: #ffb86c; z-index: 10;">Высота: 0 🧶</div>
@@ -1773,7 +1862,7 @@
   <!-- Модалка: Таблица лидеров и Зал Славы -->
   <div class="sheet-modal" id="modal-leaderboard">
     <div class="sheet-header">
-      <span class="sheet-title">🏆 Зал Славы и Лидеры</span>
+      <span class="sheet-title">🏆 Зал Славы и Лидеры <span style="font-size:11px; color:#ffb86c; font-weight:normal; margin-left:6px;">[ Демо-рейтинг ]</span></span>
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
 
@@ -1835,7 +1924,7 @@
       <h3 style="color:#f1fa8c; font-size:20px; margin-bottom:8px;">9 Жизней Котика</h3>
       <p style="font-size:13px; color:#ddd; margin-bottom:12px;">
         Текущая жизнь: <b id="prest-cur-life">1</b> из 9.<br>
-        Перерождение даёт <b>+100% ко ВСЕМУ доходу навсегда!</b> 🌟<br>
+        Каждое перерождение увеличивает множитель жизни на <b>+1x</b> (x2, x3... x9) и даёт очки талантов ⭐!<br>
         <span style="color:#ff79c6; font-weight:bold;">На 2-й жизни открывается белый котёнок Снежок! 🤍</span>
       </p>
       <div style="font-size:14px; font-weight:800; color:#ffb86c; margin-bottom:16px;">
@@ -1864,18 +1953,56 @@
   </div>
 
   <script>
+    // --- Единый игровой контекст: управляемые часы, генератор случайных чисел и таймеры ---
+    const GameEnv = {
+      now: () => (typeof window !== 'undefined' && window.__GameClock ? window.__GameClock.now() : Date.now()),
+      perfNow: () => (typeof window !== 'undefined' && window.__GameClock ? window.__GameClock.perfNow() : performance.now()),
+      random: () => (typeof window !== 'undefined' && window.__GamePRNG ? window.__GamePRNG.random() : Math.random()),
+      setTimeout: (cb, ms) => (typeof window !== 'undefined' && window.__GameTimers ? window.__GameTimers.setTimeout(cb, ms) : setTimeout(cb, ms)),
+      clearTimeout: (id) => (typeof window !== 'undefined' && window.__GameTimers ? window.__GameTimers.clearTimeout(id) : clearTimeout(id)),
+      setInterval: (cb, ms) => (typeof window !== 'undefined' && window.__GameTimers ? window.__GameTimers.setInterval(cb, ms) : setInterval(cb, ms)),
+      clearInterval: (id) => (typeof window !== 'undefined' && window.__GameTimers ? window.__GameTimers.clearInterval(id) : clearInterval(id)),
+      requestAnimationFrame: (cb) => (typeof window !== 'undefined' && window.__GameTimers ? window.__GameTimers.requestAnimationFrame(cb) : requestAnimationFrame(cb)),
+      cancelAnimationFrame: (id) => (typeof window !== 'undefined' && window.__GameTimers ? window.__GameTimers.cancelAnimationFrame(id) : cancelAnimationFrame(id))
+    };
+    if (typeof window !== 'undefined') window.GameEnv = GameEnv;
+
     // --- Telegram WebApp SDK ---
     const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
     if (tg) {
-      tg.expand();
-      tg.ready();
-      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-      if (tg.isVerticalSwipesEnabled !== undefined) tg.isVerticalSwipesEnabled = false;
+      try {
+        tg.expand();
+        tg.ready();
+        if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+        if (tg.isVerticalSwipesEnabled !== undefined) tg.isVerticalSwipesEnabled = false;
+      } catch (e) {
+        console.warn('Telegram SDK init warning:', e);
+      }
     }
 
-    // --- Звуковой синтезатор Web Audio API (Безопасная инициализация) ---
+    // --- Игровые уведомления (Toasts) вместо блокирующих alert() ---
+    function showGameToast(msg, type = 'info', durationMs = 2800) {
+      try {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'toast-container';
+          document.body.appendChild(container);
+        }
+        const el = document.createElement('div');
+        el.className = `toast-msg ${type}`;
+        el.innerHTML = msg;
+        container.appendChild(el);
+        GameEnv.setTimeout(() => { if (el.parentNode) el.remove(); }, durationMs);
+      } catch (e) {
+        console.log(msg);
+      }
+    }
+
+    // --- Звуковой синтезатор Web Audio API (Надежная инициализация для Telegram WebApp / iOS) ---
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
+    let audioUnlocked = false;
 
     function initAudio() {
       try {
@@ -1890,8 +2017,51 @@
       }
     }
 
+    function unlockAudio() {
+      initAudio();
+      if (audioCtx) {
+        if (audioCtx.state === 'suspended' && audioCtx.resume) {
+          audioCtx.resume().catch(() => {});
+        }
+        if (!audioUnlocked) {
+          try {
+            const buffer = audioCtx.createBuffer(1, 1, 22050);
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start(0);
+            audioUnlocked = true;
+          } catch (e) {}
+        }
+      }
+    }
+
+    // Слушатели глобальной разблокировки первого тапа для iOS WebKit / Telegram WebView
+    ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'click'].forEach(ev => {
+      window.addEventListener(ev, unlockAudio, { passive: true });
+      document.addEventListener(ev, unlockAudio, { passive: true });
+    });
+
+    function toggleSound() {
+      unlockAudio();
+      if (typeof state.soundEnabled !== 'boolean') state.soundEnabled = true;
+      state.soundEnabled = !state.soundEnabled;
+      const btn = document.getElementById('sound-toggle-btn');
+      if (btn) btn.innerText = state.soundEnabled ? '🔊' : '🔇';
+      if (state.soundEnabled) {
+        playSound('meow');
+      }
+      isDirty = true;
+      saveGame(true);
+    }
+
     function playSound(type) {
+      if (state.soundEnabled === false) return;
+      if (!audioCtx) initAudio();
       if (!audioCtx) return;
+      if (audioCtx.state === 'suspended' && audioCtx.resume) {
+        audioCtx.resume().catch(() => {});
+      }
       const now = audioCtx.currentTime;
 
       if (type === 'meow') {
@@ -2019,8 +2189,39 @@
       }
     }
 
+    // --- Безопасная работа с LocalStorage и Схема Сохранения ---
+    const CURRENT_SAVE_VERSION = 6;
+    let isDirty = false;
+    let lastAutoSaveTime = GameEnv.now();
+    let rawLoadedSavedTime = GameEnv.now();
+
+    function safeStorageGet(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        console.warn('Storage read warning:', e);
+        return null;
+      }
+    }
+
+    function safeStorageSet(key, val) {
+      try {
+        localStorage.setItem(key, val);
+        return true;
+      } catch (e) {
+        console.warn('Storage write warning:', e);
+        return false;
+      }
+    }
+
+    function getTodayDateString() {
+      const d = new Date(GameEnv.now());
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     // --- Состояние игры и гарантированная инициализация ---
     let state = {
+      saveVersion: 6,
       fish: 0,
       totalEarned: 0,
       livesLevel: 1,
@@ -2028,6 +2229,9 @@
       maxEnergy: 100,
       mood: 50,
       euphoriaUntil: 0,
+      wheelTickets: 1,
+      lastFreeSpinDate: '',
+      bossCooldowns: {},
       activeDishes: {},
       artifacts: [],
       equippedArtifacts: { collar: null, toy: null, amulet: null },
@@ -2040,7 +2244,7 @@
       unlockedAchievements: [],
       towerHighScore: 0,
       stats: { tapsCount: 0, bossesDefeatedTotal: 0, butterfliesCaught: 0, minigamesPlayed: 0, dishesCooked: 0, relicsFused: 0 },
-      questsDay: 0,
+      questsDay: '',
       dailyQuests: [],
       grandChestClaimed: false,
       freeSpinAvailable: true,
@@ -2053,80 +2257,155 @@
       fishingHighScore: 0,
       laserHighScore: 0,
       ownedRoomDecor: [],
+      soundEnabled: true,
       activePotions: { energy: 0, magnet: 0, bite: 0 },
       upgrades: {
-        fish_treat: 0, mint: 0, claws: 0, post: 0, laser_paws: 0, diamond_claws: 0,
-        mouse: 0, feeder: 0, vacuum: 0, tree: 0, aquarium: 0, mansion: 0
+        fish_treat: 0, mint: 0, claws: 0, post: 0, laser_paws: 0, diamond_claws: 0, cosmic_yarn: 0, divine_purr: 0,
+        mouse: 0, feeder: 0, vacuum: 0, tree: 0, aquarium: 0, mansion: 0, cat_island: 0, galaxy_palace: 0
       },
-      lastSavedTime: Date.now()
+      lastSavedTime: GameEnv.now()
     };
 
     function ensureStateDefaults() {
       if (!state || typeof state !== 'object') state = {};
-      if (typeof state.fish !== 'number') state.fish = 0;
-      if (typeof state.totalEarned !== 'number') state.totalEarned = 0;
-      if (typeof state.livesLevel !== 'number' || state.livesLevel < 1) state.livesLevel = 1;
-      if (typeof state.passivePerSec !== 'number') state.passivePerSec = 0;
-      if (typeof state.energy !== 'number') state.energy = 100;
-      if (typeof state.maxEnergy !== 'number') state.maxEnergy = 100;
-      if (typeof state.mood !== 'number') state.mood = 50;
-      if (typeof state.euphoriaUntil !== 'number') state.euphoriaUntil = 0;
+      state.saveVersion = CURRENT_SAVE_VERSION;
+      if (typeof state.fish !== 'number' || !isFinite(state.fish) || state.fish < 0) state.fish = 0;
+      if (typeof state.totalEarned !== 'number' || !isFinite(state.totalEarned) || state.totalEarned < 0) state.totalEarned = state.fish;
+      if (typeof state.livesLevel !== 'number' || !isFinite(state.livesLevel) || state.livesLevel < 1) state.livesLevel = 1;
+      state.livesLevel = Math.min(9, Math.floor(state.livesLevel));
+
+      if (typeof state.passivePerSec !== 'number' || !isFinite(state.passivePerSec) || state.passivePerSec < 0) state.passivePerSec = 0;
+      if (typeof state.energy !== 'number' || !isFinite(state.energy)) state.energy = 100;
+      if (typeof state.maxEnergy !== 'number' || !isFinite(state.maxEnergy) || state.maxEnergy < 100) state.maxEnergy = 100;
+      state.energy = Math.max(0, Math.min(state.maxEnergy, state.energy));
+
+      if (typeof state.mood !== 'number' || !isFinite(state.mood)) state.mood = 50;
+      state.mood = Math.max(0, Math.min(100, state.mood));
+      if (typeof state.euphoriaUntil !== 'number' || !isFinite(state.euphoriaUntil)) state.euphoriaUntil = 0;
+      if (typeof state.soundEnabled !== 'boolean') state.soundEnabled = true;
+      if (typeof state.wheelTickets !== 'number' || !isFinite(state.wheelTickets) || state.wheelTickets < 0) state.wheelTickets = 1;
+
+      if (!state.lastFreeSpinDate || typeof state.lastFreeSpinDate !== 'string') state.lastFreeSpinDate = '';
+      if (!state.bossCooldowns || typeof state.bossCooldowns !== 'object') state.bossCooldowns = {};
       if (!state.activeDishes || typeof state.activeDishes !== 'object') state.activeDishes = {};
       if (!Array.isArray(state.artifacts)) state.artifacts = [];
       if (!state.equippedArtifacts || typeof state.equippedArtifacts !== 'object') {
         state.equippedArtifacts = { collar: null, toy: null, amulet: null };
       }
-      if (typeof state.talentPoints !== 'number') state.talentPoints = 0;
-      if (!state.talents || typeof state.talents !== 'object') {
-        state.talents = {
-          combat_claws: 0, combat_dodge: 0, combat_crit: 0,
-          hunter_regen: 0, hunter_energy: 0, hunter_games: 0,
-          idle_sleep: 0, idle_butterfly: 0, idle_aura: 0
-        };
+
+      if (typeof state.talentPoints !== 'number' || !isFinite(state.talentPoints) || state.talentPoints < 0) state.talentPoints = 0;
+      if (!state.talents || typeof state.talents !== 'object') state.talents = {};
+      const validTalents = ['combat_claws', 'combat_dodge', 'combat_crit', 'hunter_regen', 'hunter_energy', 'hunter_games', 'idle_sleep', 'idle_butterfly', 'idle_aura'];
+      let refundedPrunedPoints = 0;
+      validTalents.forEach(tid => {
+        if (typeof state.talents[tid] !== 'number' || !isFinite(state.talents[tid]) || state.talents[tid] < 0) state.talents[tid] = 0;
+        const cur = Math.floor(state.talents[tid]);
+        const maxR = 3; // Максимальный ранг в каталоге talentsCatalog равен 3
+        if (cur > maxR) {
+          refundedPrunedPoints += (cur - maxR);
+          state.talents[tid] = maxR;
+        } else {
+          state.talents[tid] = cur;
+        }
+      });
+      state.talentPoints += refundedPrunedPoints;
+
+      // Подсчет доступных очков талантов (перерождения + 3 достижения)
+      const achList = Array.isArray(state.unlockedAchievements) ? state.unlockedAchievements : [];
+      let totalAchPts = 0;
+      if (achList.includes('bosses_3')) totalAchPts++;
+      if (achList.includes('tower_15')) totalAchPts++;
+      if (achList.includes('butterfly_25')) totalAchPts++;
+      
+      const prestigePtsTable = [0, 0, 2, 4, 6, 9, 12, 15, 19, 24];
+      const earnedPrestigePts = prestigePtsTable[Math.min(9, Math.max(1, state.livesLevel || 1))] || 0;
+      const totalEarnedPts = earnedPrestigePts + totalAchPts;
+      const spentTalentPts = Object.values(state.talents || {}).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+      if ((state.talentPoints + spentTalentPts) < totalEarnedPts) {
+        state.talentPoints = Math.max(0, totalEarnedPts - spentTalentPts);
       }
+
       if (!Array.isArray(state.unlockedAchievements)) state.unlockedAchievements = [];
-      if (typeof state.towerHighScore !== 'number') state.towerHighScore = 0;
-      if (!state.stats || typeof state.stats !== 'object') {
-        state.stats = { tapsCount: 0, bossesDefeatedTotal: 0, butterfliesCaught: 0, minigamesPlayed: 0, dishesCooked: 0, relicsFused: 0 };
-      }
-      if (typeof state.questsDay !== 'number') state.questsDay = 0;
+      if (typeof state.towerHighScore !== 'number' || !isFinite(state.towerHighScore)) state.towerHighScore = 0;
+      if (!state.stats || typeof state.stats !== 'object') state.stats = {};
+      ['tapsCount', 'bossesDefeatedTotal', 'butterfliesCaught', 'minigamesPlayed', 'dishesCooked', 'relicsFused'].forEach(stKey => {
+        if (typeof state.stats[stKey] !== 'number' || !isFinite(state.stats[stKey])) state.stats[stKey] = 0;
+      });
+
+      if (!state.questsDay || typeof state.questsDay !== 'string') state.questsDay = '';
       if (!Array.isArray(state.dailyQuests)) state.dailyQuests = [];
       if (typeof state.grandChestClaimed !== 'boolean') state.grandChestClaimed = false;
+
       if (!Array.isArray(state.ownedSkins)) state.ownedSkins = ['classic', 'life_1'];
       if (!state.ownedSkins.includes('classic')) state.ownedSkins.push('classic');
       if (!state.ownedSkins.includes('life_1')) state.ownedSkins.push('life_1');
       if (typeof state.equippedSkin !== 'string') state.equippedSkin = 'classic';
+
       if (!Array.isArray(state.unlockedKittens)) state.unlockedKittens = [];
       if (!Array.isArray(state.bossesDefeated)) state.bossesDefeated = [];
       if (!Array.isArray(state.ownedRoomDecor)) state.ownedRoomDecor = [];
+
       if (!state.activePotions || typeof state.activePotions !== 'object') {
         state.activePotions = { energy: 0, magnet: 0, bite: 0 };
       }
-      if (typeof state.activePotions.energy !== 'number') state.activePotions.energy = 0;
-      if (typeof state.activePotions.magnet !== 'number') state.activePotions.magnet = 0;
-      if (typeof state.activePotions.bite !== 'number') state.activePotions.bite = 0;
-      if (typeof state.mouseHighScore !== 'number') state.mouseHighScore = 0;
-      if (typeof state.fishingHighScore !== 'number') state.fishingHighScore = 0;
-      if (typeof state.laserHighScore !== 'number') state.laserHighScore = 0;
+      if (typeof state.activePotions.energy !== 'number' || !isFinite(state.activePotions.energy)) state.activePotions.energy = 0;
+      if (typeof state.activePotions.magnet !== 'number' || !isFinite(state.activePotions.magnet)) state.activePotions.magnet = 0;
+      if (typeof state.activePotions.bite !== 'number' || !isFinite(state.activePotions.bite)) state.activePotions.bite = 0;
+
+      if (typeof state.mouseHighScore !== 'number' || !isFinite(state.mouseHighScore)) state.mouseHighScore = 0;
+      if (typeof state.fishingHighScore !== 'number' || !isFinite(state.fishingHighScore)) state.fishingHighScore = 0;
+      if (typeof state.laserHighScore !== 'number' || !isFinite(state.laserHighScore)) state.laserHighScore = 0;
+
       if (!state.upgrades || typeof state.upgrades !== 'object') state.upgrades = {};
-      if (typeof state.lastSavedTime !== 'number') state.lastSavedTime = Date.now();
+      const allUpgradeKeys = ['fish_treat', 'mint', 'claws', 'post', 'laser_paws', 'diamond_claws', 'cosmic_yarn', 'divine_purr',
+                              'mouse', 'feeder', 'vacuum', 'tree', 'aquarium', 'mansion', 'cat_island', 'galaxy_palace'];
+      allUpgradeKeys.forEach(uk => {
+        if (typeof state.upgrades[uk] !== 'number' || !isFinite(state.upgrades[uk]) || state.upgrades[uk] < 0) state.upgrades[uk] = 0;
+        state.upgrades[uk] = Math.floor(state.upgrades[uk]);
+      });
+
+      if (typeof state.lastSavedTime !== 'number' || !isFinite(state.lastSavedTime)) state.lastSavedTime = GameEnv.now();
     }
 
-    try {
-      const saved = localStorage.getItem('cat_clicker_save_v5');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        state = { ...state, ...parsed, upgrades: { ...state.upgrades, ...(parsed.upgrades || {}) } };
+    // Загрузка с миграцией версий
+    function loadGame() {
+      try {
+        let saved = safeStorageGet('cat_clicker_save_v6') || safeStorageGet('cat_clicker_save_v5') || safeStorageGet('cat_clicker_save_v4');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            rawLoadedSavedTime = (typeof parsed.lastSavedTime === 'number' && isFinite(parsed.lastSavedTime)) ? parsed.lastSavedTime : GameEnv.now();
+            state = { ...state, ...parsed, upgrades: { ...state.upgrades, ...(parsed.upgrades || {}) }, stats: { ...state.stats, ...(parsed.stats || {}) }, talents: { ...state.talents, ...(parsed.talents || {}) } };
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load save:', e);
       }
-    } catch (e) {
-      console.warn('Could not load save:', e);
+      ensureStateDefaults();
     }
-    ensureStateDefaults();
+    loadGame();
 
-    const currentDay = Math.floor(Date.now() / 86400000);
-    if (state.lastSpinDay !== currentDay) {
-      state.freeSpinAvailable = true;
+    function saveGame(immediate = false) {
+      if (!immediate && !isDirty) return;
+      state.lastSavedTime = GameEnv.now();
+      const payload = JSON.stringify(state);
+      safeStorageSet('cat_clicker_save_v6', payload);
+      safeStorageSet('cat_clicker_save_v5', payload);
+      isDirty = false;
+      lastAutoSaveTime = GameEnv.now();
     }
+
+    // Сохранение при уходе в фон и расчет при возвращении
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        saveGame(true);
+      } else if (document.visibilityState === 'visible') {
+        checkOfflineEarnings();
+        lastTickTime = GameEnv.perfNow();
+      }
+    });
+    window.addEventListener('pagehide', () => saveGame(true));
+    window.addEventListener('beforeunload', () => saveGame(true));
 
     function updateKittensUnlock() {
       ensureStateDefaults();
@@ -2136,7 +2415,6 @@
       if (state.livesLevel >= 4 && !state.unlockedKittens.includes('tiger')) {
         state.unlockedKittens.push('tiger');
       }
-      // Уголёк должен быть открыт ТОЛЬКО если побеждён босс "Злой Пылесос" (vacuum)
       if (!state.bossesDefeated || !state.bossesDefeated.includes('vacuum')) {
         state.unlockedKittens = state.unlockedKittens.filter(k => k !== 'coal');
       }
@@ -2145,140 +2423,140 @@
 
     // --- Каталог Блюд Кошачьей Кухни (Gourmet Dishes) ---
     const dishesCatalog = [
-      { id: 'dish_soup', name: 'Суп из Тунца с Мятой', icon: '🍲', price: 5000, duration: 60, desc: 'Моментально 100% энергии + 60 сек Бесконечная Энергия (не тратится на тапы)!', bonus: '⚡ Бесконечная Энергия' },
-      { id: 'dish_sushi', name: 'Императорские Суши', icon: '🍣', price: 25000, duration: 600, desc: '+100% к урону лапками по боссам на 10 минут!', bonus: '⚔️ x2 Урон по боссам' },
-      { id: 'dish_tempura', name: 'Креветки-Темпура', icon: '🍤', price: 75000, duration: 300, desc: '+40% к шансу крит-удара (x10) и скорость набора ража x2 на 5 минут!', bonus: '💥 Крит +40% & Раж x2' },
-      { id: 'dish_cake', name: 'Праздничный Мяу-Торт', icon: '🍰', price: 150000, duration: 0, desc: 'Мгновенно призывает 3 Золотые Бабочки с x3 наградой!', bonus: '🦋 Призыв 3 Бабочек' },
-      { id: 'dish_bubble_tea', name: 'Мяу-Баббл Чай с Икрой', icon: '🧋', price: 500000, duration: 900, desc: 'Утраивает (x3) весь AFK и клик доход на 15 минут!', bonus: '🌟 x3 Ко всему доходу' }
+      { id: 'dish_soup', name: 'Суп из Тунца с Мятой', icon: '🍲', price: 3000, duration: 60, desc: 'Моментально 100% энергии + 60 сек Бесконечная Энергия (не тратится на тапы)!', bonus: '⚡ Бесконечная Энергия' },
+      { id: 'dish_sushi', name: 'Императорские Суши', icon: '🍣', price: 15000, duration: 600, desc: '+100% к урону лапками по боссам на 10 минут!', bonus: '⚔️ x2 Урон по боссам' },
+      { id: 'dish_tempura', name: 'Креветки-Темпура', icon: '🍤', price: 40000, duration: 300, desc: '+30% к шансу крит-удара (x3) и скорость набора ража x2 на 5 минут!', bonus: '💥 Крит +30% & Раж x2' },
+      { id: 'dish_cake', name: 'Праздничный Мяу-Торт', icon: '🍰', price: 100000, duration: 0, desc: 'Мгновенно призывает 3 Золотые Бабочки с подарками!', bonus: '🦋 Призыв 3 Бабочек' },
+      { id: 'dish_bubble_tea', name: 'Мяу-Баббл Чай с Икрой', icon: '🧋', price: 250000, duration: 600, desc: '+50% (x1.5) ко всему AFK и клик доходу на 10 минут!', bonus: '🌟 +50% Ко всему доходу' }
     ];
 
     // --- Градации Редкости Артефактов (Tiers) ---
     const artifactTiers = {
       1: { name: 'Обычный', badgeClass: 'art-badge-1', mult: 1.0, color: '#bdc3c7', titleColor: '#bdc3c7' },
-      2: { name: 'Редкий', badgeClass: 'art-badge-2', mult: 1.5, color: '#00d2d3', titleColor: '#00d2d3' },
-      3: { name: 'Эпический', badgeClass: 'art-badge-3', mult: 2.2, color: '#a29bfe', titleColor: '#a29bfe' },
-      4: { name: 'Легендарный', badgeClass: 'art-badge-4', mult: 3.5, color: '#f1fa8c', titleColor: '#f1fa8c' }
+      2: { name: 'Редкий', badgeClass: 'art-badge-2', mult: 1.4, color: '#00d2d3', titleColor: '#00d2d3' },
+      3: { name: 'Эпический', badgeClass: 'art-badge-3', mult: 1.9, color: '#a29bfe', titleColor: '#a29bfe' },
+      4: { name: 'Легендарный', badgeClass: 'art-badge-4', mult: 2.6, color: '#f1fa8c', titleColor: '#f1fa8c' }
     };
 
     // --- Каталог Базовых Артефактов и Реликвий ---
     const artifactsCatalog = [
       // 🎀 Ошейники (Collar)
-      { id: 'collar_bell', slot: 'collar', name: 'Звенящий Бубенчик', icon: '🔔', desc: 'Шанс 15% получить в 10 раз больше рыбок за тап.', getBonusText: (t) => `Шанс 15% на x${Math.round(10 * artifactTiers[t].mult)} рыбок за тап` },
-      { id: 'collar_bastet', slot: 'collar', name: 'Ошейник Бастет', icon: '👑', desc: 'Скидка на все товары в магазине и бонус к AFK.', getBonusText: (t) => `Скидка ${Math.round(15 * artifactTiers[t].mult)}% в магазине и +${Math.round(20 * artifactTiers[t].mult)}% к AFK` },
-      { id: 'collar_spikes', slot: 'collar', name: 'Шипованный Ошейник', icon: '🛡️', desc: 'Увеличивает урон лапками по боссам.', getBonusText: (t) => `Урон по боссам +${Math.round(30 * artifactTiers[t].mult)}%` },
+      { id: 'collar_bell', slot: 'collar', name: 'Звенящий Бубенчик', icon: '🔔', desc: 'Шанс 15% получить супер-улов при тапе.', getBonusText: (t) => `Шанс 15% на x${Math.round(2 + 2 * artifactTiers[t].mult)} рыбок за тап` },
+      { id: 'collar_bastet', slot: 'collar', name: 'Ошейник Бастет', icon: '👑', desc: 'Скидка в магазине и бонус к AFK.', getBonusText: (t) => `Скидка ${Math.round(10 * artifactTiers[t].mult)}% в магазине и +${Math.round(15 * artifactTiers[t].mult)}% к AFK` },
+      { id: 'collar_spikes', slot: 'collar', name: 'Шипованный Ошейник', icon: '🛡️', desc: 'Увеличивает урон лапками по боссам.', getBonusText: (t) => `Урон по боссам +${Math.round(25 * artifactTiers[t].mult)}%` },
 
       // 🧶 Игрушки (Toy)
-      { id: 'toy_yarn', slot: 'toy', name: 'Клубок Бесконечности', icon: '🧶', desc: 'Шанс сохранить энергию при тапе и бонус в Башне.', getBonusText: (t) => `Шанс ${Math.round(20 * artifactTiers[t].mult)}% не тратить энергию, очки Башни +${Math.round(30 * artifactTiers[t].mult)}%` },
-      { id: 'toy_feather', slot: 'toy', name: 'Перо Сокола', icon: '🪶', desc: 'Бабочки появляются чаще и дают больше рыбок.', getBonusText: (t) => `Бабочки на +${Math.round(40 * artifactTiers[t].mult)}% чаще и дают x${(1 + 0.5 * artifactTiers[t].mult).toFixed(1)} рыбок` },
-      { id: 'toy_laser', slot: 'toy', name: 'Лазерный Кристалл', icon: '🔦', desc: 'Ускоряет набор Кошачьего Ража и его силу.', getBonusText: (t) => `Раж копится в ${(1.5 * artifactTiers[t].mult).toFixed(1)} раза быстрее` },
+      { id: 'toy_yarn', slot: 'toy', name: 'Клубок Бесконечности', icon: '🧶', desc: 'Шанс сохранить энергию при тапе и бонус в Башне.', getBonusText: (t) => `Шанс ${Math.round(15 * artifactTiers[t].mult)}% не тратить энергию, очки Башни +${Math.round(20 * artifactTiers[t].mult)}%` },
+      { id: 'toy_feather', slot: 'toy', name: 'Перо Сокола', icon: '🪶', desc: 'Бабочки появляются чаще и дают больше рыбок.', getBonusText: (t) => `Бабочки на +${Math.round(30 * artifactTiers[t].mult)}% чаще и дают x${(1 + 0.3 * artifactTiers[t].mult).toFixed(1)} рыбок` },
+      { id: 'toy_laser', slot: 'toy', name: 'Лазерный Кристалл', icon: '🔦', desc: 'Ускоряет набор Кошачьего Ража.', getBonusText: (t) => `Раж копится в ${(1.3 * artifactTiers[t].mult).toFixed(1)} раза быстрее` },
 
       // 🧿 Амулеты (Amulet)
-      { id: 'amulet_moon', slot: 'amulet', name: 'Лунный Самоцвет', icon: '🌙', desc: 'Пассивный доход дома и в оффлайне увеличен.', getBonusText: (t) => `Пассивный AFK доход +${Math.round(40 * artifactTiers[t].mult)}%` },
-      { id: 'amulet_sun', slot: 'amulet', name: 'Солнечный Янтарь', icon: '☀️', desc: 'Эйфория от поглаживания длится дольше и даёт больше дохода.', getBonusText: (t) => `Эйфория +${Math.round(50 * artifactTiers[t].mult)}% длительность и +${Math.round(30 * artifactTiers[t].mult)}% доход` },
-      { id: 'amulet_dragon', slot: 'amulet', name: 'Драконий Глаз', icon: '🐉', desc: 'Крит-удар становится сокрушительным x25.', getBonusText: (t) => `Критический урон x${Math.round(15 * artifactTiers[t].mult)}, награды боссов +${Math.round(25 * artifactTiers[t].mult)}%` }
+      { id: 'amulet_moon', slot: 'amulet', name: 'Лунный Самоцвет', icon: '🌙', desc: 'Пассивный доход дома и в оффлайне увеличен.', getBonusText: (t) => `Пассивный AFK доход +${Math.round(25 * artifactTiers[t].mult)}%` },
+      { id: 'amulet_sun', slot: 'amulet', name: 'Солнечный Янтарь', icon: '☀️', desc: 'Эйфория от поглаживания длится дольше и даёт больше дохода.', getBonusText: (t) => `Эйфория +${Math.round(40 * artifactTiers[t].mult)}% длительность и +${Math.round(20 * artifactTiers[t].mult)}% доход` },
+      { id: 'amulet_dragon', slot: 'amulet', name: 'Драконий Глаз', icon: '🐉', desc: 'Крит-удар становится сокрушительным.', getBonusText: (t) => `Критический урон x${Math.round(3 + 3 * artifactTiers[t].mult)}, награды боссов +${Math.round(15 * artifactTiers[t].mult)}%` }
     ];
 
     // --- Конфигурация 9 Жизней Котика (Престиж) ---
     const prestigeConfig = {
-      1: { req: 50000, nextLife: 2, title: 'Лунный Снежок 🤍', skinId: 'life_2', pts: 2 },
-      2: { req: 300000, nextLife: 3, title: 'Кибер-Кот 2077 🤖', skinId: 'life_3', pts: 2 },
-      3: { req: 1500000, nextLife: 4, title: 'Степной Тигр 🐯', skinId: 'life_4', pts: 2 },
-      4: { req: 8000000, nextLife: 5, title: 'Теневой Шиноби 🥷', skinId: 'life_5', pts: 2 },
-      5: { req: 40000000, nextLife: 6, title: 'Верховный Мяу-Маг 🧙‍♂️', skinId: 'life_6', pts: 2 },
-      6: { req: 200000000, nextLife: 7, title: 'Королевский Лев 🦁', skinId: 'life_7', pts: 2 },
-      7: { req: 1000000000, nextLife: 8, title: 'Драконий Феникс 🐲', skinId: 'life_8', pts: 2 },
-      8: { req: 5000000000, nextLife: 9, title: 'Божественный Астрал-Кот 🌌', skinId: 'life_9', pts: 5 }
+      1: { req: 100000, nextLife: 2, title: 'Лунный Снежок 🤍', skinId: 'life_2', pts: 2 },
+      2: { req: 500000, nextLife: 3, title: 'Кибер-Кот 2077 🤖', skinId: 'life_3', pts: 2 },
+      3: { req: 2500000, nextLife: 4, title: 'Степной Тигр 🐯', skinId: 'life_4', pts: 2 },
+      4: { req: 10000000, nextLife: 5, title: 'Теневой Шиноби 🥷', skinId: 'life_5', pts: 3 },
+      5: { req: 40000000, nextLife: 6, title: 'Верховный Мяу-Маг 🧙‍♂️', skinId: 'life_6', pts: 3 },
+      6: { req: 150000000, nextLife: 7, title: 'Королевский Лев 🦁', skinId: 'life_7', pts: 3 },
+      7: { req: 600000000, nextLife: 8, title: 'Драконий Феникс 🐲', skinId: 'life_8', pts: 4 },
+      8: { req: 2500000000, nextLife: 9, title: 'Божественный Астрал-Кот 🌌', skinId: 'life_9', pts: 5 }
     };
 
     // --- Каталог Дерева Талантов и Мудрости ---
     const talentsCatalog = [
       // ⚔️ Ветка Боя
-      { id: 'combat_claws', name: 'Острый коготь', icon: '🐾', branch: 'combat', maxRank: 5, desc: 'Урон лапками по боссам +25% за ранг.', getBonus: (r) => 1 + r * 0.25 },
-      { id: 'combat_dodge', name: 'Кошачья реакция', icon: '💨', branch: 'combat', maxRank: 3, desc: 'Время на уворот/QTE +0.5с за ранг.', getBonus: (r) => r * 0.5 },
-      { id: 'combat_crit',  name: 'Гнев Хищника', icon: '💥', branch: 'combat', maxRank: 3, desc: 'Шанс критического удара по боссу +10% за ранг.', getBonus: (r) => r * 0.10 },
+      { id: 'combat_claws', name: 'Острый коготь', icon: '🐾', branch: 'combat', maxRank: 3, desc: 'Урон лапками по боссам +20% за ранг.', getBonus: (r) => 1 + r * 0.20 },
+      { id: 'combat_dodge', name: 'Кошачья реакция', icon: '💨', branch: 'combat', maxRank: 3, desc: 'Время на уворот/QTE +0.4с за ранг.', getBonus: (r) => r * 0.4 },
+      { id: 'combat_crit',  name: 'Гнев Хищника', icon: '💥', branch: 'combat', maxRank: 3, desc: 'Шанс крит-удара по боссу +10% за ранг.', getBonus: (r) => r * 0.10 },
 
       // 🎯 Ветка Охотника
       { id: 'hunter_regen',  name: 'Выносливость лапок', icon: '⚡', branch: 'hunter', maxRank: 3, desc: 'Регенерация энергии +1/сек за ранг.', getBonus: (r) => r * 1 },
-      { id: 'hunter_energy', name: 'Энерджайзер', icon: '🔋', branch: 'hunter', maxRank: 4, desc: 'Максимальный запас энергии +25 за ранг.', getBonus: (r) => r * 25 },
-      { id: 'hunter_games',  name: 'Золотой Клубок', icon: '🧶', branch: 'hunter', maxRank: 5, desc: 'Награды во всех мини-играх +20% за ранг.', getBonus: (r) => 1 + r * 0.20 },
+      { id: 'hunter_energy', name: 'Энерджайзер', icon: '🔋', branch: 'hunter', maxRank: 3, desc: 'Максимальный запас энергии +25 за ранг.', getBonus: (r) => r * 25 },
+      { id: 'hunter_games',  name: 'Золотой Клубок', icon: '🧶', branch: 'hunter', maxRank: 3, desc: 'Награды во всех мини-играх +15% за ранг.', getBonus: (r) => 1 + r * 0.15 },
 
       // 🛋️ Ветка Мудреца (Idle)
-      { id: 'idle_sleep',     name: 'Сладкий сон', icon: '💤', branch: 'idle', maxRank: 5, desc: 'Оффлайн AFK доход +20% за ранг.', getBonus: (r) => 1 + r * 0.20 },
-      { id: 'idle_butterfly', name: 'Магнит бабочек', icon: '🦋', branch: 'idle', maxRank: 4, desc: 'Бабочки появляются чаще и дают +25% рыбок.', getBonus: (r) => 1 + r * 0.25 },
-      { id: 'idle_aura',      name: 'Магическая аура', icon: '🌟', branch: 'idle', maxRank: 5, desc: 'Пассивный доход дома +15% за ранг.', getBonus: (r) => 1 + r * 0.15 }
+      { id: 'idle_sleep',     name: 'Сладкий сон', icon: '💤', branch: 'idle', maxRank: 3, desc: 'Оффлайн AFK доход +15% за ранг.', getBonus: (r) => 1 + r * 0.15 },
+      { id: 'idle_butterfly', name: 'Магнит бабочек', icon: '🦋', branch: 'idle', maxRank: 3, desc: 'Бабочки появляются чаще и дают +20% рыбок.', getBonus: (r) => 1 + r * 0.20 },
+      { id: 'idle_aura',      name: 'Магическая аура', icon: '🌟', branch: 'idle', maxRank: 3, desc: 'Пассивный доход дома +10% за ранг.', getBonus: (r) => 1 + r * 0.10 }
     ];
 
-    // --- Каталог Достижений ---
+    // --- Каталог Достижений (Targeted Bonuses) ---
     const achievementsCatalog = [
-      { id: 'tap_100', name: 'Первый улов 🐾', icon: '🐾', req: 'Сделать 100 тапов лапкой', bonus: '+2% ко всему доходу', check: () => (state.stats && state.stats.tapsCount >= 100), mult: 1.02 },
-      { id: 'fish_1m', name: 'Рыбный магнат 🐟', icon: '💰', req: 'Заработать 1,000,000 🐟 за всё время', bonus: '+5% ко всему доходу', check: () => (state.totalEarned || state.fish) >= 1000000, mult: 1.05 },
-      { id: 'bosses_3', name: 'Гроза Боссов ⚔️', icon: '⚔️', req: 'Победить 3 разных боссов на арене', bonus: '+10% к урону по боссам', check: () => (state.bossesDefeated && state.bossesDefeated.length >= 3), mult: 1.10 },
-      { id: 'tower_15', name: 'Зодчий Клубков 🧶', icon: '🧶', req: 'Построить башню из 15 клубков', bonus: '+10% к наградам в мини-играх', check: () => (state.towerHighScore >= 15), mult: 1.10 },
-      { id: 'life_5', name: 'Бессмертная душа ⭐', icon: '⭐', req: 'Достичь 5-й Жизни Котика', bonus: '+20% ко ВСЕМУ доходу', check: () => state.livesLevel >= 5, mult: 1.20 },
-      { id: 'decor_5', name: 'Интерьерный Кот 🛋️', icon: '🏠', req: 'Купить 5 предметов декора комнаты', bonus: '+15% к пассивному AFK', check: () => (state.ownedRoomDecor && state.ownedRoomDecor.length >= 5), mult: 1.15 },
-      { id: 'butterfly_25', name: 'Ловец Бабочек 🦋', icon: '🦋', req: 'Поймать 25 золотых бабочек', bonus: '+10% к силе тапа', check: () => (state.stats && state.stats.butterfliesCaught >= 25), mult: 1.10 },
-      { id: 'laser_500', name: 'Скорость Света 🔴', icon: '⚡', req: 'Набрать 500 очков в Лазерной охоте', bonus: '+10% к скорости ража', check: () => (state.laserHighScore >= 500), mult: 1.10 },
-      { id: 'talents_10', name: 'Великий Мудрец 🌲', icon: '🌲', req: 'Изучить 10 уровней талантов', bonus: '+15% ко ВСЕМУ доходу', check: () => Object.values(state.talents || {}).reduce((a, b) => a + b, 0) >= 10, mult: 1.15 },
-      { id: 'life_9', name: 'Божественный Астрал 🌌', icon: '👑', req: 'Достичь Высшей 9-й Жизни Котика', bonus: '+50% ко ВСЕМУ навсегда!', check: () => state.livesLevel >= 9, mult: 1.50 }
+      { id: 'tap_100', name: 'Первый улов 🐾', icon: '🐾', req: 'Сделать 100 тапов лапкой', bonus: '+5% к силе клика', check: () => (state.stats && state.stats.tapsCount >= 100) },
+      { id: 'fish_1m', name: 'Рыбный магнат 🐟', icon: '💰', req: 'Заработать 1,000,000 🐟 за всё время', bonus: '+5% к пассивному AFK', check: () => (state.totalEarned || state.fish) >= 1000000 },
+      { id: 'bosses_3', name: 'Гроза Боссов ⚔️', icon: '⚔️', req: 'Победить 3 разных боссов на арене', bonus: '+15% к урону по боссам + 1 ⭐ очко таланта', talentPointReward: 1, check: () => (state.bossesDefeated && state.bossesDefeated.length >= 3) },
+      { id: 'tower_15', name: 'Зодчий Клубков 🧶', icon: '🧶', req: 'Построить башню из 15 клубков', bonus: '+15% к мини-играм + 1 ⭐ очко таланта', talentPointReward: 1, check: () => (state.towerHighScore >= 15) },
+      { id: 'life_5', name: 'Бессмертная душа ⭐', icon: '⭐', req: 'Достичь 5-й Жизни Котика', bonus: '+15% ко ВСЕМУ доходу', check: () => state.livesLevel >= 5 },
+      { id: 'decor_5', name: 'Интерьерный Кот 🛋️', icon: '🏠', req: 'Купить 5 предметов декора комнаты', bonus: '+15% к пассивному AFK', check: () => (state.ownedRoomDecor && state.ownedRoomDecor.length >= 5) },
+      { id: 'butterfly_25', name: 'Ловец Бабочек 🦋', icon: '🦋', req: 'Поймать 25 золотых бабочек', bonus: '+10% к силе тапа + 1 ⭐ очко таланта', talentPointReward: 1, check: () => (state.stats && state.stats.butterfliesCaught >= 25) },
+      { id: 'laser_500', name: 'Скорость Света 🔴', icon: '⚡', req: 'Набрать 500 очков в Лазерной охоте', bonus: '+15% к набору ража', check: () => (state.laserHighScore >= 500) },
+      { id: 'talents_10', name: 'Великий Мудрец 🌲', icon: '🌲', req: 'Изучить 10 уровней талантов', bonus: '+10% ко ВСЕМУ доходу', check: () => Object.values(state.talents || {}).reduce((a, b) => a + b, 0) >= 10 },
+      { id: 'life_9', name: 'Божественный Астрал 🌌', icon: '👑', req: 'Достичь Высшей 9-й Жизни Котика', bonus: '+30% ко ВСЕМУ навсегда!', check: () => state.livesLevel >= 9 }
     ];
 
     // --- Каталог Декора Комнаты (Room Interior) ---
     const roomDecorCatalog = [
-      { id: 'rug', name: 'Персидский коврик', icon: '🧶', price: 5000, desc: 'Мягкий и тёплый коврик под лапки.', bonus: '+5% ко всей рыбе 🌟' },
-      { id: 'garland', name: 'Неоновая гирлянда', icon: '💡', price: 30000, desc: 'Праздничные разноцветные огоньки.', bonus: '+10% к силе тапа ⚡' },
-      { id: 'plant', name: 'Кошачья мята в горшке', icon: '🪴', price: 150000, desc: 'Зелёный уют в комнате.', bonus: '+15% шанс бабочки 🦋' },
-      { id: 'fireplace', name: 'Уютный камин', icon: '🔥', price: 750000, desc: 'Потрескивающие дрова и тепло.', bonus: '+20% к пассивному AFK 🛋️' },
-      { id: 'window', name: 'Панорамное окно', icon: '🪟', price: 4000000, desc: 'Вид на ночной звёздный город.', bonus: '+50% ко ВСЕМУ доходу 🌌' }
+      { id: 'rug', name: 'Персидский коврик', icon: '🧶', price: 2500, desc: 'Мягкий и тёплый коврик под лапки.', bonus: '+5% ко всей рыбе 🌟' },
+      { id: 'garland', name: 'Неоновая гирлянда', icon: '💡', price: 15000, desc: 'Праздничные разноцветные огоньки.', bonus: '+10% к силе тапа ⚡' },
+      { id: 'plant', name: 'Кошачья мята в горшке', icon: '🪴', price: 75000, desc: 'Зелёный уют в комнате.', bonus: '+15% шанс бабочки 🦋' },
+      { id: 'fireplace', name: 'Уютный камин', icon: '🔥', price: 350000, desc: 'Потрескивающие дрова и тепло.', bonus: '+20% к пассивному AFK 🛋️' },
+      { id: 'window', name: 'Панорамное окно', icon: '🪟', price: 1500000, desc: 'Вид на ночной звёздный город.', bonus: '+30% ко ВСЕМУ доходу 🌌' }
     ];
 
     // --- Каталог Зелий (Crafting / Potions) ---
     const potionsCatalog = [
-      { id: 'energy', name: 'Кошачий Энергетик', icon: '⚡', price: 2000, duration: 120, desc: 'Утраивает пассивный AFK доход (x3) на 2 минуты!', bonus: 'x3 Пассивный доход ⚡' },
-      { id: 'magnet', name: 'Рыбный Магнит', icon: '🧲', price: 5000, duration: 120, desc: 'Удваивает рыбки от тапов и бабочек на 2 минуты!', bonus: 'x2 Клики и Бабочки 🧲' },
-      { id: 'bite', name: 'Эликсир «Супер-Кусь»', icon: '💥', price: 10000, duration: 60, desc: 'Увеличивает урон по боссам в 5 раз на 1 минуту!', bonus: 'x5 Урон по боссам 💥' }
+      { id: 'energy', name: 'Кошачий Энергетик', icon: '⚡', price: 1500, duration: 120, desc: 'Удваивает (x2) пассивный AFK доход на 2 минуты!', bonus: 'x2 Пассивный доход ⚡' },
+      { id: 'magnet', name: 'Рыбный Магнит', icon: '🧲', price: 3000, duration: 120, desc: 'Удваивает рыбки от тапов и бабочек на 2 минуты!', bonus: 'x2 Клики и Бабочки 🧲' },
+      { id: 'bite', name: 'Эликсир «Супер-Кусь»', icon: '💥', price: 6000, duration: 60, desc: 'Увеличивает урон по боссам в 2.5 раза на 1 минуту!', bonus: 'x2.5 Урон по боссам 💥' }
     ];
 
-    // --- Каталог Боссов 2.0 ---
+    // --- Каталог Боссов 2.0 (First Reward vs Repeat Bounty) ---
     const bossCatalog = [
-      { id: 'cucumber', name: 'Страшный Огурец', icon: '🥒', maxHp: 800, time: 20, reward: 2500, desc: 'Коварно подкрался сзади дивана! Используй крит-зоны.' },
-      { id: 'vacuum',   name: 'Злой Пылесос',   icon: '🌪️', maxHp: 4500, time: 25, reward: 18000, desc: 'Громко гудит и атакует вихрем! (Открывает котёнка Уголька 🖤)' },
-      { id: 'dog',      name: 'Соседский Пёс',  icon: '🐶', maxHp: 35000, time: 25, reward: 90000, desc: 'Грозный Барбос лает за забором! Уворачивайся от рыка.' },
-      { id: 'cyber',    name: 'Кибер-Пылесос 3000', icon: '🤖', maxHp: 200000, time: 30, reward: 500000, desc: 'Робот взбунтовался с силовым нано-щитом!' },
-      { id: 'godzilla', name: 'Дино-Годзилла',  icon: '🦖', maxHp: 1000000, time: 30, reward: 2500000, desc: 'Великан крушит кошачий город сокрушительным хвостом!' },
-      { id: 'kraken',   name: 'Космический Кракен', icon: '🌌', maxHp: 5000000, time: 35, reward: 12000000, desc: 'Межгалактический монстр с чернильным щитом!' },
-      { id: 'darklord', name: 'Тёмный Кот-Лорд', icon: '👑', maxHp: 20000000, time: 40, reward: 60000000, desc: 'Древний владыка теней. Величайшее испытание для кошачьего героя!' }
+      { id: 'cucumber', name: 'Страшный Огурец', icon: '🥒', maxHp: 800, time: 20, firstReward: 400, repeatReward: 100, desc: 'Коварно подкрался сзади дивана! Используй крит-зоны.' },
+      { id: 'vacuum',   name: 'Злой Пылесос',   icon: '🌪️', maxHp: 5000, time: 25, firstReward: 2000, repeatReward: 400, desc: 'Громко гудит и атакует вихрем! (Открывает котёнка Уголька 🖤)' },
+      { id: 'dog',      name: 'Соседский Пёс',  icon: '🐶', maxHp: 35000, time: 25, firstReward: 8000, repeatReward: 1500, desc: 'Грозный Барбос лает за забором! Уворачивайся от рыка.' },
+      { id: 'cyber',    name: 'Кибер-Пылесос 3000', icon: '🤖', maxHp: 150000, time: 30, firstReward: 40000, repeatReward: 8000, desc: 'Робот взбунтовался с силовым нано-щитом!' },
+      { id: 'godzilla', name: 'Дино-Годзилла',  icon: '🦖', maxHp: 800000, time: 30, firstReward: 200000, repeatReward: 40000, desc: 'Великан крушит кошачий город сокрушительным хвостом!' },
+      { id: 'kraken',   name: 'Космический Кракен', icon: '🌌', maxHp: 4000000, time: 35, firstReward: 1000000, repeatReward: 200000, desc: 'Межгалактический монстр с чернильным щитом!' },
+      { id: 'darklord', name: 'Тёмный Кот-Лорд', icon: '👑', maxHp: 15000000, time: 40, firstReward: 5000000, repeatReward: 1000000, desc: 'Древний владыка теней. Величайшее испытание для кошачьего героя!' }
     ];
 
     // --- Каталог Котят ---
     const kittensCatalog = [
       { id: 'snowball', name: 'Снежок 🤍', icon: '🐱', req: '⭐ 2-я Жизнь Котика', desc: 'Белый пушистик! +10 🐟/сек пассивно.', unlocked: () => state.livesLevel >= 2 },
       { id: 'coal', name: 'Уголёк 🖤', icon: '🐱‍👤', req: '🌪️ Победить Злого Пылесоса', desc: 'Бесстрашный боец! Помогает в битвах с боссами (+25 к урону).', unlocked: () => state.bossesDefeated && state.bossesDefeated.includes('vacuum') },
-      { id: 'tiger', name: 'Тигрёнок 🐯', icon: '🐯', req: '⭐ 4-я Жизнь Котика', desc: 'Грозный хищник! Увеличивает шанс крита +30%.', unlocked: () => state.livesLevel >= 4 },
-      { id: 'princess', name: 'Принцесса 🎀', icon: '😻', price: 50000, desc: 'Золотые Бабочки 🦋 прилетают в 2 раза чаще!', unlocked: () => state.unlockedKittens.includes('princess') },
-      { id: 'gentleman', name: 'Джентльмен 🎩', icon: '😼', price: 200000, desc: 'Приносит царскую скидку 15% на всё в магазине!', unlocked: () => state.unlockedKittens.includes('gentleman') }
+      { id: 'tiger', name: 'Тигрёнок 🐯', icon: '🐯', req: '⭐ 4-я Жизнь Котика', desc: 'Грозный хищник! Увеличивает шанс крита +15%.', unlocked: () => state.livesLevel >= 4 },
+      { id: 'princess', name: 'Принцесса 🎀', icon: '😻', price: 30000, desc: 'Золотые Бабочки 🦋 прилетают в 1.5 раза чаще!', unlocked: () => state.unlockedKittens.includes('princess') },
+      { id: 'gentleman', name: 'Джентльмен 🎩', icon: '😼', price: 120000, desc: 'Приносит царскую скидку 10% на всё в магазине!', unlocked: () => state.unlockedKittens.includes('gentleman') }
     ];
 
-    // --- Каталог Улучшений ---
+    // --- Каталог Улучшений с Прогрессивным Открытием ---
     const upgradesClickConfig = [
-      { id: 'fish_treat', name: 'Вкусная рыбка', icon: '🐟', basePrice: 25, power: 1, desc: '+1 к силе каждого тапа' },
-      { id: 'mint', name: 'Кошачья мята', icon: '🌿', basePrice: 120, power: 3, desc: '+3 к силе каждого тапа' },
-      { id: 'claws', name: 'Острые коготки', icon: '🧤', basePrice: 600, power: 10, desc: '+10 к силе каждого тапа' },
-      { id: 'post', name: 'Золотая когтеточка', icon: '✨', basePrice: 3000, power: 35, desc: '+35 к силе каждого тапа' },
-      { id: 'laser_paws', name: 'Лазерные лапки', icon: '⚡', basePrice: 15000, power: 120, desc: '+120 к силе каждого тапа' },
-      { id: 'diamond_claws', name: 'Алмазные когти', icon: '💎', basePrice: 80000, power: 450, desc: '+450 к силе каждого тапа' },
-      { id: 'cosmic_yarn', name: 'Космический клубок', icon: '🧶', basePrice: 400000, power: 2000, desc: '+2,000 к силе каждого тапа' },
-      { id: 'divine_purr', name: 'Божественное Мурчание', icon: '🌌', basePrice: 2500000, power: 10000, desc: '+10,000 к силе каждого тапа' }
+      { id: 'fish_treat', name: 'Вкусная рыбка', icon: '🐟', basePrice: 20, power: 1, mult: 1.20, desc: '+1 к силе каждого тапа' },
+      { id: 'mint', name: 'Кошачья мята', icon: '🌿', basePrice: 130, power: 2, mult: 1.22, desc: '+2 к силе каждого тапа', reqFish: 90 },
+      { id: 'claws', name: 'Острые коготки', icon: '🧤', basePrice: 750, power: 4, mult: 1.23, desc: '+4 к силе каждого тапа', reqFish: 600 },
+      { id: 'post', name: 'Золотая когтеточка', icon: '✨', basePrice: 3800, power: 9, mult: 1.24, desc: '+9 к силе каждого тапа', reqFish: 3000 },
+      { id: 'laser_paws', name: 'Лазерные лапки', icon: '⚡', basePrice: 20000, power: 22, mult: 1.25, desc: '+22 к силе каждого тапа', reqFish: 15000 },
+      { id: 'diamond_claws', name: 'Алмазные когти', icon: '💎', basePrice: 95000, power: 55, mult: 1.26, desc: '+55 к силе каждого тапа', reqFish: 75000 },
+      { id: 'cosmic_yarn', name: 'Космический клубок', icon: '🧶', basePrice: 500000, power: 200, mult: 1.27, desc: '+200 к силе каждого тапа', reqLife: 3 },
+      { id: 'divine_purr', name: 'Божественное Мурчание', icon: '🌌', basePrice: 2800000, power: 1000, mult: 1.28, desc: '+1,000 к силе каждого тапа', reqLife: 4 }
     ];
 
     const upgradesPassiveConfig = [
-      { id: 'mouse', name: 'Заводная мышка', icon: '🐭', basePrice: 35, perSec: 1, desc: '+1 🐟/сек пассивно' },
-      { id: 'feeder', name: 'Авто-кормушка', icon: '🥣', basePrice: 200, perSec: 5, desc: '+5 🐟/сек пассивно' },
-      { id: 'vacuum', name: 'Робот-пылесос-друг', icon: '🤖', basePrice: 1200, perSec: 25, desc: '+25 🐟/сек (котик катается на нем)' },
-      { id: 'tree', name: 'Кошачье дерево', icon: '🌳', basePrice: 6000, perSec: 90, desc: '+90 🐟/сек пассивно' },
-      { id: 'aquarium', name: 'Аквариум с рыбками', icon: '🐟', basePrice: 30000, perSec: 350, desc: '+350 🐟/сек пассивно' },
-      { id: 'mansion', name: 'Кошачий особняк', icon: '🏰', basePrice: 150000, perSec: 1500, desc: '+1,500 🐟/сек пассивно' },
-      { id: 'cat_island', name: 'Кошачий Остров Мечты', icon: '🏝️', basePrice: 800000, perSec: 7000, desc: '+7,000 🐟/сек пассивно' },
-      { id: 'galaxy_palace', name: 'Галактический Дворец', icon: '🌌', basePrice: 5000000, perSec: 35000, desc: '+35,000 🐟/сек пассивно' }
+      { id: 'mouse', name: 'Заводная мышка', icon: '🐭', basePrice: 45, perSec: 1, mult: 1.20, desc: '+1 🐟/сек пассивно' },
+      { id: 'feeder', name: 'Авто-кормушка', icon: '🥣', basePrice: 270, perSec: 2, mult: 1.22, desc: '+2 🐟/сек пассивно', reqFish: 180 },
+      { id: 'vacuum', name: 'Робот-пылесос-друг', icon: '🤖', basePrice: 1600, perSec: 5, mult: 1.23, desc: '+5 🐟/сек (котик катается на нем)', reqFish: 1200 },
+      { id: 'tree', name: 'Кошачье дерево', icon: '🌳', basePrice: 8000, perSec: 15, mult: 1.24, desc: '+15 🐟/сек пассивно', reqFish: 6000 },
+      { id: 'aquarium', name: 'Аквариум с рыбками', icon: '🐟', basePrice: 38000, perSec: 40, mult: 1.25, desc: '+40 🐟/сек пассивно', reqFish: 30000 },
+      { id: 'mansion', name: 'Кошачий особняк', icon: '🏰', basePrice: 190000, perSec: 120, mult: 1.26, desc: '+120 🐟/сек пассивно', reqFish: 120000 },
+      { id: 'cat_island', name: 'Кошачий Остров Мечты', icon: '🏝️', basePrice: 950000, perSec: 600, mult: 1.27, desc: '+600 🐟/сек пассивно', reqLife: 3 },
+      { id: 'galaxy_palace', name: 'Галактический Дворец', icon: '🌌', basePrice: 5500000, perSec: 3000, mult: 1.28, desc: '+3,000 🐟/сек пассивно', reqLife: 4 }
     ];
 
     // --- Каталог Скинов (9 Эволюций Жизней + Магазин) ---
@@ -2286,20 +2564,20 @@
       { id: 'classic', name: 'Домашний Рыжик (1-я Жизнь)', icon: '🐱', price: 0, lifeReq: 1, desc: 'Классический пушистый любимец.', bonus: 'Базовый клик 🐾' },
       { id: 'life_2', name: 'Лунный Снежок (2-я Жизнь)', icon: '🤍', price: 0, lifeReq: 2, desc: 'Белоснежный кот с сапфировыми глазами и бубенчиком.', bonus: '+10% ко всем доходам 🌟' },
       { id: 'life_3', name: 'Кибер-Кот 2077 (3-я Жизнь)', icon: '🤖', price: 0, lifeReq: 3, desc: 'Неоновый визор, карбоновый окрас и кибер-чип.', bonus: '+15% к силе тапа ⚡' },
-      { id: 'life_4', name: 'Степной Тигр (4-я Жизнь)', icon: '🐯', price: 0, lifeReq: 4, desc: 'Грозные полоски, клыки и алая бандана.', bonus: '+20% шанс крита 💥' },
-      { id: 'life_5', name: 'Теневой Шиноби (5-я Жизнь)', icon: '🥷', price: 0, lifeReq: 5, desc: 'Маска ниндзя, повязка с лапкой и сюрикены.', bonus: 'Теневой Раж x4 ⚡' },
-      { id: 'life_6', name: 'Верховный Мяу-Маг (6-я Жизнь)', icon: '🧙‍♂️', price: 0, lifeReq: 6, desc: 'Колдовская шляпа и парящая хрустальная сфера.', bonus: 'Сила клика x2.5 🔮' },
-      { id: 'life_7', name: 'Королевский Лев (7-я Жизнь)', icon: '🦁', price: 0, lifeReq: 7, desc: 'Пышная грива, золотая корона и царская мантия.', bonus: 'Скидка на всё 20% 👑' },
-      { id: 'life_8', name: 'Драконий Феникс (8-я Жизнь)', icon: '🐲', price: 0, lifeReq: 8, desc: 'Огненные крылья феникса, рога и пылающий хвост.', bonus: '+100% к пассивному доходу 🔥' },
-      { id: 'life_9', name: 'Божественный Астрал (9-я Жизнь)', icon: '🌌', price: 0, lifeReq: 9, desc: 'Космическая туманность, нимб и супернова в глазах.', bonus: '+200% ко ВСЕМУ доходу! 🌟' },
-      { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 2500, desc: 'Треуголка, повязка на глаз и шанс супер-куся x10!', bonus: 'Шанс крита x10 💥' },
-      { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 15000, desc: 'Скафандр и невесомость. +50% к пассивному доходу!', bonus: '+50% пассив 🌌' },
-      { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 5000000, desc: 'Радужный рог и магия! Даёт постоянный бонус +200% ко всему!', bonus: '+200% ко всему 🌈' }
+      { id: 'life_4', name: 'Степной Тигр (4-я Жизнь)', icon: '🐯', price: 0, lifeReq: 4, desc: 'Грозные полоски, клыки и алая бандана.', bonus: '+15% шанс крита 💥' },
+      { id: 'life_5', name: 'Теневой Шиноби (5-я Жизнь)', icon: '🥷', price: 0, lifeReq: 5, desc: 'Маска ниндзя, повязка с лапкой и сюрикены.', bonus: 'Теневой Раж x3 ⚡' },
+      { id: 'life_6', name: 'Верховный Мяу-Маг (6-я Жизнь)', icon: '🧙‍♂️', price: 0, lifeReq: 6, desc: 'Колдовская шляпа и парящая хрустальная сфера.', bonus: 'Сила клика x1.5 🔮' },
+      { id: 'life_7', name: 'Королевский Лев (7-я Жизнь)', icon: '🦁', price: 0, lifeReq: 7, desc: 'Пышная грива, золотая корона и царская мантия.', bonus: 'Скидка на всё 15% 👑' },
+      { id: 'life_8', name: 'Драконий Феникс (8-я Жизнь)', icon: '🐲', price: 0, lifeReq: 8, desc: 'Огненные крылья феникса, рога и пылающий хвост.', bonus: '+50% к пассивному доходу 🔥' },
+      { id: 'life_9', name: 'Божественный Астрал (9-я Жизнь)', icon: '🌌', price: 0, lifeReq: 9, desc: 'Космическая туманность, нимб и супернова в глазах.', bonus: '+100% ко ВСЕМУ доходу! 🌟' },
+      { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 2500, desc: 'Треуголка, повязка на глаз и +10% к шансу крит-удара!', bonus: '+10% шанс крита 💥' },
+      { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 15000, desc: 'Скафандр и невесомость. +30% к пассивному доходу!', bonus: '+30% пассив 🌌' },
+      { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 0, desc: 'Редкий кот из Колеса Фортуны! Даёт +20% к пассивному доходу.', bonus: '+20% к пассиву 🌈' }
     ];
 
     let frenzyVal = 0;
     let frenzyActive = false;
-    let frenzyMultiplier = 3;
+    let frenzyMultiplier = 2;
     let currentShopSubtab = 'click';
     let currentGameMode = 'fishing';
 
@@ -2320,7 +2598,7 @@
       const upg = state.upgrades || {};
 
       // 0. Аура Мяу-Эйфории (Счастливый Котик)
-      if (state.euphoriaUntil && state.euphoriaUntil > Date.now()) {
+      if (state.euphoriaUntil && state.euphoriaUntil > GameEnv.now()) {
         ctx.save();
         ctx.translate(cx, cy);
         const auraGrad = ctx.createRadialGradient(0, -10, 45, 0, -10, 105);
@@ -2637,7 +2915,7 @@
       }
 
       // Аура активных зелий
-      const now = Date.now();
+      const now = GameEnv.now();
       const pots = state.activePotions || {};
       const hasPotion = ((pots.energy || 0) > now) || ((pots.magnet || 0) > now) || ((pots.bite || 0) > now);
       if (hasPotion) {
@@ -2827,7 +3105,7 @@
       ctx.stroke();
 
       // Глазки
-      const isEuphoric = (state.euphoriaUntil && state.euphoriaUntil > Date.now());
+      const isEuphoric = (state.euphoriaUntil && state.euphoriaUntil > GameEnv.now());
       const isHappySmile = (pettingSmileTimer > 0) || isEuphoric;
 
       if (isHappySmile) {
@@ -3817,21 +4095,26 @@
       ctx.restore();
     }
 
-    function catLoop() {
+    let lastCatLoopTime = GameEnv.perfNow();
+    function catLoop(currentTime) {
       try {
-        catAnimTime += 0.04;
+        const now = currentTime || GameEnv.perfNow();
+        const dt = Math.min(0.1, (now - lastCatLoopTime) / 1000);
+        lastCatLoopTime = now;
+
+        catAnimTime += dt * 2.5;
         eyeBlink = (eyeBlink + 1) % 180;
         if (pettingSmileTimer > 0) pettingSmileTimer--;
 
-        catScaleX += (1.0 - catScaleX) * 0.15;
-        catScaleY += (1.0 - catScaleY) * 0.15;
+        catScaleX += (1.0 - catScaleX) * Math.min(1, dt * 12);
+        catScaleY += (1.0 - catScaleY) * Math.min(1, dt * 12);
 
         if (frenzyVal > 0) {
-          frenzyVal -= 0.18;
+          frenzyVal = Math.max(0, frenzyVal - (dt * 5.0));
           if (frenzyVal <= 0) {
             frenzyVal = 0;
             frenzyActive = false;
-            frenzyMultiplier = 3;
+            frenzyMultiplier = 2;
             const lbl = document.getElementById('frenzy-label');
             if (lbl) {
               lbl.innerText = '⚡ РАЖ x1';
@@ -3846,20 +4129,65 @@
       } catch (err) {
         console.error('catLoop render error:', err);
       }
-      requestAnimationFrame(catLoop);
+      GameEnv.requestAnimationFrame(catLoop);
     }
 
     function getMaxEnergy() {
       return 100 + ((state.talents && state.talents.hunter_energy) || 0) * 25;
     }
 
+    // --- Таргетированные множители достижений (без паразитного перемножения) ---
+    function getAchievementClickBonus() {
+      let m = 1.0;
+      const ach = state.unlockedAchievements || [];
+      if (ach.includes('tap_100')) m *= 1.05;
+      if (ach.includes('butterfly_25')) m *= 1.10;
+      if (ach.includes('life_5')) m *= 1.15;
+      if (ach.includes('talents_10')) m *= 1.10;
+      if (ach.includes('life_9')) m *= 1.30;
+      return m;
+    }
+
+    function getAchievementPassiveBonus() {
+      let m = 1.0;
+      const ach = state.unlockedAchievements || [];
+      if (ach.includes('fish_1m')) m *= 1.05;
+      if (ach.includes('decor_5')) m *= 1.15;
+      if (ach.includes('life_5')) m *= 1.15;
+      if (ach.includes('talents_10')) m *= 1.10;
+      if (ach.includes('life_9')) m *= 1.30;
+      return m;
+    }
+
+    function getAchievementBossBonus() {
+      let m = 1.0;
+      const ach = state.unlockedAchievements || [];
+      if (ach.includes('bosses_3')) m *= 1.15;
+      if (ach.includes('life_5')) m *= 1.15;
+      if (ach.includes('talents_10')) m *= 1.10;
+      if (ach.includes('life_9')) m *= 1.30;
+      return m;
+    }
+
+    function getAchievementMinigameBonus() {
+      let m = 1.0;
+      const ach = state.unlockedAchievements || [];
+      if (ach.includes('tower_15')) m *= 1.15;
+      if (ach.includes('life_5')) m *= 1.15;
+      if (ach.includes('talents_10')) m *= 1.10;
+      if (ach.includes('life_9')) m *= 1.30;
+      return m;
+    }
+
+    function getAchievementFrenzyBonus() {
+      let m = 1.0;
+      const ach = state.unlockedAchievements || [];
+      if (ach.includes('laser_500')) m *= 1.15;
+      return m;
+    }
+
     function getGlobalAchievementMultiplier() {
-      let mult = 1.0;
-      (state.unlockedAchievements || []).forEach(aid => {
-        const a = achievementsCatalog.find(x => x.id === aid);
-        if (a && a.mult) mult *= a.mult;
-      });
-      return mult;
+      return getAchievementPassiveBonus();
     }
 
     // --- Обработка клика по котику ---
@@ -3869,17 +4197,17 @@
       const x = touch && typeof touch.clientX === 'number' ? touch.clientX : (window.innerWidth / 2);
       const y = touch && typeof touch.clientY === 'number' ? touch.clientY : (window.innerHeight / 2);
 
-      catScaleX = 1.18;
-      catScaleY = 0.82;
+      catScaleX = 1.15;
+      catScaleY = 0.85;
 
       let power = 0;
       let lowEnergy = false;
-      const now = Date.now();
+      const now = GameEnv.now();
 
       // Проверка бесконечной энергии от супа или клубка
       const soupActive = (state.activeDishes && state.activeDishes.dish_soup > now);
       const yarnBonus = getYarnEnergyBonus();
-      const yarnSavedEnergy = (yarnBonus > 0 && Math.random() < (0.20 * yarnBonus));
+      const yarnSavedEnergy = (yarnBonus > 0 && GameEnv.random() < (0.15 * yarnBonus));
 
       if (soupActive || yarnSavedEnergy) {
         power = calculateClickPower();
@@ -3894,21 +4222,21 @@
       // Бонус ошейника «Звенящий Бубенчик» (шанс 15% на супер-улов)
       const bellBonus = getBellTapBonus();
       let bellTriggered = false;
-      if (!lowEnergy && bellBonus > 0 && Math.random() < 0.15) {
-        power *= Math.round(10 * bellBonus);
+      if (!lowEnergy && bellBonus > 0 && GameEnv.random() < 0.15) {
+        power *= Math.round(2 + 2 * bellBonus);
         bellTriggered = true;
       }
 
       let isCrit = false;
       let critChance = 0.05;
       if (state.livesLevel >= 4) critChance += 0.15;
-      if (state.equippedSkin === 'life_4') critChance += 0.20;
-      if (state.equippedSkin === 'pirate') critChance += 0.25;
-      if (state.activeDishes && state.activeDishes.dish_tempura > now) critChance += 0.40;
+      if (state.equippedSkin === 'life_4') critChance += 0.15;
+      if (state.equippedSkin === 'pirate') critChance += 0.10;
+      if (state.activeDishes && state.activeDishes.dish_tempura > now) critChance += 0.30;
 
-      if (!lowEnergy && Math.random() < critChance) {
+      if (!lowEnergy && GameEnv.random() < critChance) {
         const dragonBonus = getDragonEyeCritBonus();
-        const critMult = dragonBonus > 0 ? Math.round(15 * dragonBonus) : 10;
+        const critMult = dragonBonus > 0 ? Math.round(3 + 3 * dragonBonus) : 3;
         power *= critMult;
         isCrit = true;
       }
@@ -3917,7 +4245,7 @@
         power *= frenzyMultiplier;
       }
 
-      addFish(power);
+      addFish(power, true);
 
       // Трекинг статистики и квестов
       state.stats.tapsCount = (state.stats.tapsCount || 0) + 1;
@@ -3926,15 +4254,18 @@
 
       if (!lowEnergy) {
         const laserBonus = getLaserFrenzyBonus();
-        const frenzyStep = laserBonus > 0 ? (5 * 1.5 * laserBonus) : 5;
+        const frenzyStep = (laserBonus > 0 ? (4 * 1.3 * laserBonus) : 4) * getAchievementFrenzyBonus();
         frenzyVal = Math.min(100, frenzyVal + frenzyStep);
         if (frenzyVal >= 100 && !frenzyActive) {
           frenzyActive = true;
           playSound('frenzy');
-          const mult = state.equippedSkin === 'life_5' ? 4 : (state.equippedSkin === 'ninja' ? 5 : 3);
+          const mult = state.equippedSkin === 'life_5' ? 3 : (state.equippedSkin === 'ninja' ? 3 : 2);
           frenzyMultiplier = mult;
-          document.getElementById('frenzy-label').innerText = `🔥 КОШАЧИЙ РАЖ x${mult}! 🔥`;
-          document.getElementById('frenzy-label').style.color = '#50fa7b';
+          const fLabel = document.getElementById('frenzy-label');
+          if (fLabel) {
+            fLabel.innerText = `🔥 КОШАЧИЙ РАЖ x${mult}! 🔥`;
+            fLabel.style.color = '#50fa7b';
+          }
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         }
       }
@@ -3967,22 +4298,24 @@
       el.style.top = (y - 30) + 'px';
       el.style.color = color;
       document.body.appendChild(el);
-      setTimeout(() => el.remove(), 800);
+      GameEnv.setTimeout(() => el.remove(), 800);
     }
 
     // --- Экономика и Расчеты ---
-    function addFish(n) {
+    function addFish(n, isTrackEarn = true) {
+      if (typeof n !== 'number' || !isFinite(n) || n <= 0) return;
       state.fish += n;
-      state.totalEarned += n;
-      trackQuestProgress('earn', n);
-      updateUI();
-      saveGame();
+      state.totalEarned = (state.totalEarned || 0) + n;
+      if (isTrackEarn) {
+        trackQuestProgress('earn', n);
+      }
+      isDirty = true;
     }
 
     function getRoomMultiplier() {
       let mult = 1.0;
       if (state.ownedRoomDecor.includes('rug')) mult += 0.05;
-      if (state.ownedRoomDecor.includes('window')) mult += 0.50;
+      if (state.ownedRoomDecor.includes('window')) mult += 0.30;
       return mult;
     }
 
@@ -3992,93 +4325,95 @@
         p += (state.upgrades[u.id] || 0) * u.power;
       });
       if (state.equippedSkin === 'life_3') p *= 1.15;
-      if (state.equippedSkin === 'life_6') p *= 2.50;
-      if (state.equippedSkin === 'life_9') p *= 3.00;
-      if (state.equippedSkin === 'wizard') p *= 2.00;
-      if (state.equippedSkin === 'unicorn') p *= 3.00;
+      if (state.equippedSkin === 'life_6') p *= 1.50;
+      if (state.equippedSkin === 'life_9') p *= 2.00;
+      if (state.equippedSkin === 'wizard') p *= 1.50;
       if (state.ownedRoomDecor.includes('garland')) p *= 1.10;
-      if (state.unlockedAchievements.includes('butterfly_25')) p *= 1.10;
 
       // Бонус Мяу-Эйфории (+30% и выше с Солнечным Янтарем)
-      const now = Date.now();
+      const now = GameEnv.now();
       if (state.euphoriaUntil && state.euphoriaUntil > now) {
         const sunBonus = getSunAmuletBonus();
-        p *= (1.30 + (sunBonus > 0 ? sunBonus * 0.30 : 0));
+        p *= (1.30 + (sunBonus > 0 ? sunBonus * 0.20 : 0));
       }
 
-      // Блюдо Мяу-Баббл Чай (x3 ко всему доходу)
+      // Блюдо Мяу-Баббл Чай (+50% ко всему доходу)
       if (state.activeDishes && state.activeDishes.dish_bubble_tea > now) {
-        p *= 3.0;
+        p *= 1.5;
       }
 
       p *= state.livesLevel;
       p *= getRoomMultiplier();
-      p *= getGlobalAchievementMultiplier();
+      p *= getAchievementClickBonus();
 
       if (state.activePotions && state.activePotions.magnet > now) p *= 2;
       return Math.floor(p);
     }
 
-    function calculatePassive() {
+    function calculatePassiveAtTimestamp(targetTime) {
       let total = 0;
       upgradesPassiveConfig.forEach(u => {
         total += (state.upgrades[u.id] || 0) * u.perSec;
       });
-      if (state.livesLevel >= 2) total += 10;
-      if (state.equippedSkin === 'cosmonaut') total = Math.floor(total * 1.5);
-      if (state.equippedSkin === 'life_8') total = Math.floor(total * 2.0);
-      if (state.equippedSkin === 'life_9') total = Math.floor(total * 3.0);
-      if (state.equippedSkin === 'unicorn') total = Math.floor(total * 3.0);
+      if (state.livesLevel >= 2) total += (state.livesLevel - 1) * 5;
+      if (state.equippedSkin === 'cosmonaut') total = Math.floor(total * 1.30);
+      if (state.equippedSkin === 'life_8') total = Math.floor(total * 1.50);
+      if (state.equippedSkin === 'life_9') total = Math.floor(total * 2.00);
+      if (state.equippedSkin === 'unicorn') total = Math.floor(total * 1.20);
       if (state.ownedRoomDecor.includes('fireplace')) total = Math.floor(total * 1.20);
-      if (state.unlockedAchievements.includes('decor_5')) total = Math.floor(total * 1.15);
 
       const auraRank = (state.talents && state.talents.idle_aura) || 0;
-      if (auraRank > 0) total = Math.floor(total * (1 + auraRank * 0.15));
+      if (auraRank > 0) total = Math.floor(total * (1 + auraRank * 0.10));
 
-      const now = Date.now();
-
-      // Бонус Лунного Самоцвета (Амулет: +40% * tierMult)
+      // Бонус Лунного Самоцвета (Амулет: +25% * tierMult)
       const moonBonus = getMoonAmuletBonus();
-      if (moonBonus > 0) total = Math.floor(total * (1 + 0.40 * moonBonus));
+      if (moonBonus > 0) total = Math.floor(total * (1 + 0.25 * moonBonus));
 
-      // Бонус Ошейника Бастет (+20% * tierMult)
+      // Бонус Ошейника Бастет (+15% * tierMult)
       const bastetBonus = getBastetDiscountBonus();
-      if (bastetBonus > 0) total = Math.floor(total * (1 + 0.20 * bastetBonus));
+      if (bastetBonus > 0) total = Math.floor(total * (1 + 0.15 * bastetBonus));
 
       // Бонус Мяу-Эйфории
-      if (state.euphoriaUntil && state.euphoriaUntil > now) {
+      if (state.euphoriaUntil && state.euphoriaUntil > targetTime) {
         const sunBonus = getSunAmuletBonus();
-        total = Math.floor(total * (1.30 + (sunBonus > 0 ? sunBonus * 0.30 : 0)));
+        total = Math.floor(total * (1.30 + (sunBonus > 0 ? sunBonus * 0.20 : 0)));
       }
 
-      // Блюдо Мяу-Баббл Чай (x3 ко всему доходу)
-      if (state.activeDishes && state.activeDishes.dish_bubble_tea > now) {
-        total *= 3;
+      // Блюдо Мяу-Баббл Чай (+50% ко всему доходу)
+      if (state.activeDishes && state.activeDishes.dish_bubble_tea > targetTime) {
+        total = Math.floor(total * 1.5);
       }
 
       total *= state.livesLevel;
       total *= getRoomMultiplier();
-      total *= getGlobalAchievementMultiplier();
+      total *= getAchievementPassiveBonus();
 
-      if (state.activePotions && state.activePotions.energy > now) total *= 3;
-      state.passivePerSec = Math.floor(total);
+      if (state.activePotions && state.activePotions.energy > targetTime) total *= 2;
+      return Math.floor(total);
+    }
+
+    function calculatePassive() {
+      state.passivePerSec = calculatePassiveAtTimestamp(GameEnv.now());
     }
 
     function getUpgradePrice(u) {
       const count = state.upgrades[u.id] || 0;
-      let cost = Math.floor(u.basePrice * Math.pow(1.23, count));
-      if (state.equippedSkin === 'life_7') cost = Math.floor(cost * 0.80);
-      if (state.equippedSkin === 'king') cost = Math.floor(cost * 0.75);
-      if (state.unlockedKittens.includes('gentleman')) cost = Math.floor(cost * 0.85);
+      const baseMult = u.mult || 1.18;
+      let cost = Math.floor(u.basePrice * Math.pow(baseMult, count));
+      if (state.equippedSkin === 'life_7') cost = Math.floor(cost * 0.85);
+      if (state.unlockedKittens.includes('gentleman')) cost = Math.floor(cost * 0.90);
 
       const bastetBonus = getBastetDiscountBonus();
-      if (bastetBonus > 0) cost = Math.floor(cost * (1 - 0.15 * bastetBonus));
-      return cost;
+      if (bastetBonus > 0) cost = Math.floor(cost * (1 - 0.10 * bastetBonus));
+      return Math.max(1, cost);
     }
 
     function buyUpgrade(id, type) {
       initAudio();
-      const list = type === 'click' ? upgradesClickConfig : upgradesPassiveConfig;
+      let list;
+      if (type === 'click') list = upgradesClickConfig;
+      else if (type === 'passive') list = upgradesPassiveConfig;
+      else list = upgradesClickConfig.find(x => x.id === id) ? upgradesClickConfig : upgradesPassiveConfig;
       const u = list.find(x => x.id === id);
       if (!u) return;
 
@@ -4091,7 +4426,8 @@
         calculatePassive();
         renderShop();
         updateUI();
-        saveGame();
+        isDirty = true;
+        saveGame(true);
       }
     }
 
@@ -4101,18 +4437,18 @@
       if (!k || !k.price) return;
 
       let price = k.price;
-      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-      if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
 
       if (state.fish >= price && !state.unlockedKittens.includes(id)) {
         state.fish -= price;
         state.unlockedKittens.push(id);
         playSound('victory');
-        alert(`🐱 ТЫ ПРИРУЧИЛ КОТЁНКА: ${k.name}!\n${k.desc}`);
+        showGameToast(`🐱 Приручен котёнок: ${k.name}!`, 'success');
         renderShop();
         updateUI();
-        saveGame();
+        isDirty = true;
+        saveGame(true);
       }
     }
 
@@ -4131,9 +4467,8 @@
         if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
       } else if (s.price > 0) {
         let price = s.price;
-        if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-        if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-        if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+        if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+        if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
 
         if (state.fish >= price) {
           state.fish -= price;
@@ -4146,28 +4481,36 @@
       calculatePassive();
       renderWardrobe();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     // --- Золотая Бабочка ---
     const butterfly = document.getElementById('flying-butterfly');
     let butterflyActive = false;
+    let butterflyFlightInterval = null;
+    let butterflyFlightTimeout = null;
+    let butterflySpawnTimeout = null;
 
     function scheduleButterfly(force = false) {
+      if (butterflySpawnTimeout) {
+        GameEnv.clearTimeout(butterflySpawnTimeout);
+        butterflySpawnTimeout = null;
+      }
       if (force) {
         spawnButterfly();
         return;
       }
-      let delay = 45000 + Math.random() * 30000;
+      let delay = 45000 + GameEnv.random() * 30000;
       if (state.unlockedKittens.includes('princess')) delay /= 2;
       if (state.ownedRoomDecor.includes('plant')) delay *= 0.85;
       const bRank = (state.talents && state.talents.idle_butterfly) || 0;
-      if (bRank > 0) delay /= (1 + bRank * 0.25);
+      if (bRank > 0) delay /= (1 + bRank * 0.20);
 
       const featherBonus = getFeatherButterflyBonus();
-      if (featherBonus > 0) delay /= (1 + 0.40 * featherBonus);
+      if (featherBonus > 0) delay /= (1 + 0.30 * featherBonus);
 
-      setTimeout(() => {
+      butterflySpawnTimeout = GameEnv.setTimeout(() => {
         spawnButterfly();
       }, delay);
     }
@@ -4177,18 +4520,20 @@
       butterflyActive = true;
       butterfly.style.display = 'block';
       let x = -50;
-      let y = 100 + Math.random() * 150;
+      let y = 100 + GameEnv.random() * 150;
       butterfly.style.left = x + 'px';
       butterfly.style.top = y + 'px';
 
-      const flyInterval = setInterval(() => {
+      if (butterflyFlightInterval) GameEnv.clearInterval(butterflyFlightInterval);
+      butterflyFlightInterval = GameEnv.setInterval(() => {
         x += 3.5;
         y += Math.sin(x * 0.05) * 4;
         butterfly.style.left = x + 'px';
         butterfly.style.top = y + 'px';
 
         if (x > window.innerWidth + 50) {
-          clearInterval(flyInterval);
+          if (butterflyFlightInterval) GameEnv.clearInterval(butterflyFlightInterval);
+          butterflyFlightInterval = null;
           butterfly.style.display = 'none';
           butterflyActive = false;
           scheduleButterfly();
@@ -4202,6 +4547,15 @@
       playSound('victory');
       butterflyActive = false;
       butterfly.style.display = 'none';
+
+      if (butterflyFlightInterval) {
+        GameEnv.clearInterval(butterflyFlightInterval);
+        butterflyFlightInterval = null;
+      }
+      if (butterflyFlightTimeout) {
+        GameEnv.clearTimeout(butterflyFlightTimeout);
+        butterflyFlightTimeout = null;
+      }
 
       state.stats.butterfliesCaught = (state.stats.butterfliesCaught || 0) + 1;
       trackQuestProgress('butterfly', 1);
@@ -4219,45 +4573,45 @@
       const stage = document.getElementById('game-stage');
       let count = 0;
       const bRank = (state.talents && state.talents.idle_butterfly) || 0;
-      let bMult = 1 + bRank * 0.25;
+      let bMult = 1 + bRank * 0.20;
 
       const featherBonus = getFeatherButterflyBonus();
-      if (featherBonus > 0) bMult *= (1 + 0.50 * featherBonus);
+      if (featherBonus > 0) bMult *= (1 + 0.30 * featherBonus);
 
-      const rainInterval = setInterval(() => {
+      const rainInterval = GameEnv.setInterval(() => {
         count++;
         const f = document.createElement('div');
         f.className = 'falling-fish';
-        f.innerText = Math.random() < 0.2 ? '🌟' : '🐟';
-        f.style.left = (Math.random() * (window.innerWidth - 60)) + 'px';
+        f.innerText = GameEnv.random() < 0.2 ? '🌟' : '🐟';
+        f.style.left = (GameEnv.random() * (window.innerWidth - 60)) + 'px';
         f.onclick = (ev) => {
           ev.stopPropagation();
-          const baseBonus = f.innerText === '🌟' ? 250 : 50;
+          const baseBonus = f.innerText === '🌟' ? 100 : 25;
           const bonus = Math.floor(baseBonus * state.livesLevel * bMult);
-          addFish(bonus);
+          addFish(bonus, true);
           playSound('purr');
           spawnTapPopup(ev.clientX, ev.clientY, `+${bonus} 🐟`, '#00ff88');
           f.remove();
         };
         stage.appendChild(f);
-        setTimeout(() => f.remove(), 2200);
+        GameEnv.setTimeout(() => f.remove(), 2200);
 
-        if (count > 25) clearInterval(rainInterval);
+        if (count > 25) GameEnv.clearInterval(rainInterval);
       }, 250);
     }
 
-    // --- Колесо Фортуны ---
+    // --- Колесо Фортуны (Weighted 100% Slices & Tickets) ---
     const wheelCanvas = document.getElementById('wheel-canvas');
     const wCtx = wheelCanvas.getContext('2d');
     const wheelPrizes = [
-      { text: '+500 🐟', val: 500, type: 'fish', color: '#ff5555' },
-      { text: '🔥 РАЖ x10', val: 10, type: 'frenzy', color: '#ffb86c' },
-      { text: '+2,500 🐟', val: 2500, type: 'fish', color: '#f1fa8c' },
-      { text: '🦄 ЕДИНОРОГ', val: 'unicorn', type: 'skin', color: '#ff79c6' },
-      { text: '+1,000 🐟', val: 1000, type: 'fish', color: '#8be9fd' },
-      { text: '+10,000 🐟', val: 10000, type: 'fish', color: '#50fa7b' },
-      { text: '⭐ ЗВЕЗДА', val: 15000, type: 'fish', color: '#bd93f9' },
-      { text: '+5,000 🐟', val: 5000, type: 'fish', color: '#ff79c6' }
+      { text: '+300 🐟', val: 300, weight: 35, type: 'fish', color: '#ff5555' },
+      { text: '🔥 РАЖ x2', val: 2, weight: 20, type: 'frenzy', color: '#ffb86c' },
+      { text: '+1,000 🐟', val: 1000, weight: 18, type: 'fish', color: '#f1fa8c' },
+      { text: '⚡ +50 ЭНЕРГИИ', val: 50, weight: 12, type: 'energy', color: '#8be9fd' },
+      { text: '+3,000 🐟', val: 3000, weight: 9, type: 'fish', color: '#50fa7b' },
+      { text: '🎟️ +1 БИЛЕТ', val: 1, weight: 4, type: 'ticket', color: '#bd93f9' },
+      { text: '⭐ +10,000 🐟', val: 10000, weight: 1, type: 'fish', color: '#ff79c6' },
+      { text: '🦄 ЕДИНОРОГ', val: 'unicorn', weight: 1, type: 'skin', color: '#00ffff' }
     ];
 
     let wheelAngle = 0;
@@ -4289,7 +4643,7 @@
         wCtx.rotate(angle + arc / 2);
         wCtx.textAlign = 'right';
         wCtx.fillStyle = '#111';
-        wCtx.font = 'bold 12px sans-serif';
+        wCtx.font = 'bold 11px sans-serif';
         wCtx.fillText(wheelPrizes[i].text, r - 15, 4);
         wCtx.restore();
       }
@@ -4302,36 +4656,58 @@
       wCtx.font = 'bold 14px sans-serif';
       wCtx.textAlign = 'center';
       wCtx.fillText('🎁', cx, cy + 5);
+
+      const ticketCountEl = document.getElementById('wheel-tickets-count');
+      if (ticketCountEl) {
+        ticketCountEl.innerText = state.wheelTickets || 0;
+      }
     }
 
     function spinWheel() {
       if (isSpinning) return;
       initAudio();
 
-      if (!state.freeSpinAvailable && state.fish < 500) {
-        alert('Для спина нужно 500 🐟 или подожди до завтра для бесплатной попытки!');
+      const today = getTodayDateString();
+      const isFreeSpin = (state.lastFreeSpinDate !== today);
+
+      if (!isFreeSpin && (state.wheelTickets || 0) < 1) {
+        showGameToast('Нужен 🎟️ билет! Получите его за выполнение всех ежедневных заданий!', 'warning');
         return;
       }
 
-      if (!state.freeSpinAvailable) {
-        state.fish -= 500;
-        updateUI();
+      // Атомарное списание попытки/билета
+      if (isFreeSpin) {
+        state.lastFreeSpinDate = today;
       } else {
-        state.freeSpinAvailable = false;
-        state.lastSpinDay = Math.floor(Date.now() / 86400000);
+        state.wheelTickets = Math.max(0, (state.wheelTickets || 0) - 1);
       }
 
-      isSpinning = true;
-      document.getElementById('spin-btn').disabled = true;
+      // Атомарный выбор сектора по весам
+      const totalWeight = wheelPrizes.reduce((sum, p) => sum + p.weight, 0);
+      let rand = GameEnv.random() * totalWeight;
+      let prizeIndex = 0;
+      for (let i = 0; i < wheelPrizes.length; i++) {
+        if (rand < wheelPrizes[i].weight) {
+          prizeIndex = i;
+          break;
+        }
+        rand -= wheelPrizes[i].weight;
+      }
 
-      const spins = 5 + Math.random() * 5;
-      const prizeIndex = Math.floor(Math.random() * wheelPrizes.length);
+      isDirty = true;
+      saveGame(true);
+
+      isSpinning = true;
+      const spinBtn = document.getElementById('spin-btn');
+      if (spinBtn) spinBtn.disabled = true;
+
+      const spins = 5 + GameEnv.random() * 3;
       const arc = (Math.PI * 2) / wheelPrizes.length;
       const targetAngle = (Math.PI * 1.5) - (prizeIndex * arc) - (arc / 2) + (spins * Math.PI * 2);
 
       const startAngle = wheelAngle;
-      const duration = 4000;
-      const startTime = performance.now();
+      const duration = 3800;
+      const startTime = GameEnv.perfNow();
 
       function animateSpin(currentTime) {
         const elapsed = currentTime - startTime;
@@ -4346,39 +4722,51 @@
         }
 
         if (progress < 1) {
-          requestAnimationFrame(animateSpin);
+          GameEnv.requestAnimationFrame(animateSpin);
         } else {
           isSpinning = false;
-          document.getElementById('spin-btn').disabled = false;
+          if (spinBtn) spinBtn.disabled = false;
           handleWheelPrize(wheelPrizes[prizeIndex]);
         }
       }
-      requestAnimationFrame(animateSpin);
+      GameEnv.requestAnimationFrame(animateSpin);
     }
 
     function handleWheelPrize(prize) {
       playSound('victory');
       if (prize.type === 'fish') {
-        addFish(prize.val);
-        alert(`🎉 ТЫ ВЫИГРАЛ: +${prize.val.toLocaleString('ru-RU')} 🐟!`);
+        const fishAmt = Math.round(prize.val * Math.pow(state.livesLevel, 1.1));
+        addFish(fishAmt, false);
+        showGameToast(`🎉 Выигрыш: +${fishAmt.toLocaleString('ru-RU')} 🐟!`, 'success');
       } else if (prize.type === 'frenzy') {
         frenzyActive = true;
-        frenzyMultiplier = 10;
+        frenzyMultiplier = 2;
         frenzyVal = 100;
-        document.getElementById('frenzy-label').innerText = '🔥 МЕГА-РАЖ x10 (30с)! 🔥';
-        document.getElementById('frenzy-label').style.color = '#ff5555';
-        alert('🔥 ТЫ АКТИВИРОВАЛ СУПЕР-РАЖ x10 НА 30 СЕКУНД!');
+        const fLabel = document.getElementById('frenzy-label');
+        if (fLabel) {
+          fLabel.innerText = '🔥 РАЖ x2 (20с)! 🔥';
+          fLabel.style.color = '#50fa7b';
+        }
+        showGameToast('🔥 Активирован Кошачий Раж x2!', 'success');
+      } else if (prize.type === 'energy') {
+        state.energy = Math.min(state.maxEnergy, state.energy + 50);
+        showGameToast('⚡ Получено +50 Энергии!', 'success');
+      } else if (prize.type === 'ticket') {
+        state.wheelTickets = (state.wheelTickets || 0) + 1;
+        showGameToast('🎟️ Получен +1 Билет Колеса Фортуны!', 'success');
       } else if (prize.type === 'skin') {
         if (!state.ownedSkins.includes('unicorn')) {
           state.ownedSkins.push('unicorn');
           state.equippedSkin = 'unicorn';
-          alert('🦄 ДЖЕКПОТ! ТЫ ВЫИГРАЛ СЕКРЕТНЫЙ СКИН КОТА-ЕДИНОРОГА!');
+          showGameToast('🦄 ДЖЕКПОТ! Секретный скин Кота-Единорога (+20% пассив)!', 'success', 5000);
         } else {
-          addFish(25000);
-          alert('🦄 ТЫ ВЫИГРАЛ ДЖЕКПОТ: +25,000 🐟!');
+          addFish(1000, false);
+          state.wheelTickets = (state.wheelTickets || 0) + 1;
+          showGameToast('🦄 Дубликат Единорога: +1,000 🐟 и +1 🎟️ билет!', 'success');
         }
       }
-      saveGame();
+      isDirty = true;
+      saveGame(true);
       updateUI();
     }
 
@@ -4389,20 +4777,26 @@
       if (state.livesLevel >= 9) {
         document.getElementById('prest-req').innerText = 'МАКСИМУМ (9/9)';
         const btn = document.getElementById('prestige-btn');
-        btn.disabled = true;
-        btn.innerText = 'ВЫСШАЯ 9-Я ЖИЗНЬ ДОСТИГНУТА 🌌';
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = 'ВЫСШАЯ 9-Я ЖИЗНЬ ДОСТИГНУТА 🌌';
+        }
       } else {
         const conf = prestigeConfig[state.livesLevel] || { req: state.livesLevel * 50000, title: 'Новая Жизнь', pts: 2 };
         document.getElementById('prest-req').innerText = conf.req.toLocaleString('ru-RU');
         const btn = document.getElementById('prestige-btn');
-        btn.disabled = state.fish < conf.req;
-        btn.innerText = `ПЕРЕРОДИТЬСЯ В «${conf.title}» (+${conf.pts} ⭐)`;
+        if (btn) {
+          btn.disabled = state.fish < conf.req;
+          btn.innerText = `ПЕРЕРОДИТЬСЯ В «${conf.title}» (+${conf.pts} ⭐)`;
+        }
       }
       document.getElementById('prestige-modal').style.display = 'flex';
+      if (tg && tg.BackButton) tg.BackButton.show();
     }
 
     function closePrestigeModal() {
       document.getElementById('prestige-modal').style.display = 'none';
+      if (tg && tg.BackButton) tg.BackButton.hide();
     }
 
     function ascendLife() {
@@ -4430,13 +4824,14 @@
         playSound('victory');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-        alert(`🌟 ПОЗДРАВЛЯЕМ! Котик обрёл Жизнь ${state.livesLevel}/9: «${conf ? conf.title : ''}»!\n⭐ Получено: +${pts} Очков Мудрости (Талантов)!\n🎨 Разблокирован новый скин котика!`);
+        showGameToast(`🌟 Жизнь ${state.livesLevel}/9: «${conf ? conf.title : ''}»! Получено: +${pts} ⭐!`, 'success', 5000);
         closePrestigeModal();
         calculatePassive();
         renderShop();
         renderWardrobe();
         updateUI();
-        saveGame();
+        isDirty = true;
+        saveGame(true);
       }
     }
 
@@ -4457,20 +4852,21 @@
       const d = roomDecorCatalog.find(x => x.id === id);
       if (!d || state.ownedRoomDecor.includes(id)) return;
       let price = d.price;
-      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-      if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
 
       if (state.fish >= price) {
         state.fish -= price;
         state.ownedRoomDecor.push(id);
         playSound('victory');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        showGameToast(`🛋️ Установлен декор: ${d.name}!`, 'success');
         checkAchievements();
         calculatePassive();
         renderShop();
         updateUI();
-        saveGame();
+        isDirty = true;
+        saveGame(true);
       }
     }
 
@@ -4479,36 +4875,37 @@
       const p = potionsCatalog.find(x => x.id === id);
       if (!p) return;
       let price = p.price;
-      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-      if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
 
       if (state.fish >= price) {
         state.fish -= price;
-        const now = Date.now();
+        const now = GameEnv.now();
         const cur = state.activePotions[id] > now ? state.activePotions[id] : now;
         state.activePotions[id] = cur + (p.duration * 1000);
         playSound('buy');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        showGameToast(`🧪 Зелье «${p.name}» активно!`, 'success');
         calculatePassive();
         renderShop();
         renderActivePotionsBar();
         updateUI();
-        saveGame();
+        isDirty = true;
+        saveGame(true);
       }
     }
 
     function renderShop() {
       const grid = document.getElementById('shop-grid');
+      if (!grid) return;
       grid.innerHTML = '';
 
       if (currentShopSubtab === 'room') {
         roomDecorCatalog.forEach(d => {
           const isOwned = state.ownedRoomDecor.includes(d.id);
           let price = d.price;
-          if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-          if (state.equippedSkin === 'king' && !isOwned) price = Math.floor(price * 0.75);
-          if (state.unlockedKittens.includes('gentleman') && !isOwned) price = Math.floor(price * 0.85);
+          if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+          if (state.unlockedKittens.includes('gentleman') && !isOwned) price = Math.floor(price * 0.90);
 
           const card = document.createElement('div');
           card.className = `card ${isOwned ? 'owned' : ''}`;
@@ -4528,13 +4925,12 @@
       }
 
       if (currentShopSubtab === 'potions') {
-        const now = Date.now();
+        const now = GameEnv.now();
         potionsCatalog.forEach(p => {
           const isAct = state.activePotions[p.id] > now;
           let price = p.price;
-          if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-          if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-          if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+          if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+          if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
 
           const card = document.createElement('div');
           card.className = `card ${isAct ? 'owned' : ''}`;
@@ -4579,16 +4975,21 @@
         const price = getUpgradePrice(u);
         const benefit = currentShopSubtab === 'click' ? `+${u.power} к тапу` : `+${u.perSec} 🐟/сек`;
 
+        const isLocked = (u.reqFish && (state.totalEarned || state.fish) < u.reqFish) || (u.reqLife && state.livesLevel < u.reqLife);
+        let lockReason = '';
+        if (u.reqFish && (state.totalEarned || state.fish) < u.reqFish) lockReason = `🔒 Откроется при ${u.reqFish.toLocaleString('ru-RU')} 🐟`;
+        else if (u.reqLife && state.livesLevel < u.reqLife) lockReason = `🔒 Требуется ${u.reqLife}-я Жизнь`;
+
         const card = document.createElement('div');
-        card.className = `card ${count > 0 ? 'owned' : ''}`;
+        card.className = `card ${count > 0 ? 'owned' : ''} ${isLocked ? 'locked-card' : ''}`;
         card.innerHTML = `
           <div class="card-icon">${u.icon}</div>
           <div class="card-title">${u.name} <span style="color:#ff79c6;">(x${count})</span></div>
           <div class="card-desc">${u.desc}</div>
           <div style="font-size:11px; color:#50fa7b; font-weight:bold;">${benefit}</div>
-          <div class="card-price">${price.toLocaleString('ru-RU')} 🐟</div>
-          <button class="card-btn" ${state.fish < price ? 'disabled' : ''} onclick="buyUpgrade('${u.id}', '${currentShopSubtab}')">
-            КУПИТЬ 🛒
+          ${isLocked ? `<div class="lock-pill">${lockReason}</div>` : `<div class="card-price">${price.toLocaleString('ru-RU')} 🐟</div>`}
+          <button class="card-btn" ${isLocked || state.fish < price ? 'disabled' : ''} onclick="buyUpgrade('${u.id}', '${currentShopSubtab}')">
+            ${isLocked ? 'ЗАКРЫТО 🔒' : 'КУПИТЬ 🛒'}
           </button>
         `;
         grid.appendChild(card);
@@ -4598,6 +4999,7 @@
     // --- Рендеринг Гардероба (9 Эволюций + Скины) ---
     function renderWardrobe() {
       const grid = document.getElementById('wardrobe-grid');
+      if (!grid) return;
       grid.innerHTML = '';
       skins.forEach(s => {
         const isLifeSkin = typeof s.lifeReq === 'number';
@@ -4606,9 +5008,8 @@
         const isEquipped = state.equippedSkin === s.id;
 
         let price = s.price;
-        if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-        if (state.equippedSkin === 'king' && !isOwned) price = Math.floor(price * 0.75);
-        if (state.unlockedKittens.includes('gentleman') && !isOwned) price = Math.floor(price * 0.85);
+        if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+        if (state.unlockedKittens.includes('gentleman') && !isOwned) price = Math.floor(price * 0.90);
 
         let statusText = 'КУПИТЬ';
         let btnDisabled = false;
@@ -4641,7 +5042,7 @@
       });
     }
 
-    // --- Арена Боссов 2.0 (Тактические Битвы) ---
+    // --- Арена Боссов 2.0 (First Reward vs Repeat Bounty & Cooldowns) ---
     let activeBoss = null;
     let bossHp = 0;
     let bossMaxHp = 0;
@@ -4679,12 +5080,19 @@
       }
 
       const container = document.getElementById('bosses-container');
+      if (!container) return;
       container.innerHTML = '';
+      const now = GameEnv.now();
 
       bossCatalog.forEach(b => {
         const isDefeated = state.bossesDefeated && state.bossesDefeated.includes(b.id);
         const hp = bossHardcoreMode ? b.maxHp * 4 : b.maxHp;
-        const reward = bossHardcoreMode ? b.reward * 3 : b.reward;
+        const baseRew = isDefeated ? (b.repeatReward || Math.floor(b.firstReward * 0.25)) : (b.firstReward || 1000);
+        const reward = bossHardcoreMode ? baseRew * 3 : baseRew;
+
+        const cdUntil = (state.bossCooldowns && state.bossCooldowns[b.id]) || 0;
+        const onCd = cdUntil > now;
+        const cdSec = Math.ceil((cdUntil - now) / 1000);
 
         const card = document.createElement('div');
         card.className = `boss-card ${isDefeated ? 'defeated' : ''} ${bossHardcoreMode ? 'hardcore' : ''}`;
@@ -4695,11 +5103,13 @@
               <h4>${b.name} ${isDefeated ? '✅' : ''} ${bossHardcoreMode ? '<span style="color:#ff5555;font-size:11px;">[★ ХАРДКОР]</span>' : ''}</h4>
               <p>${b.desc}</p>
               <div style="font-size:11px; color:#ffb86c; font-weight:800; margin-top:2px;">
-                ❤️ ${hp.toLocaleString('ru-RU')} HP | ⏱️ ${b.time}с | 🏆 +${reward.toLocaleString('ru-RU')} 🐟
+                ❤️ ${hp.toLocaleString('ru-RU')} HP | ⏱️ ${b.time}с | 🏆 +${reward.toLocaleString('ru-RU')} 🐟 ${isDefeated ? '(Повтор 25%)' : '(Первая победа!)'}
               </div>
             </div>
           </div>
-          <button class="boss-btn" onclick="startBossFight('${b.id}')">В БОЙ ⚔️</button>
+          <button class="boss-btn" ${onCd ? 'disabled' : ''} onclick="startBossFight('${b.id}')">
+            ${onCd ? `⏳ ${cdSec}с` : 'В БОЙ ⚔️'}
+          </button>
         `;
         container.appendChild(card);
       });
@@ -4710,6 +5120,13 @@
       activeBoss = bossCatalog.find(x => x.id === id);
       if (!activeBoss) return;
 
+      const now = GameEnv.now();
+      const cdUntil = (state.bossCooldowns && state.bossCooldowns[id]) || 0;
+      if (cdUntil > now) {
+        showGameToast(`Босс восстанавливает силы! Подождите еще ${Math.ceil((cdUntil - now) / 1000)}с`, 'warning');
+        return;
+      }
+
       bossMaxHp = bossHardcoreMode ? activeBoss.maxHp * 4 : activeBoss.maxHp;
       bossHp = bossMaxHp;
       bossTimer = activeBoss.time;
@@ -4717,9 +5134,9 @@
       bossShieldActive = false;
       bossStunned = false;
       bossQteActive = false;
-      if (bossStunTimer) clearTimeout(bossStunTimer);
-      if (bossActionTimer) clearTimeout(bossActionTimer);
-      if (bossQteInterval) clearInterval(bossQteInterval);
+      if (bossStunTimer) GameEnv.clearTimeout(bossStunTimer);
+      if (bossActionTimer) GameEnv.clearTimeout(bossActionTimer);
+      if (bossQteInterval) GameEnv.clearInterval(bossQteInterval);
 
       document.getElementById('boss-list-view').style.display = 'none';
       document.getElementById('boss-fight-screen').style.display = 'flex';
@@ -4741,8 +5158,10 @@
       document.getElementById('bf-status-badge').innerHTML = '<span style="color:#50fa7b;">⚔️ АТАКА!</span>';
       document.getElementById('bf-hint-text').innerText = 'БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥';
 
-      clearInterval(bossInterval);
-      bossInterval = setInterval(() => {
+      if (tg && tg.BackButton) tg.BackButton.show();
+
+      GameEnv.clearInterval(bossInterval);
+      bossInterval = GameEnv.setInterval(() => {
         bossTimer--;
         document.getElementById('bf-timer').innerText = bossTimer;
         if (bossTimer <= 0) {
@@ -4755,17 +5174,17 @@
 
     function scheduleNextBossAction() {
       if (!activeBoss || bossHp <= 0 || bossTimer <= 0) return;
-      if (bossActionTimer) clearTimeout(bossActionTimer);
+      if (bossActionTimer) GameEnv.clearTimeout(bossActionTimer);
 
-      const delay = 4000 + Math.random() * 3000;
-      bossActionTimer = setTimeout(() => {
+      const delay = 4000 + GameEnv.random() * 3000;
+      bossActionTimer = GameEnv.setTimeout(() => {
         if (!activeBoss || bossHp <= 0 || bossTimer <= 0) return;
         if (bossStunned || bossQteActive) {
           scheduleNextBossAction();
           return;
         }
 
-        const isShield = Math.random() < 0.55;
+        const isShield = GameEnv.random() < 0.55;
         if (isShield) {
           triggerBossShield();
         } else {
@@ -4784,8 +5203,8 @@
       document.getElementById('bf-hint-text').innerText = '🛡️ ЩИТ БОССА! НАЖМИ НА 💥 КРИТ-ЗОНУ, ЧТОБЫ СЛОМАТЬ ЩИТ!';
 
       const weakSpot = document.getElementById('bf-weak-spot');
-      const posX = 15 + Math.floor(Math.random() * 65);
-      const posY = 15 + Math.floor(Math.random() * 65);
+      const posX = 15 + Math.floor(GameEnv.random() * 65);
+      const posY = 15 + Math.floor(GameEnv.random() * 65);
       weakSpot.style.left = posX + '%';
       weakSpot.style.top = posY + '%';
       weakSpot.style.display = 'flex';
@@ -4811,8 +5230,8 @@
       document.getElementById('bf-status-badge').innerHTML = '<span style="color:#f1fa8c;">💫 ОГЛУШЁН (x3 УРОН!)</span>';
       document.getElementById('bf-hint-text').innerText = '💫 БОСС ОГЛУШЁН! БЕЙ СО ВСЕЙ СИЛЫ (x3 УРОН)! 💥';
 
-      let critDmg = calculateClickPower() * 5;
-      if (state.unlockedKittens.includes('coal')) critDmg += 75;
+      let critDmg = calculateClickPower() * 3;
+      if (state.unlockedKittens.includes('coal')) critDmg += 50;
       if (frenzyActive) critDmg *= frenzyMultiplier;
       bossHp = Math.max(0, bossHp - critDmg);
 
@@ -4824,8 +5243,8 @@
 
       updateBossHpUI();
 
-      if (bossStunTimer) clearTimeout(bossStunTimer);
-      bossStunTimer = setTimeout(() => {
+      if (bossStunTimer) GameEnv.clearTimeout(bossStunTimer);
+      bossStunTimer = GameEnv.setTimeout(() => {
         bossStunned = false;
         document.getElementById('bf-stun-indicator').style.display = 'none';
         document.getElementById('bf-status-badge').innerHTML = '<span style="color:#50fa7b;">⚔️ АТАКА!</span>';
@@ -4851,18 +5270,18 @@
       document.getElementById('bf-status-badge').innerHTML = '<span style="color:#ff5555;">⚠️ ОПАСНОСТЬ: УДАР!</span>';
       document.getElementById('bf-hint-text').innerText = '⚠️ БОСС ГОТОВИТ УДАР! ЖМИ УВЕРНУТЬСЯ / БЛОК!';
 
-      const dodgeBonusMs = ((state.talents && state.talents.combat_dodge) || 0) * 500;
+      const dodgeBonusMs = ((state.talents && state.talents.combat_dodge) || 0) * 400;
       let qteDuration = 1800 + dodgeBonusMs;
-      let qteStart = Date.now();
+      let qteStart = GameEnv.now();
 
-      if (bossQteInterval) clearInterval(bossQteInterval);
-      bossQteInterval = setInterval(() => {
-        const elapsed = Date.now() - qteStart;
+      if (bossQteInterval) GameEnv.clearInterval(bossQteInterval);
+      bossQteInterval = GameEnv.setInterval(() => {
+        const elapsed = GameEnv.now() - qteStart;
         const remainingPct = Math.max(0, 100 - (elapsed / qteDuration) * 100);
         qteBar.style.width = remainingPct + '%';
 
         if (elapsed >= qteDuration) {
-          clearInterval(bossQteInterval);
+          GameEnv.clearInterval(bossQteInterval);
           bossQteActive = false;
           qteWrap.style.display = 'none';
 
@@ -4875,7 +5294,7 @@
           const screen = document.getElementById('boss-fight-screen');
           if (screen) {
             screen.classList.add('screen-shake');
-            setTimeout(() => screen.classList.remove('screen-shake'), 400);
+            GameEnv.setTimeout(() => screen.classList.remove('screen-shake'), 400);
           }
 
           spawnTapPopup(window.innerWidth / 2, window.innerHeight / 2, '💥 УДАР БОССА! -3 СЕК ⏳', '#ff5555');
@@ -4899,7 +5318,7 @@
       if (!bossQteActive) return;
       initAudio();
 
-      clearInterval(bossQteInterval);
+      GameEnv.clearInterval(bossQteInterval);
       bossQteActive = false;
       document.getElementById('bf-qte-wrap').style.display = 'none';
 
@@ -4922,29 +5341,29 @@
 
       let dmg = calculateClickPower();
       if (state.unlockedKittens.includes('coal')) dmg += 25;
-      if (state.activePotions && state.activePotions.bite > Date.now()) dmg *= 5;
+      if (state.activePotions && state.activePotions.bite > GameEnv.now()) dmg *= 2.5;
 
       // Блюдо Императорские Суши (+100% урона по боссам)
-      if (state.activeDishes && state.activeDishes.dish_sushi > Date.now()) dmg *= 2;
+      if (state.activeDishes && state.activeDishes.dish_sushi > GameEnv.now()) dmg *= 2;
 
-      // Ошейник с шипами (+30% * tierMult)
+      // Ошейник с шипами (+25% * tierMult)
       const spikesBonus = getSpikesBossBonus();
-      if (spikesBonus > 0) dmg = Math.floor(dmg * (1 + 0.30 * spikesBonus));
+      if (spikesBonus > 0) dmg = Math.floor(dmg * (1 + 0.25 * spikesBonus));
 
       const clawsRank = (state.talents && state.talents.combat_claws) || 0;
-      if (clawsRank > 0) dmg = Math.floor(dmg * (1 + clawsRank * 0.25));
+      if (clawsRank > 0) dmg = Math.floor(dmg * (1 + clawsRank * 0.20));
 
-      if (state.unlockedAchievements.includes('bosses_3')) dmg = Math.floor(dmg * 1.10);
+      dmg = Math.floor(dmg * getAchievementBossBonus());
 
       let isBossCrit = false;
       const critTalentChance = ((state.talents && state.talents.combat_crit) || 0) * 0.10;
       let critChance = 0.05 + critTalentChance;
-      if (state.equippedSkin === 'pirate') critChance += 0.20;
-      if (state.activeDishes && state.activeDishes.dish_tempura > Date.now()) critChance += 0.40;
+      if (state.equippedSkin === 'pirate') critChance += 0.10;
+      if (state.activeDishes && state.activeDishes.dish_tempura > GameEnv.now()) critChance += 0.30;
 
-      if (Math.random() < critChance) {
+      if (GameEnv.random() < critChance) {
         const dragonBonus = getDragonEyeCritBonus();
-        const critMult = dragonBonus > 0 ? Math.round(15 * dragonBonus) : 10;
+        const critMult = dragonBonus > 0 ? Math.round(3 + 3 * dragonBonus) : 3;
         dmg *= critMult;
         isBossCrit = true;
       }
@@ -4994,10 +5413,10 @@
     }
 
     function endBossFight(won) {
-      clearInterval(bossInterval);
-      if (bossActionTimer) clearTimeout(bossActionTimer);
-      if (bossStunTimer) clearTimeout(bossStunTimer);
-      if (bossQteInterval) clearInterval(bossQteInterval);
+      GameEnv.clearInterval(bossInterval);
+      if (bossActionTimer) GameEnv.clearTimeout(bossActionTimer);
+      if (bossStunTimer) GameEnv.clearTimeout(bossStunTimer);
+      if (bossQteInterval) GameEnv.clearInterval(bossQteInterval);
 
       bossShieldActive = false;
       bossStunned = false;
@@ -5006,52 +5425,69 @@
       const btn = document.getElementById('bf-btn');
       if (btn) btn.classList.remove('enraged');
 
-      if (won) {
+      const boss = activeBoss;
+      activeBoss = null;
+
+      if (won && boss) {
         playSound('victory');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        const reward = bossHardcoreMode ? activeBoss.reward * 3 : activeBoss.reward;
-        addFish(reward);
+        
         if (!state.bossesDefeated) state.bossesDefeated = [];
-        if (!state.bossesDefeated.includes(activeBoss.id)) {
-          state.bossesDefeated.push(activeBoss.id);
+        const isFirstTime = !state.bossesDefeated.includes(boss.id);
+        const baseRew = isFirstTime ? (boss.firstReward || 1000) : (boss.repeatReward || Math.floor(boss.firstReward * 0.25));
+        const reward = bossHardcoreMode ? baseRew * 3 : baseRew;
+
+        addFish(reward, true);
+        if (isFirstTime) {
+          state.bossesDefeated.push(boss.id);
         }
+        if (!state.bossCooldowns) state.bossCooldowns = {};
+        state.bossCooldowns[boss.id] = GameEnv.now() + 120000; // 2 минуты кд
+
         state.stats.bossesDefeatedTotal = (state.stats.bossesDefeatedTotal || 0) + 1;
         trackQuestProgress('boss', 1);
         checkAchievements();
-        saveGame();
+        updateKittensUnlock();
+        isDirty = true;
+        saveGame(true);
 
         const hcTag = bossHardcoreMode ? ' ★ [ХАРДКОР]' : '';
-        if (activeBoss.id === 'vacuum' && !state.unlockedKittens.includes('coal')) {
+        if (boss.id === 'vacuum' && !state.unlockedKittens.includes('coal')) {
           state.unlockedKittens.push('coal');
-          alert(`🎉 ПОБЕДА НАД ПЫЛЕСОСОМ${hcTag}!\nТы получил награду +${reward.toLocaleString('ru-RU')} 🐟 и ЗАСЛУЖИЛ ЧЁРНОГО КОТЁНКА «УГОЛЬКА» 🖤!`);
+          showGameToast(`🎉 Победа над Пылесосом! +${reward.toLocaleString('ru-RU')} 🐟 и котёнок «Уголёк»!`, 'success', 5000);
         } else {
-          alert(`🎉 ПОБЕДА НАД ${activeBoss.name.toUpperCase()}${hcTag}!\nТы получил награду: +${reward.toLocaleString('ru-RU')} 🐟!`);
+          showGameToast(`🎉 Победа над ${boss.name}${hcTag}! +${reward.toLocaleString('ru-RU')} 🐟!`, 'success', 4000);
         }
-      } else {
-        alert(`⏳ ВРЕМЯ ВЫШЛО!\n${activeBoss.name} оказался слишком сильным! Прокачай лапки в магазине, используй зелья и крит-зоны, и попробуй снова!`);
+      } else if (!won && boss) {
+        showGameToast(`⏳ Время вышло! Прокачай лапки и попробуй снова!`, 'warning');
       }
       renderBossesList();
     }
 
     // --- Система Ежедневных Заданий (Daily Quests) ---
-    const questPool = [
-      { type: 'taps', title: 'Сделай 100 тапов лапкой 🐾', icon: '🐾', target: 100, reward: 3500 },
-      { type: 'boss', title: 'Победи 1 босса на арене ⚔️', icon: '⚔️', target: 1, reward: 15000 },
-      { type: 'minigame', title: 'Сыграй в 2 мини-игры 🎮', icon: '🎮', target: 2, reward: 8000 },
-      { type: 'butterfly', title: 'Поймай 2 золотые бабочки 🦋', icon: '🦋', target: 2, reward: 6000 },
-      { type: 'earn', title: 'Заработай 20,000 рыбок 🐟', icon: '🐟', target: 20000, reward: 10000 }
-    ];
+    function getScaledQuestPool() {
+      const scale = Math.pow(state.livesLevel, 1.15);
+      return [
+        { type: 'taps', title: 'Сделай 100 тапов лапкой 🐾', icon: '🐾', target: 100, reward: Math.round(300 * scale) },
+        { type: 'boss', title: 'Победи 1 босса на арене ⚔️', icon: '⚔️', target: 1, reward: Math.round(1000 * scale) },
+        { type: 'minigame', title: 'Сыграй в 2 мини-игры 🎮', icon: '🎮', target: 2, reward: Math.round(500 * scale) },
+        { type: 'butterfly', title: 'Поймай 2 золотые бабочки 🦋', icon: '🦋', target: 2, reward: Math.round(400 * scale) },
+        { type: 'earn', title: `Заработай ${Math.round(10000 * scale).toLocaleString('ru-RU')} 🐟`, icon: '🐟', target: Math.round(10000 * scale), reward: Math.round(800 * scale) }
+      ];
+    }
 
     function initDailyQuests() {
-      const today = Math.floor(Date.now() / 86400000);
+      const today = getTodayDateString();
       if (state.questsDay !== today || !state.dailyQuests || state.dailyQuests.length === 0) {
         state.questsDay = today;
         state.grandChestClaimed = false;
-        const q1 = { ...questPool[today % questPool.length], id: 'q1', progress: 0, claimed: false };
-        const q2 = { ...questPool[(today + 1) % questPool.length], id: 'q2', progress: 0, claimed: false };
-        const q3 = { ...questPool[(today + 2) % questPool.length], id: 'q3', progress: 0, claimed: false };
+        const pool = getScaledQuestPool();
+        const dayHash = today.split('-').reduce((acc, v) => acc + parseInt(v, 10), 0);
+        const q1 = { ...pool[dayHash % pool.length], id: 'q1', progress: 0, claimed: false };
+        const q2 = { ...pool[(dayHash + 1) % pool.length], id: 'q2', progress: 0, claimed: false };
+        const q3 = { ...pool[(dayHash + 2) % pool.length], id: 'q3', progress: 0, claimed: false };
         state.dailyQuests = [q1, q2, q3];
-        saveGame();
+        isDirty = true;
       }
     }
 
@@ -5066,7 +5502,7 @@
       });
       if (changed) {
         updateQuestBadge();
-        saveGame();
+        isDirty = true;
       }
     }
 
@@ -5085,10 +5521,12 @@
       initDailyQuests();
       renderQuestsList();
       document.getElementById('modal-quests').style.display = 'flex';
+      if (tg && tg.BackButton) tg.BackButton.show();
     }
 
     function renderQuestsList() {
       const listEl = document.getElementById('quests-list');
+      if (!listEl) return;
       listEl.innerHTML = '';
 
       let completedCount = 0;
@@ -5141,12 +5579,14 @@
       const q = (state.dailyQuests || []).find(x => x.id === id);
       if (!q || q.claimed || q.progress < q.target) return;
       q.claimed = true;
-      addFish(q.reward);
+      addFish(q.reward, false); // без рекурсии в квест заработка
       playSound('buy');
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      showGameToast(`🎁 Награда за квест: +${q.reward.toLocaleString('ru-RU')} 🐟!`, 'success');
       renderQuestsList();
       updateQuestBadge();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     function claimDailyGrandChest() {
@@ -5155,16 +5595,17 @@
       if (!allDone || state.grandChestClaimed) return;
 
       state.grandChestClaimed = true;
-      addFish(50000);
-      state.talentPoints = (state.talentPoints || 0) + 1;
+      const grandReward = Math.round(4000 * Math.pow(state.livesLevel, 1.15));
+      addFish(grandReward, false);
+      state.wheelTickets = (state.wheelTickets || 0) + 1;
       playSound('victory');
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-      alert('🎉 ГЛАВНЫЙ СУНДУК ДНЯ ОТКРЫТ!\nПолучено: +50,000 🐟 и +1 Очко Мудрости (Талантов) ⭐!');
+      showGameToast(`🎉 Главный Сундук Дня! +${grandReward.toLocaleString('ru-RU')} 🐟 и +1 🎟️ Билет Колеса!`, 'success', 5000);
       renderQuestsList();
       updateQuestBadge();
-      updateTalentBadge();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     // --- Дерево Талантов и Мудрости ---
@@ -5243,7 +5684,8 @@
       renderTalentsList();
       updateTalentBadge();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     // --- Зал Славы и Достижений ---
@@ -5262,6 +5704,10 @@
         playSound('victory');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         newlyUnlocked.forEach(a => {
+          if (a.talentPointReward) {
+            state.talentPoints = (state.talentPoints || 0) + a.talentPointReward;
+            updateTalentBadge();
+          }
           spawnTapPopup(window.innerWidth / 2, window.innerHeight / 3, `🏆 ДОСТИЖЕНИЕ: ${a.name}!`, '#f1fa8c');
         });
         calculatePassive();
@@ -5302,6 +5748,78 @@
       });
     }
 
+    // --- Универсальное прерывание активных сессий боя и мини-игр ---
+    function abortAllActiveSessions(reason = 'aborted') {
+      // 1. Босс
+      if (bossInterval) { GameEnv.clearInterval(bossInterval); bossInterval = null; }
+      if (bossActionTimer) { GameEnv.clearTimeout(bossActionTimer); bossActionTimer = null; }
+      if (bossStunTimer) { GameEnv.clearTimeout(bossStunTimer); bossStunTimer = null; }
+      if (bossQteInterval) { GameEnv.clearInterval(bossQteInterval); bossQteInterval = null; }
+      activeBoss = null;
+      bossShieldActive = false;
+      bossStunned = false;
+      bossQteActive = false;
+      const bScreen = document.getElementById('boss-fight-screen');
+      if (bScreen) bScreen.style.display = 'none';
+      const bList = document.getElementById('boss-list-view');
+      if (bList) bList.style.display = 'block';
+
+      // 2. Рыбалка
+      if (fishGameInterval) { GameEnv.clearInterval(fishGameInterval); fishGameInterval = null; }
+      if (fishSpawnInterval) { GameEnv.clearInterval(fishSpawnInterval); fishSpawnInterval = null; }
+      fishGameActive = false;
+      const fStart = document.getElementById('fishing-start-screen');
+      if (fStart) fStart.style.display = 'block';
+      const fArea = document.getElementById('fishing-area');
+      if (fArea) {
+        fArea.style.display = 'block';
+        fArea.querySelectorAll('.swimming-target').forEach(el => el.remove());
+      }
+      const fResult = document.getElementById('fishing-result-screen');
+      if (fResult) fResult.style.display = 'none';
+
+      // 3. Мышки
+      if (mouseGameInterval) { GameEnv.clearInterval(mouseGameInterval); mouseGameInterval = null; }
+      if (mousePopInterval) { GameEnv.clearInterval(mousePopInterval); mousePopInterval = null; }
+      mouseGameActive = false;
+      if (activeMoleIndex !== -1) {
+        const el = document.getElementById(`mole-${activeMoleIndex}`);
+        if (el) el.classList.remove('up');
+        activeMoleIndex = -1;
+      }
+      const mStart = document.getElementById('moles-start-screen');
+      if (mStart) mStart.style.display = 'block';
+      const mResult = document.getElementById('moles-result-screen');
+      if (mResult) mResult.style.display = 'none';
+
+      // 4. Лазер
+      if (laserGameInterval) { GameEnv.clearInterval(laserGameInterval); laserGameInterval = null; }
+      if (laserAnimFrame) { GameEnv.cancelAnimationFrame(laserAnimFrame); laserAnimFrame = null; }
+      if (laserComboTimer) { GameEnv.clearTimeout(laserComboTimer); laserComboTimer = null; }
+      laserGameActive = false;
+      const lStart = document.getElementById('laser-start-screen');
+      if (lStart) lStart.style.display = 'block';
+      const lDot = document.getElementById('laser-dot');
+      if (lDot) lDot.style.display = 'none';
+      const lCombo = document.getElementById('laser-combo-badge');
+      if (lCombo) lCombo.style.display = 'none';
+      const lResult = document.getElementById('laser-result-screen');
+      if (lResult) lResult.style.display = 'none';
+
+      // 5. Башня клубков
+      if (towerGameInterval) { GameEnv.clearInterval(towerGameInterval); towerGameInterval = null; }
+      if (towerAnimFrame) { GameEnv.cancelAnimationFrame(towerAnimFrame); towerAnimFrame = null; }
+      towerGameActive = false;
+      fallingYarn = null;
+      const tStart = document.getElementById('tower-start-screen');
+      if (tStart) tStart.style.display = 'block';
+      const tResult = document.getElementById('tower-result-screen');
+      if (tResult) tResult.style.display = 'none';
+
+      document.getElementById('game-score').innerText = '0';
+      document.getElementById('game-timer').innerText = '30';
+    }
+
     // --- 4. Мини-игра «Башня из Клубков» (Cat Yarn Tower) ---
     const towerCanvas = document.getElementById('tower-canvas');
     const tCtx = towerCanvas.getContext('2d');
@@ -5314,13 +5832,18 @@
     let towerGameInterval = null;
     let towerAnimFrame = null;
     let towerTime = 0;
+    let lastTowerFrameTime = GameEnv.perfNow();
     let towerBlocks = [];
     let fallingYarn = null;
     const yarnColors = ['#ff79c6', '#8be9fd', '#50fa7b', '#f1fa8c', '#bd93f9', '#ffb86c', '#ff5555'];
 
     function startTowerGame() {
       initAudio();
+      abortAllActiveSessions('restart_tower');
       document.getElementById('tower-start-screen').style.display = 'none';
+      const tRes = document.getElementById('tower-result-screen');
+      if (tRes) tRes.style.display = 'none';
+
       towerGameActive = true;
       towerGameScore = 0;
       towerHeight = 0;
@@ -5328,6 +5851,7 @@
       towerLives = 3;
       towerGameTime = 30;
       towerTime = 0;
+      lastTowerFrameTime = GameEnv.perfNow();
       fallingYarn = null;
 
       towerBlocks = [
@@ -5340,8 +5864,7 @@
       document.getElementById('tower-combo-badge').innerText = 'COMBO x1 ⚡';
       document.getElementById('tower-combo-badge').style.color = '#50fa7b';
 
-      clearInterval(towerGameInterval);
-      towerGameInterval = setInterval(() => {
+      towerGameInterval = GameEnv.setInterval(() => {
         towerGameTime--;
         document.getElementById('game-timer').innerText = towerGameTime;
         if (towerGameTime <= 0) endTowerGame();
@@ -5351,9 +5874,7 @@
     }
 
     function dropTowerYarn(e) {
-      if (e) {
-        if (e.stopPropagation) e.stopPropagation();
-      }
+      if (e && e.stopPropagation) e.stopPropagation();
       if (!towerGameActive || fallingYarn) return;
       initAudio();
 
@@ -5363,15 +5884,19 @@
         x: swingX,
         y: 45,
         r: 20,
-        vy: 4.0,
+        vy: 240.0, // px per sec
         color: yarnColors[towerHeight % yarnColors.length]
       };
       playSound('squeak');
     }
 
-    function runTowerPhysics() {
+    function runTowerPhysics(currentTime) {
       if (!towerGameActive) return;
-      towerTime += 0.03;
+      const now = currentTime || GameEnv.perfNow();
+      const dt = Math.min(0.1, (now - lastTowerFrameTime) / 1000);
+      lastTowerFrameTime = now;
+
+      towerTime += dt * 1.8;
 
       tCtx.clearRect(0, 0, towerCanvas.width, towerCanvas.height);
 
@@ -5395,8 +5920,8 @@
 
       // Физика падающего клубка
       if (fallingYarn) {
-        fallingYarn.y += fallingYarn.vy;
-        fallingYarn.vy += 0.32;
+        fallingYarn.y += fallingYarn.vy * dt;
+        fallingYarn.vy += 600 * dt; // gravity
 
         const topBlock = towerBlocks[towerBlocks.length - 1];
         if (fallingYarn.y + fallingYarn.r >= topBlock.y - topBlock.r + 6) {
@@ -5445,11 +5970,11 @@
       }
 
       // Отрисовка всех клубков башни
-      towerBlocks.forEach((b, idx) => {
+      towerBlocks.forEach((b) => {
         drawTowerYarnBall(tCtx, b.x, b.y, b.r, b.color);
       });
 
-      // Отрисовка висящего на кране клубка (если не сброшен)
+      // Отрисовка висящего на кране клубка
       if (!fallingYarn) {
         drawTowerYarnBall(tCtx, swingX, swingY, 20, yarnColors[towerHeight % yarnColors.length]);
       } else {
@@ -5461,7 +5986,7 @@
       tCtx.font = 'bold 13px sans-serif';
       tCtx.fillText(`❤️ Жизни: ${towerLives}`, 20, 25);
 
-      towerAnimFrame = requestAnimationFrame(runTowerPhysics);
+      towerAnimFrame = GameEnv.requestAnimationFrame(runTowerPhysics);
     }
 
     function drawTowerYarnBall(ctx, x, y, r, color) {
@@ -5484,14 +6009,15 @@
     }
 
     function endTowerGame() {
+      if (!towerGameActive) return;
       towerGameActive = false;
-      clearInterval(towerGameInterval);
-      cancelAnimationFrame(towerAnimFrame);
+      if (towerGameInterval) GameEnv.clearInterval(towerGameInterval);
+      if (towerAnimFrame) GameEnv.cancelAnimationFrame(towerAnimFrame);
       playSound('victory');
 
-      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.20;
-      const finalReward = Math.floor(towerGameScore * state.livesLevel * talentGameMult * getGlobalAchievementMultiplier());
-      addFish(finalReward);
+      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.15;
+      const finalReward = Math.floor(towerGameScore * state.livesLevel * talentGameMult * getAchievementMinigameBonus());
+      addFish(finalReward, true);
 
       if (towerHeight > (state.towerHighScore || 0)) {
         state.towerHighScore = towerHeight;
@@ -5499,10 +6025,22 @@
       state.stats.minigamesPlayed = (state.stats.minigamesPlayed || 0) + 1;
       trackQuestProgress('minigame', 1);
       checkAchievements();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
 
-      alert(`🎉 СТРОИТЕЛЬСТВО ЗАВЕРШЕНО!\nПостроена башня высотой ${towerHeight} 🧶!\nНабрано очков: ${towerGameScore}\nПолучено: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
-      document.getElementById('tower-start-screen').style.display = 'block';
+      const resScreen = document.getElementById('tower-result-screen');
+      if (resScreen) {
+        resScreen.innerHTML = `
+          <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Башня построена! 🧶</h3>
+          <p style="font-size:15px; color:#fff; margin-bottom:6px;">Высота: <b>${towerHeight} клубков</b></p>
+          <p style="font-size:15px; color:#f1fa8c; margin-bottom:15px;">Награда: <b>+${finalReward.toLocaleString('ru-RU')} 🐟</b></p>
+          <button class="card-btn" style="padding:12px 30px; font-size:15px;" onclick="startTowerGame()">СЫГРАТЬ ЕЩЁ РАЗ 🧶</button>
+        `;
+        resScreen.style.display = 'block';
+      } else {
+        document.getElementById('tower-start-screen').style.display = 'block';
+      }
+      showGameToast(`🎉 Башня: ${towerHeight} клубков! +${finalReward.toLocaleString('ru-RU')} 🐟!`, 'success');
     }
 
     // --- 🔮 Система Артефактов и Реликвий ---
@@ -5562,6 +6100,7 @@
       initAudio();
       renderArtifactsModal();
       document.getElementById('modal-artifacts').style.display = 'flex';
+      if (tg && tg.BackButton) tg.BackButton.show();
     }
 
     function switchArtifactsTab(tab) {
@@ -5611,22 +6150,20 @@
       initAudio();
       const cost = 50000;
       if (state.fish < cost) {
-        alert('Недостаточно рыбок для открытия сундука реликвий (нужно 50,000 🐟)!');
+        showGameToast('Нужно 50,000 🐟 для сундука реликвий!', 'warning');
         return;
       }
       state.fish -= cost;
 
-      // Определение редкости (Tier)
-      const r = Math.random();
+      const r = GameEnv.random();
       let tier = 1;
-      if (r < 0.01) tier = 4; // 1% Legendary
-      else if (r < 0.08) tier = 3; // 7% Epic
-      else if (r < 0.35) tier = 2; // 27% Rare
+      if (r < 0.02) tier = 4; // 2% Legendary
+      else if (r < 0.10) tier = 3; // 8% Epic
+      else if (r < 0.35) tier = 2; // 25% Rare
       else tier = 1; // 65% Common
 
-      // Случайный базовый артефакт
-      const base = artifactsCatalog[Math.floor(Math.random() * artifactsCatalog.length)];
-      const uid = 'art_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const base = artifactsCatalog[Math.floor(GameEnv.random() * artifactsCatalog.length)];
+      const uid = 'art_' + GameEnv.now() + '_' + Math.floor(GameEnv.random() * 1000);
       const newArt = {
         uid: uid,
         baseId: base.id,
@@ -5641,12 +6178,13 @@
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(tier >= 3 ? 'success' : 'light');
 
       const tInfo = artifactTiers[tier];
-      alert(`🎉 ПОЛУЧЕН АРТЕФАКТ!\n${base.icon} «${base.name}» [${tInfo.name}]\n✨ ${base.getBonusText(tier)}`);
+      showGameToast(`🎉 Получен артефакт: ${base.icon} «${base.name}» [${tInfo.name}]!`, 'success', 5000);
 
       renderArtifactsModal();
       calculatePassive();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     function equipArtifact(uid) {
@@ -5662,7 +6200,8 @@
       renderArtifactsModal();
       calculatePassive();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     function unequipArtifact(slot) {
@@ -5674,7 +6213,8 @@
       renderArtifactsModal();
       calculatePassive();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     function renderArtifactsInventory() {
@@ -5715,10 +6255,9 @@
       if (!list) return;
       list.innerHTML = '';
 
-      // Группировка артефактов по baseId + tier
       const groups = {};
       (state.artifacts || []).forEach(art => {
-        if (art.tier < 4) { // Можно повышать только до 4-го (Легендарного)
+        if (art.tier < 4) {
           const key = `${art.baseId}_${art.tier}`;
           if (!groups[key]) groups[key] = { baseId: art.baseId, tier: art.tier, items: [] };
           groups[key].items.push(art);
@@ -5767,7 +6306,6 @@
       const matching = (state.artifacts || []).filter(a => a.baseId === baseId && a.tier === tier);
       if (matching.length < 3) return;
 
-      // Проверяем, не надет ли кто-то из них, снимаем если надет
       const toRemoveUids = matching.slice(0, 3).map(a => a.uid);
       ['collar', 'toy', 'amulet'].forEach(slot => {
         if (state.equippedArtifacts && toRemoveUids.includes(state.equippedArtifacts[slot])) {
@@ -5775,11 +6313,9 @@
         }
       });
 
-      // Удаляем 3 артефакта
       state.artifacts = state.artifacts.filter(a => !toRemoveUids.includes(a.uid));
 
-      // Создаем 1 артефакт следующего тира
-      const newUid = 'art_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const newUid = 'art_' + GameEnv.now() + '_' + Math.floor(GameEnv.random() * 1000);
       const base = artifactsCatalog.find(b => b.id === baseId);
       const upgradedArt = {
         uid: newUid,
@@ -5794,12 +6330,13 @@
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
       const nextInfo = artifactTiers[tier + 1];
-      alert(`✨ УСПЕШНЫЙ СИНТЕЗ КУЗНИЦЫ!\nПолучен: ${base ? base.icon : '🔮'} «${base ? base.name : ''}» [${nextInfo.name}]!\nБонус: ${base ? base.getBonusText(tier + 1) : ''}`);
+      showGameToast(`✨ Синтез успешен! ${base ? base.icon : '🔮'} «${base ? base.name : ''}» [${nextInfo.name}]!`, 'success', 5000);
 
       renderArtifactsModal();
       calculatePassive();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     // --- 🍱 Кошачья Кухня Шеф-Мяу ---
@@ -5807,13 +6344,14 @@
       initAudio();
       renderKitchenList();
       document.getElementById('modal-kitchen').style.display = 'flex';
+      if (tg && tg.BackButton) tg.BackButton.show();
     }
 
     function renderKitchenList() {
       const list = document.getElementById('kitchen-dishes-list');
       if (!list) return;
       list.innerHTML = '';
-      const now = Date.now();
+      const now = GameEnv.now();
 
       dishesCatalog.forEach(dish => {
         const activeUntil = (state.activeDishes && state.activeDishes[dish.id]) || 0;
@@ -5827,12 +6365,11 @@
         }
 
         let price = dish.price;
-        if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-        if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-        if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+        if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+        if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
 
         const bastetBonus = getBastetDiscountBonus();
-        if (bastetBonus > 0) price = Math.floor(price * (1 - bastetBonus * 0.15));
+        if (bastetBonus > 0) price = Math.floor(price * (1 - bastetBonus * 0.10));
 
         const canAfford = state.fish >= price;
 
@@ -5861,16 +6398,15 @@
       if (!dish) return;
 
       let price = dish.price;
-      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.80);
-      if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
-      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.85);
+      if (state.equippedSkin === 'life_7') price = Math.floor(price * 0.85);
+      if (state.unlockedKittens.includes('gentleman')) price = Math.floor(price * 0.90);
       const bastetBonus = getBastetDiscountBonus();
-      if (bastetBonus > 0) price = Math.floor(price * (1 - bastetBonus * 0.15));
+      if (bastetBonus > 0) price = Math.floor(price * (1 - bastetBonus * 0.10));
 
       if (state.fish < price) return;
 
       state.fish -= price;
-      const now = Date.now();
+      const now = GameEnv.now();
 
       if (!state.activeDishes) state.activeDishes = {};
 
@@ -5878,19 +6414,18 @@
         state.energy = getMaxEnergy();
         const curExp = (state.activeDishes && state.activeDishes.dish_soup > now) ? state.activeDishes.dish_soup : now;
         state.activeDishes.dish_soup = curExp + dish.duration * 1000;
-        spawnTapPopup(window.innerWidth / 2, window.innerHeight / 2, '⚡ ЭНЕРГИЯ 100% + БЕСКОНЕЧНАЯ ЭНЕРГИЯ!', '#8be9fd');
+        showGameToast('⚡ Энергия 100% + Бесконечная Энергия на 60с!', 'success');
       } else if (dish.id === 'dish_cake') {
-        // Мгновенный призыв 3 золотых бабочек
         for (let b = 0; b < 3; b++) {
-          setTimeout(() => {
+          GameEnv.setTimeout(() => {
             scheduleButterfly(true);
           }, b * 600);
         }
-        spawnTapPopup(window.innerWidth / 2, window.innerHeight / 2, '🦋 3 ЗОЛОТЫЕ БАБОЧКИ ПРИЗВАНЫ!', '#ff79c6');
+        showGameToast('🦋 3 Золотые Бабочки призваны!', 'success');
       } else {
         const curExp = (state.activeDishes && state.activeDishes[dish.id] > now) ? state.activeDishes[dish.id] : now;
         state.activeDishes[dish.id] = curExp + dish.duration * 1000;
-        spawnTapPopup(window.innerWidth / 2, window.innerHeight / 2, `🍲 ${dish.name} ПРИГОТОВЛЕНО!`, '#ffb86c');
+        showGameToast(`🍲 ${dish.name} приготовлено!`, 'success');
       }
 
       state.stats.dishesCooked = (state.stats.dishesCooked || 0) + 1;
@@ -5901,14 +6436,15 @@
       renderActiveDishesBar();
       calculatePassive();
       updateUI();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
     }
 
     function renderActiveDishesBar() {
       const container = document.getElementById('active-dishes-bar');
       if (!container) return;
       container.innerHTML = '';
-      const now = Date.now();
+      const now = GameEnv.now();
 
       Object.keys(state.activeDishes || {}).forEach(id => {
         const exp = state.activeDishes[id];
@@ -5934,16 +6470,16 @@
     let lastPurrSoundTime = 0;
     let pettingSmileTimer = 0;
 
-    function petCat(clientX, clientY, movementDist) {
+    function petCat(clientX = 150, clientY = 150, movementDist = 40) {
       initAudio();
       petDistAccum += movementDist;
 
       if (petDistAccum >= 35) {
         petDistAccum = 0;
         state.mood = Math.min(100, (state.mood || 50) + 3.0);
-        pettingSmileTimer = 35; // кадров для довольного прищура
+        pettingSmileTimer = 35;
 
-        const now = Date.now();
+        const now = GameEnv.now();
         if (now - lastPurrSoundTime > 400) {
           lastPurrSoundTime = now;
           playSound('purr');
@@ -5954,14 +6490,15 @@
 
         if (state.mood >= 100 && (!state.euphoriaUntil || state.euphoriaUntil < now)) {
           const sunBonus = getSunAmuletBonus();
-          const baseDuration = 30000; // 30 секунд
-          const duration = Math.floor(baseDuration * (1 + sunBonus * 0.5));
+          const baseDuration = 30000;
+          const duration = Math.floor(baseDuration * (1 + sunBonus * 0.4));
           state.euphoriaUntil = now + duration;
           state.mood = 100;
           playSound('frenzy');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-          spawnTapPopup(window.innerWidth / 2, window.innerHeight / 2, '💖 МЯУ-ЭЙФОРИЯ! (+30% КО ВСЕМУ)', '#ff79c6');
+          showGameToast('💖 МЯУ-ЭЙФОРИЯ! (+30% доход, x2 реген энергии)!', 'success', 5000);
         }
+        isDirty = true;
         updateUI();
       }
     }
@@ -5971,11 +6508,11 @@
       const h = document.createElement('div');
       h.className = 'heart-particle';
       const hearts = ['❤️', '💖', '💕', '✨', '🐾'];
-      h.innerText = hearts[Math.floor(Math.random() * hearts.length)];
+      h.innerText = hearts[Math.floor(GameEnv.random() * hearts.length)];
       h.style.left = (x - 10) + 'px';
       h.style.top = (y - 20) + 'px';
       stage.appendChild(h);
-      setTimeout(() => h.remove(), 950);
+      GameEnv.setTimeout(() => h.remove(), 950);
     }
 
     function handlePointerMove(e) {
@@ -6044,7 +6581,7 @@
       const container = document.getElementById('active-potions-bar');
       if (!container) return;
       container.innerHTML = '';
-      const now = Date.now();
+      const now = GameEnv.now();
 
       Object.keys(state.activePotions).forEach(id => {
         const exp = state.activePotions[id];
@@ -6068,8 +6605,6 @@
       document.getElementById('per-sec-val').innerText = state.passivePerSec.toLocaleString('ru-RU');
       document.getElementById('per-click-val').innerText = calculateClickPower().toLocaleString('ru-RU');
       document.getElementById('lives-val').innerText = state.livesLevel;
-      renderActivePotionsBar();
-      renderActiveDishesBar();
 
       // Шкала Настроения / Ласки
       const moodPct = Math.min(100, Math.max(0, Math.floor(state.mood || 50)));
@@ -6079,8 +6614,8 @@
       if (moodVal) moodVal.innerText = moodPct + '%';
       const moodLbl = document.getElementById('mood-status-label');
       if (moodLbl) {
-        if (state.euphoriaUntil && state.euphoriaUntil > Date.now()) {
-          const secLeft = Math.ceil((state.euphoriaUntil - Date.now()) / 1000);
+        if (state.euphoriaUntil && state.euphoriaUntil > GameEnv.now()) {
+          const secLeft = Math.ceil((state.euphoriaUntil - GameEnv.now()) / 1000);
           moodLbl.innerText = `💖 МЯУ-ЭЙФОРИЯ (+30%) ${secLeft}с`;
           moodLbl.style.color = '#f1fa8c';
         } else {
@@ -6107,7 +6642,19 @@
 
       const spinBtn = document.getElementById('spin-btn');
       if (spinBtn) {
-        spinBtn.innerText = state.freeSpinAvailable ? 'КРУТИТЬ! (БЕСПЛАТНО 🎁)' : 'КРУТИТЬ! (500 🐟)';
+        const today = getTodayDateString();
+        const isFree = (state.lastFreeSpinDate !== today);
+        spinBtn.innerText = isFree ? 'КРУТИТЬ! (БЕСПЛАТНО 🎁)' : `КРУТИТЬ! (🎟️ ${state.wheelTickets || 0} шт.)`;
+      }
+
+      const ticketCountEl = document.getElementById('wheel-tickets-count');
+      if (ticketCountEl) {
+        ticketCountEl.innerText = state.wheelTickets || 0;
+      }
+
+      const soundBtn = document.getElementById('sound-toggle-btn');
+      if (soundBtn) {
+        soundBtn.innerText = (state.soundEnabled !== false) ? '🔊' : '🔇';
       }
 
       updateQuestBadge();
@@ -6117,6 +6664,7 @@
     // --- Игровой Центр (Мини-игры) ---
     function switchGameMode(mode) {
       initAudio();
+      abortAllActiveSessions('switch_mode');
       currentGameMode = mode;
       document.getElementById('subtab-fishing').classList.toggle('active', mode === 'fishing');
       document.getElementById('subtab-mouse').classList.toggle('active', mode === 'mouse');
@@ -6139,13 +6687,18 @@
     let laserGameInterval = null;
     let laserAnimFrame = null;
     let laserX = 150, laserY = 150;
-    let laserVx = 4.5, laserVy = 4.0;
+    let laserVx = 160.0, laserVy = 140.0;
+    let lastLaserFrameTime = GameEnv.perfNow();
     let laserCombo = 1;
     let laserComboTimer = null;
 
     function startLaserGame() {
       initAudio();
+      abortAllActiveSessions('restart_laser');
       document.getElementById('laser-start-screen').style.display = 'none';
+      const lRes = document.getElementById('laser-result-screen');
+      if (lRes) lRes.style.display = 'none';
+
       const dot = document.getElementById('laser-dot');
       const comboBadge = document.getElementById('laser-combo-badge');
       dot.style.display = 'block';
@@ -6156,14 +6709,15 @@
       laserGameTime = 30;
       laserCombo = 1;
       laserX = 150; laserY = 150;
-      laserVx = (Math.random() > 0.5 ? 5.0 : -5.0);
-      laserVy = (Math.random() > 0.5 ? 4.5 : -4.5);
+      laserVx = (GameEnv.random() > 0.5 ? 170.0 : -170.0);
+      laserVy = (GameEnv.random() > 0.5 ? 150.0 : -150.0);
+      lastLaserFrameTime = GameEnv.perfNow();
 
       document.getElementById('game-score').innerText = '0';
       document.getElementById('game-timer').innerText = '30';
       comboBadge.innerText = 'COMBO x1 ⚡';
 
-      laserGameInterval = setInterval(() => {
+      laserGameInterval = GameEnv.setInterval(() => {
         laserGameTime--;
         document.getElementById('game-timer').innerText = laserGameTime;
         if (laserGameTime <= 0) endLaserGame();
@@ -6172,14 +6726,18 @@
       runLaserPhysics();
     }
 
-    function runLaserPhysics() {
+    function runLaserPhysics(currentTime) {
       if (!laserGameActive) return;
+      const now = currentTime || GameEnv.perfNow();
+      const dt = Math.min(0.1, (now - lastLaserFrameTime) / 1000);
+      lastLaserFrameTime = now;
+
       const area = document.getElementById('laser-area');
       const maxX = (area ? area.clientWidth : 300) - 20;
       const maxY = (area ? area.clientHeight : 380) - 20;
 
-      laserX += laserVx;
-      laserY += laserVy;
+      laserX += laserVx * dt;
+      laserY += laserVy * dt;
 
       if (laserX <= 15) { laserX = 15; laserVx = Math.abs(laserVx); }
       else if (laserX >= maxX) { laserX = maxX; laserVx = -Math.abs(laserVx); }
@@ -6193,7 +6751,7 @@
         dot.style.top = laserY + 'px';
       }
 
-      laserAnimFrame = requestAnimationFrame(runLaserPhysics);
+      laserAnimFrame = GameEnv.requestAnimationFrame(runLaserPhysics);
     }
 
     function hitLaserDot(e) {
@@ -6203,28 +6761,28 @@
       playSound('squeak');
       if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
-      const isSuper = Math.random() < 0.15;
-      const basePts = isSuper ? 35 : 15;
+      const isSuper = GameEnv.random() < 0.15;
+      const basePts = isSuper ? 30 : 12;
       const pts = basePts * laserCombo;
       laserGameScore += pts;
       document.getElementById('game-score').innerText = laserGameScore;
 
-      if (laserCombo < 10) laserCombo++;
+      if (laserCombo < 8) laserCombo++;
       const comboBadge = document.getElementById('laser-combo-badge');
       if (comboBadge) {
         comboBadge.innerText = `COMBO x${laserCombo} 🔥`;
-        comboBadge.style.color = laserCombo >= 5 ? '#f1fa8c' : '#ff79c6';
+        comboBadge.style.color = laserCombo >= 4 ? '#f1fa8c' : '#ff79c6';
       }
 
-      clearTimeout(laserComboTimer);
-      laserComboTimer = setTimeout(() => {
+      GameEnv.clearTimeout(laserComboTimer);
+      laserComboTimer = GameEnv.setTimeout(() => {
         laserCombo = 1;
         if (comboBadge) comboBadge.innerText = 'COMBO x1 ⚡';
       }, 1500);
 
-      const speed = 4.8 + Math.min(8.0, laserCombo * 0.7);
-      laserVx = (Math.random() > 0.5 ? 1 : -1) * speed;
-      laserVy = (Math.random() > 0.5 ? 1 : -1) * speed;
+      const speed = 160 + Math.min(180, laserCombo * 25);
+      laserVx = (GameEnv.random() > 0.5 ? 1 : -1) * speed;
+      laserVy = (GameEnv.random() > 0.5 ? 1 : -1) * speed;
 
       const area = document.getElementById('laser-area');
       const rect = area ? area.getBoundingClientRect() : { left: 0, top: 0 };
@@ -6234,9 +6792,10 @@
     }
 
     function endLaserGame() {
+      if (!laserGameActive) return;
       laserGameActive = false;
-      clearInterval(laserGameInterval);
-      cancelAnimationFrame(laserAnimFrame);
+      if (laserGameInterval) GameEnv.clearInterval(laserGameInterval);
+      if (laserAnimFrame) GameEnv.cancelAnimationFrame(laserAnimFrame);
       playSound('victory');
 
       const dot = document.getElementById('laser-dot');
@@ -6244,22 +6803,34 @@
       if (dot) dot.style.display = 'none';
       if (comboBadge) comboBadge.style.display = 'none';
 
-      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.20;
-      const finalReward = Math.floor(laserGameScore * state.livesLevel * talentGameMult * getGlobalAchievementMultiplier());
-      addFish(finalReward);
+      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.15;
+      const finalReward = Math.floor(laserGameScore * state.livesLevel * talentGameMult * getAchievementMinigameBonus());
+      addFish(finalReward, true);
       if (laserGameScore > (state.laserHighScore || 0)) {
         state.laserHighScore = laserGameScore;
       }
       state.stats.minigamesPlayed = (state.stats.minigamesPlayed || 0) + 1;
       trackQuestProgress('minigame', 1);
       checkAchievements();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
 
-      alert(`🎉 ОХОТА НА ЛАЗЕР ЗАВЕРШЕНА!\nТы набрал ${laserGameScore} очков и заработал: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
-      document.getElementById('laser-start-screen').style.display = 'block';
+      const resScreen = document.getElementById('laser-result-screen');
+      if (resScreen) {
+        resScreen.innerHTML = `
+          <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Охота завершена! 🔴</h3>
+          <p style="font-size:15px; color:#fff; margin-bottom:6px;">Очки: <b>${laserGameScore}</b></p>
+          <p style="font-size:15px; color:#f1fa8c; margin-bottom:15px;">Награда: <b>+${finalReward.toLocaleString('ru-RU')} 🐟</b></p>
+          <button class="card-btn" style="padding:12px 30px; font-size:15px;" onclick="startLaserGame()">СЫГРАТЬ ЕЩЁ РАЗ 🔴</button>
+        `;
+        resScreen.style.display = 'block';
+      } else {
+        document.getElementById('laser-start-screen').style.display = 'block';
+      }
+      showGameToast(`🎉 Охота на лазер: +${finalReward.toLocaleString('ru-RU')} 🐟!`, 'success');
     }
 
-    // 1. Мини-игра «Рыбалка»
+    // 1. Мини-игра «Рыбалка» (Persistent screens)
     let fishGameActive = false;
     let fishGameScore = 0;
     let fishGameTime = 30;
@@ -6268,20 +6839,26 @@
 
     function startFishingGame() {
       initAudio();
+      abortAllActiveSessions('restart_fishing');
       document.getElementById('fishing-start-screen').style.display = 'none';
+      const resScreen = document.getElementById('fishing-result-screen');
+      if (resScreen) resScreen.style.display = 'none';
+      const area = document.getElementById('fishing-area');
+      if (area) area.style.display = 'block';
+
       fishGameActive = true;
       fishGameScore = 0;
       fishGameTime = 30;
       document.getElementById('game-score').innerText = '0';
       document.getElementById('game-timer').innerText = '30';
 
-      fishGameInterval = setInterval(() => {
+      fishGameInterval = GameEnv.setInterval(() => {
         fishGameTime--;
         document.getElementById('game-timer').innerText = fishGameTime;
         if (fishGameTime <= 0) endFishingGame();
       }, 1000);
 
-      fishSpawnInterval = setInterval(spawnSwimmingFish, 650);
+      fishSpawnInterval = GameEnv.setInterval(spawnSwimmingFish, 650);
     }
 
     function spawnSwimmingFish() {
@@ -6289,7 +6866,7 @@
       const area = document.getElementById('fishing-area');
       if (!area) return;
 
-      const rand = Math.random();
+      const rand = GameEnv.random();
       let type = 'fish';
       let icon = '🐟';
 
@@ -6309,21 +6886,21 @@
       item.innerText = icon;
       const maxX = Math.max(50, area.clientWidth - 50);
       const maxY = Math.max(50, area.clientHeight - 50);
-      item.style.left = (Math.random() * maxX) + 'px';
-      item.style.top = (Math.random() * maxY) + 'px';
+      item.style.left = (GameEnv.random() * maxX) + 'px';
+      item.style.top = (GameEnv.random() * maxY) + 'px';
 
       item.onclick = (e) => {
         if (e && e.stopPropagation) e.stopPropagation();
         if (type === 'jelly') {
-          fishGameScore = Math.max(0, fishGameScore - 50);
+          fishGameScore = Math.max(0, fishGameScore - 40);
           playSound('hit');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
         } else if (type === 'shoe') {
-          fishGameScore = Math.max(0, fishGameScore - 25);
+          fishGameScore = Math.max(0, fishGameScore - 20);
           playSound('hit');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
         } else {
-          const val = type === 'gold' ? 40 : 12;
+          const val = type === 'gold' ? 30 : 10;
           fishGameScore += val;
           playSound('purr');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
@@ -6333,36 +6910,44 @@
       };
 
       area.appendChild(item);
-      setTimeout(() => { if (item.parentNode) item.remove(); }, 1500);
+      GameEnv.setTimeout(() => { if (item.parentNode) item.remove(); }, 1500);
     }
 
     function endFishingGame() {
+      if (!fishGameActive) return;
       fishGameActive = false;
-      clearInterval(fishGameInterval);
-      clearInterval(fishSpawnInterval);
+      if (fishGameInterval) GameEnv.clearInterval(fishGameInterval);
+      if (fishSpawnInterval) GameEnv.clearInterval(fishSpawnInterval);
       playSound('buy');
 
-      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.20;
-      const gainedFish = Math.floor(fishGameScore * state.livesLevel * talentGameMult * getGlobalAchievementMultiplier());
-      addFish(gainedFish);
+      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.15;
+      const gainedFish = Math.floor(fishGameScore * state.livesLevel * talentGameMult * getAchievementMinigameBonus());
+      addFish(gainedFish, true);
       if (fishGameScore > (state.fishingHighScore || 0)) {
         state.fishingHighScore = fishGameScore;
       }
       state.stats.minigamesPlayed = (state.stats.minigamesPlayed || 0) + 1;
       trackQuestProgress('minigame', 1);
       checkAchievements();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
 
       const area = document.getElementById('fishing-area');
       if (area) {
-        area.innerHTML = `
-          <div style="text-align:center;">
-            <h3 style="color:#50fa7b; font-size:24px; margin-bottom:8px;">Время вышло! 🎉</h3>
-            <p style="font-size:16px; color:#fff; margin-bottom:15px;">Ты наловил: <b>+${gainedFish.toLocaleString('ru-RU')} 🐟</b></p>
-            <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">СЫГРАТЬ ЕЩЁ РАЗ 🎣</button>
-          </div>
-        `;
+        area.style.display = 'none';
+        area.querySelectorAll('.swimming-target').forEach(el => el.remove());
       }
+      const resScreen = document.getElementById('fishing-result-screen');
+      if (resScreen) {
+        resScreen.innerHTML = `
+          <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Время вышло! 🎣</h3>
+          <p style="font-size:15px; color:#fff; margin-bottom:6px;">Очки улова: <b>${fishGameScore}</b></p>
+          <p style="font-size:15px; color:#f1fa8c; margin-bottom:15px;">Наловлено: <b>+${gainedFish.toLocaleString('ru-RU')} 🐟</b></p>
+          <button class="card-btn" style="padding:12px 30px; font-size:15px;" onclick="startFishingGame()">СЫГРАТЬ ЕЩЁ РАЗ 🎣</button>
+        `;
+        resScreen.style.display = 'block';
+      }
+      showGameToast(`🎉 Рыбалка: +${gainedFish.toLocaleString('ru-RU')} 🐟!`, 'success');
     }
 
     // 2. Мини-игра «Поймай мышку в норке» (Whack-a-Mole)
@@ -6376,20 +6961,24 @@
 
     function startMouseGame() {
       initAudio();
+      abortAllActiveSessions('restart_mouse');
       document.getElementById('moles-start-screen').style.display = 'none';
+      const mRes = document.getElementById('moles-result-screen');
+      if (mRes) mRes.style.display = 'none';
+
       mouseGameActive = true;
       mouseGameScore = 0;
       mouseGameTime = 30;
       document.getElementById('game-score').innerText = '0';
       document.getElementById('game-timer').innerText = '30';
 
-      mouseGameInterval = setInterval(() => {
+      mouseGameInterval = GameEnv.setInterval(() => {
         mouseGameTime--;
         document.getElementById('game-timer').innerText = mouseGameTime;
         if (mouseGameTime <= 0) endMouseGame();
       }, 1000);
 
-      mousePopInterval = setInterval(popRandomMole, 550);
+      mousePopInterval = GameEnv.setInterval(popRandomMole, 550);
     }
 
     function popRandomMole() {
@@ -6400,8 +6989,8 @@
         if (el) el.classList.remove('up');
       }
 
-      activeMoleIndex = Math.floor(Math.random() * 6);
-      const rand = Math.random();
+      activeMoleIndex = Math.floor(GameEnv.random() * 6);
+      const rand = GameEnv.random();
       if (rand < 0.10) {
         moleType = 'bomb';
       } else if (rand < 0.25) {
@@ -6436,15 +7025,15 @@
       activeMoleIndex = -1;
 
       if (moleType === 'bomb') {
-        mouseGameScore = Math.max(0, mouseGameScore - 80);
+        mouseGameScore = Math.max(0, mouseGameScore - 60);
         playSound('hit');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
       } else if (moleType === 'hedgehog') {
-        mouseGameScore = Math.max(0, mouseGameScore - 40);
+        mouseGameScore = Math.max(0, mouseGameScore - 30);
         playSound('hit');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
       } else {
-        const pts = moleType === 'gold' ? 60 : 15;
+        const pts = moleType === 'gold' ? 45 : 12;
         mouseGameScore += pts;
         playSound('squeak');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
@@ -6454,33 +7043,48 @@
     }
 
     function endMouseGame() {
+      if (!mouseGameActive) return;
       mouseGameActive = false;
-      clearInterval(mouseGameInterval);
-      clearInterval(mousePopInterval);
+      if (mouseGameInterval) GameEnv.clearInterval(mouseGameInterval);
+      if (mousePopInterval) GameEnv.clearInterval(mousePopInterval);
       if (activeMoleIndex !== -1) {
         const el = document.getElementById(`mole-${activeMoleIndex}`);
         if (el) el.classList.remove('up');
+        activeMoleIndex = -1;
       }
       playSound('victory');
 
-      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.20;
-      const finalReward = Math.floor(mouseGameScore * state.livesLevel * talentGameMult * getGlobalAchievementMultiplier());
-      addFish(finalReward);
+      const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.15;
+      const finalReward = Math.floor(mouseGameScore * state.livesLevel * talentGameMult * getAchievementMinigameBonus());
+      addFish(finalReward, true);
       if (mouseGameScore > (state.mouseHighScore || 0)) {
         state.mouseHighScore = mouseGameScore;
       }
       state.stats.minigamesPlayed = (state.stats.minigamesPlayed || 0) + 1;
       trackQuestProgress('minigame', 1);
       checkAchievements();
-      saveGame();
+      isDirty = true;
+      saveGame(true);
 
-      alert(`🎉 ОХОТА НА МЫШЕЙ ЗАВЕРШЕНА!\nТы наловил мышек на: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
-      document.getElementById('moles-start-screen').style.display = 'block';
+      const mRes = document.getElementById('moles-result-screen');
+      if (mRes) {
+        mRes.innerHTML = `
+          <h3 style="color:#50fa7b; font-size:22px; margin-bottom:8px;">Охота завершена! 🐭</h3>
+          <p style="font-size:15px; color:#fff; margin-bottom:6px;">Очки: <b>${mouseGameScore}</b></p>
+          <p style="font-size:15px; color:#f1fa8c; margin-bottom:15px;">Награда: <b>+${finalReward.toLocaleString('ru-RU')} 🐟</b></p>
+          <button class="card-btn" style="padding:12px 30px; font-size:15px;" onclick="startMouseGame()">СЫГРАТЬ ЕЩЁ РАЗ 🐭</button>
+        `;
+        mRes.style.display = 'block';
+      } else {
+        document.getElementById('moles-start-screen').style.display = 'block';
+      }
+      showGameToast(`🎉 Охота на мышей: +${finalReward.toLocaleString('ru-RU')} 🐟!`, 'success');
     }
 
     // --- Переключение вкладок ---
     function switchTab(tab) {
       initAudio();
+      abortAllActiveSessions('tab_switch');
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       closeModals();
 
@@ -6489,25 +7093,31 @@
       } else if (tab === 'wheel') {
         document.getElementById('modal-wheel').style.display = 'flex';
         drawWheel();
+        if (tg && tg.BackButton) tg.BackButton.show();
       } else if (tab === 'boss') {
         document.getElementById('tab-boss').classList.add('active');
         renderBossesList();
         document.getElementById('modal-boss').style.display = 'flex';
+        if (tg && tg.BackButton) tg.BackButton.show();
       } else if (tab === 'shop') {
         document.getElementById('tab-shop').classList.add('active');
         renderShop();
         document.getElementById('modal-shop').style.display = 'flex';
+        if (tg && tg.BackButton) tg.BackButton.show();
       } else if (tab === 'wardrobe') {
         document.getElementById('tab-wardrobe').classList.add('active');
         renderWardrobe();
         document.getElementById('modal-wardrobe').style.display = 'flex';
+        if (tg && tg.BackButton) tg.BackButton.show();
       } else if (tab === 'minigame') {
         document.getElementById('tab-game').classList.add('active');
         document.getElementById('modal-minigame').style.display = 'flex';
+        if (tg && tg.BackButton) tg.BackButton.show();
       } else if (tab === 'leaderboard') {
         document.getElementById('tab-leaderboard').classList.add('active');
         renderLeaderboard();
         document.getElementById('modal-leaderboard').style.display = 'flex';
+        if (tg && tg.BackButton) tg.BackButton.show();
       }
     }
 
@@ -6554,13 +7164,13 @@
       const pMouseScore = state.mouseHighScore || 0;
       const pFishScore = state.fishingHighScore || 0;
 
-      // Обновление карточки игрока
-      document.getElementById('lb-user-name').innerText = pName;
+      const lbUserEl = document.getElementById('lb-user-name');
+      if (lbUserEl) lbUserEl.textContent = pName;
       document.getElementById('lb-user-avatar').innerText = pAvatar;
       document.getElementById('lb-user-league').innerText = pLeague.name;
       document.getElementById('lb-stat-fish').innerText = pTotalFish.toLocaleString('ru-RU');
       document.getElementById('lb-stat-life').innerText = `${state.livesLevel}/9`;
-      document.getElementById('lb-stat-bosses').innerText = `${pBossesCount}/5`;
+      document.getElementById('lb-stat-bosses').innerText = `${pBossesCount}/7`;
       document.getElementById('lb-stat-mouse').innerText = pMouseScore;
 
       let items = [];
@@ -6587,19 +7197,19 @@
         });
       } else if (currentLbCategory === 'bosses') {
         const competitors = [
-          { name: 'Лорд Пушок', avatar: '🦄', league: '👑 5/5 боссов', score: 5, suffix: ' побед' },
-          { name: 'Граф Мурчелло', avatar: '👑', league: '💎 5/5 боссов', score: 5, suffix: ' побед' },
-          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: '🥇 4/5 боссов', score: 4, suffix: ' побед' },
-          { name: 'Ниндзя Мурзик', avatar: '🥷', league: '🥇 3/5 боссов', score: 3, suffix: ' побед' },
-          { name: 'Барон Котзилла', avatar: '🦖', league: '🥈 2/5 боссов', score: 2, suffix: ' побед' },
-          { name: 'Шериф Кис-Кис', avatar: '🤠', league: '🥈 2/5 боссов', score: 2, suffix: ' побед' },
-          { name: 'Барсик Шустрый', avatar: '🐱', league: '🥉 1/5 боссов', score: 1, suffix: ' побед' }
+          { name: 'Лорд Пушок', avatar: '🦄', league: '👑 7/7 боссов', score: 7, suffix: ' побед' },
+          { name: 'Граф Мурчелло', avatar: '👑', league: '💎 6/7 боссов', score: 6, suffix: ' побед' },
+          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: '🥇 5/7 боссов', score: 5, suffix: ' побед' },
+          { name: 'Ниндзя Мурзик', avatar: '🥷', league: '🥇 4/7 боссов', score: 4, suffix: ' побед' },
+          { name: 'Барон Котзилла', avatar: '🦖', league: '🥈 3/7 боссов', score: 3, suffix: ' побед' },
+          { name: 'Шериф Кис-Кис', avatar: '🤠', league: '🥈 2/7 боссов', score: 2, suffix: ' побед' },
+          { name: 'Барсик Шустрый', avatar: '🐱', league: '🥉 1/7 боссов', score: 1, suffix: ' побед' }
         ];
         items = competitors.map(c => ({ ...c, isMe: false }));
         items.push({
           name: pName,
           avatar: pAvatar,
-          league: `${pBossesCount}/5 боссов`,
+          league: `${pBossesCount}/7 боссов`,
           score: pBossesCount,
           suffix: ' побед',
           isMe: true
@@ -6665,6 +7275,7 @@
       document.getElementById('lb-user-rank-val').innerText = `#${userRank}`;
 
       const listEl = document.getElementById('leaderboard-list');
+      if (!listEl) return;
       listEl.innerHTML = '';
 
       items.forEach((item, index) => {
@@ -6682,13 +7293,14 @@
           <div class="lb-avatar">${item.avatar}</div>
           <div class="lb-details">
             <div class="lb-name">
-              <span>${item.name}</span>
+              <span class="lb-name-txt"></span>
               ${item.isMe ? '<span class="lb-badge-you">ТЫ 🐾</span>' : ''}
             </div>
             <div class="lb-sub">${item.league}</div>
           </div>
           <div class="lb-score">${item.score.toLocaleString('ru-RU')}${item.suffix}</div>
         `;
+        row.querySelector('.lb-name-txt').textContent = item.name;
         listEl.appendChild(row);
       });
     }
@@ -6703,23 +7315,14 @@
       const pLaserScore = state.laserHighScore || 0;
       const pTowerScore = state.towerHighScore || 0;
 
-      const text = `🐱 Мой котик в Кото-Тапалке!
-` +
-        `🐟 Собрано рыбок: ${pTotalFish}
-` +
-        `⭐ Жизнь котика: ${state.livesLevel}/9
-` +
-        `⚔️ Боссов побеждено: ${pBossesCount}/5
-` +
-        `🧶 Рекорд башни пряжи: ${pTowerScore} клубков
-` +
-        `🐭 Рекорд мышек: ${pMouseScore} очков
-` +
-        `🔴 Рекорд в лазере: ${pLaserScore} очков
-` +
-        `🎣 Рекорд рыбалки: ${pFishScore} очков
-
-` +
+      const text = `🐱 Мой котик в Кото-Тапалке!\n` +
+        `🐟 Собрано рыбок: ${pTotalFish}\n` +
+        `⭐ Жизнь котика: ${state.livesLevel}/9\n` +
+        `⚔️ Боссов побеждено: ${pBossesCount}/7\n` +
+        `🧶 Рекорд башни пряжи: ${pTowerScore} клубков\n` +
+        `🐭 Рекорд мышек: ${pMouseScore} очков\n` +
+        `🔴 Рекорд в лазере: ${pLaserScore} очков\n` +
+        `🎣 Рекорд рыбалки: ${pFishScore} очков\n\n` +
         `Сможешь побить мой рекорд? Заходи играть: @I_ALIRA_I_bot 🐾`;
 
       const botUrl = 'https://t.me/I_ALIRA_I_bot';
@@ -6733,82 +7336,226 @@
     }
 
     function closeModals() {
+      abortAllActiveSessions('close_modals');
       document.querySelectorAll('.sheet-modal').forEach(m => m.style.display = 'none');
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('tab-cat').classList.add('active');
-      if (bossInterval) clearInterval(bossInterval);
-      if (fishGameInterval) clearInterval(fishGameInterval);
-      if (mouseGameInterval) clearInterval(mouseGameInterval);
-      if (laserGameInterval) clearInterval(laserGameInterval);
-      if (laserAnimFrame) cancelAnimationFrame(laserAnimFrame);
-      if (towerGameInterval) clearInterval(towerGameInterval);
-      if (towerAnimFrame) cancelAnimationFrame(towerAnimFrame);
+      const catTab = document.getElementById('tab-cat');
+      if (catTab) catTab.classList.add('active');
+      if (tg && tg.BackButton) tg.BackButton.hide();
     }
 
-    // --- Пассивный доход и Регенерация Энергии в секунду ---
-    setInterval(() => {
+    // Обработка Telegram BackButton
+    if (tg && tg.BackButton) {
+      tg.BackButton.onClick(() => {
+        closeModals();
+      });
+    }
+
+    // --- Оптимизированный цикл пассивного дохода и таймеров ---
+    let lastTickTime = GameEnv.perfNow();
+    let tickCounter = 0;
+
+    GameEnv.setInterval(() => {
+      const now = GameEnv.perfNow();
+      const dt = Math.min(0.2, (now - lastTickTime) / 1000);
+      lastTickTime = now;
+      tickCounter++;
+
       calculatePassive();
       if (state.passivePerSec > 0) {
-        addFish(state.passivePerSec / 10);
+        addFish(state.passivePerSec * dt, false);
       }
 
       // Регенерация энергии: +2/с (+ бонус таланта hunter_regen)
       const maxEng = getMaxEnergy();
       const regenPerSec = 2 + ((state.talents && state.talents.hunter_regen) || 0) * 1;
-      const nowTime = Date.now();
+      const nowTime = GameEnv.now();
       const inEuphoria = (state.euphoriaUntil && state.euphoriaUntil > nowTime);
 
       if (inEuphoria) {
-        // Удвоенная регенерация энергии во время Мяу-Эйфории (x2)
         if (state.energy < maxEng) {
-          state.energy = Math.min(maxEng, state.energy + (regenPerSec / 10) * 2);
+          state.energy = Math.min(maxEng, state.energy + (regenPerSec * 2 * dt));
         }
       } else {
         if (state.energy < maxEng) {
-          state.energy = Math.min(maxEng, state.energy + (regenPerSec / 10));
+          state.energy = Math.min(maxEng, state.energy + (regenPerSec * dt));
         }
-        // Завершение эйфории
         if (state.euphoriaUntil && state.euphoriaUntil <= nowTime) {
           state.euphoriaUntil = 0;
           state.mood = 50;
         }
-        // Постепенное снижение настроения вне эйфории, если не гладить котика (до 40%)
         if (state.mood > 40) {
-          state.mood = Math.max(40, state.mood - 0.02);
+          state.mood = Math.max(40, state.mood - (0.2 * dt));
         }
       }
+
+      // Обновление DOM баффов раз в секунду (10 тиков)
+      if (tickCounter % 10 === 0) {
+        renderActivePotionsBar();
+        renderActiveDishesBar();
+      }
+
+      // Периодическое автосохранение раз в 4 секунды при наличии изменений
+      if (isDirty && (GameEnv.now() - lastAutoSaveTime) >= 4000) {
+        saveGame();
+      }
+
       updateUI();
     }, 100);
 
-    function saveGame() {
-      state.lastSavedTime = Date.now();
-      localStorage.setItem('cat_clicker_save_v5', JSON.stringify(state));
-    }
-
     function checkOfflineEarnings() {
-      const now = Date.now();
-      const elapsedSec = Math.floor((now - state.lastSavedTime) / 1000);
-      calculatePassive();
+      const now = GameEnv.now();
+      const t0 = (typeof rawLoadedSavedTime === 'number' && isFinite(rawLoadedSavedTime) && rawLoadedSavedTime > 0) ? rawLoadedSavedTime : now;
+      rawLoadedSavedTime = now; // Исключаем повторный расчет
 
-      if (elapsedSec > 15 && state.passivePerSec > 0) {
-        let earned = Math.min(100000, elapsedSec * state.passivePerSec);
-        const sleepBonus = 1 + ((state.talents && state.talents.idle_sleep) || 0) * 0.20;
-        earned = Math.floor(earned * sleepBonus);
+      const elapsedSec = Math.floor((now - t0) / 1000);
+      if (elapsedSec <= 0) return;
 
-        if (earned > 5) {
-          state.fish += earned;
-          state.totalEarned += earned;
-          document.getElementById('offline-coins').innerText = `+${earned.toLocaleString('ru-RU')} 🐟`;
-          document.getElementById('welcome-modal').style.display = 'flex';
-          updateUI();
-          saveGame();
-        }
+      // Ограничение оффлайн-времени первыми 8 часами (28800 сек) после отключения
+      const cappedSec = Math.min(28800, elapsedSec);
+      const t1 = t0 + cappedSec * 1000;
+
+      // Точки перехода (окончание баффов) внутри интервала [t0, t1]
+      const points = [t0, t1];
+      if (state.euphoriaUntil && state.euphoriaUntil > t0 && state.euphoriaUntil < t1) {
+        points.push(state.euphoriaUntil);
       }
+      if (state.activePotions && state.activePotions.energy > t0 && state.activePotions.energy < t1) {
+        points.push(state.activePotions.energy);
+      }
+      if (state.activeDishes && state.activeDishes.dish_bubble_tea > t0 && state.activeDishes.dish_bubble_tea < t1) {
+        points.push(state.activeDishes.dish_bubble_tea);
+      }
+      points.sort((a, b) => a - b);
+
+      const maxEng = getMaxEnergy();
+      const baseRegen = 2 + ((state.talents && state.talents.hunter_regen) || 0) * 1;
+      let restoredEnergy = 0;
+      let totalEarned = 0;
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const segStart = points[i];
+        const segEnd = points[i + 1];
+        const segDtSec = (segEnd - segStart) / 1000;
+        if (segDtSec <= 0) continue;
+        const midTime = (segStart + segEnd) / 2;
+
+        // Регенерация энергии в этом сегменте (x2 только если эйфория была активна)
+        const inEuphoria = (state.euphoriaUntil && state.euphoriaUntil > midTime);
+        const segRegenRate = inEuphoria ? (baseRegen * 2) : baseRegen;
+        restoredEnergy += segRegenRate * segDtSec;
+
+        // Пассивный доход в этом сегменте
+        const rate = calculatePassiveAtTimestamp(midTime);
+        totalEarned += rate * segDtSec;
+      }
+
+      // Восстановление энергии за всё оффлайн-время
+      state.energy = Math.min(maxEng, state.energy + restoredEnergy);
+      isDirty = true;
+
+      // Бонус таланта "Сладкий сон"
+      const sleepBonus = 1 + ((state.talents && state.talents.idle_sleep) || 0) * 0.15;
+      totalEarned = Math.floor(totalEarned * sleepBonus);
+
+      if (totalEarned > 0) {
+        state.fish += totalEarned;
+        state.totalEarned += totalEarned;
+      }
+
+      // Показываем приветственное модальное окно только при значимом отсутствии (от 15 секунд) и наличии наград
+      if (elapsedSec >= 15 && totalEarned > 0) {
+        const coinEl = document.getElementById('offline-coins');
+        if (coinEl) coinEl.innerText = `+${totalEarned.toLocaleString('ru-RU')} 🐟`;
+        const wModal = document.getElementById('welcome-modal');
+        if (wModal) wModal.style.display = 'flex';
+      }
+
+      saveGame(true);
     }
 
     function closeWelcome() {
       playSound('buy');
-      document.getElementById('welcome-modal').style.display = 'none';
+      const wModal = document.getElementById('welcome-modal');
+      if (wModal) wModal.style.display = 'none';
+    }
+
+    // Expose game interface for headless test runner / simulator / dev tools
+    if (typeof window !== 'undefined') {
+      window.__game = {
+        getState: () => state,
+        setState: (newState) => { state = newState; },
+        GameEnv,
+        upgradesClickConfig,
+        upgradesPassiveConfig,
+        talentsCatalog,
+        dishesCatalog,
+        potionsCatalog,
+        bossCatalog,
+        skins,
+        artifactsCatalog,
+        achievementsCatalog,
+        roomDecorCatalog,
+        kittensCatalog,
+        wheelPrizes,
+        prestigeConfig,
+        getFrenzyVal: () => frenzyVal,
+        getFrenzyActive: () => frenzyActive,
+        getFrenzyMultiplier: () => frenzyMultiplier,
+        handleCatTap,
+        petCat,
+        getUpgradePrice,
+        buyUpgrade,
+        buyTalentRank,
+        brewPotion,
+        cookDish,
+        spinWheel,
+        ascendLife,
+        claimQuestReward,
+        checkAchievements,
+        buyOrEquipSkin,
+        openRelicChest,
+        fuseArtifacts,
+        startBossFight,
+        attackBoss,
+        hitWeakSpot,
+        dodgeBossAttack,
+        endBossFight,
+        startTowerGame,
+        dropTowerYarn,
+        endTowerGame,
+        startLaserGame,
+        hitLaserDot,
+        endLaserGame,
+        startFishingGame,
+        spawnSwimmingFish,
+        endFishingGame,
+        startMouseGame,
+        popRandomMole,
+        hitMole,
+        endMouseGame,
+        catchButterfly,
+        startFishRain,
+        saveGame,
+        loadGame,
+        ensureStateDefaults,
+        checkOfflineEarnings,
+        calculatePassive,
+        calculatePassiveAtTimestamp,
+        calculateClickPower,
+        getMaxEnergy,
+        abortAllActiveSessions,
+        switchTab,
+        switchGameMode,
+        switchShopCategory,
+        switchLeaderboardCategory,
+        updateUI,
+        addFish,
+        getAchievementClickBonus,
+        getAchievementPassiveBonus,
+        getAchievementBossBonus,
+        getAchievementMinigameBonus
+      };
     }
 
     // Инициализация
@@ -6821,7 +7568,10 @@
       catLoop();
       scheduleButterfly();
     } catch (err) {
-      console.error('Init error:', err);
+      console.error('CRITICAL Game Init Error:', err);
+      if (typeof window !== 'undefined' && window.__onInitError) {
+        window.__onInitError(err);
+      }
     }
   </script>
 </body>
