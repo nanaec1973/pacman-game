@@ -2598,7 +2598,7 @@
       { id: 'life_9', name: 'Божественный Астрал (9-я Жизнь)', icon: '🌌', price: 0, lifeReq: 9, desc: 'Космическая туманность, нимб и супернова в глазах.', bonus: '+100% ко ВСЕМУ доходу! 🌟' },
       { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 2500, desc: 'Треуголка, повязка на глаз и +10% к шансу крит-удара!', bonus: '+10% шанс крита 💥' },
       { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 15000, desc: 'Скафандр и невесомость. +30% к пассивному доходу!', bonus: '+30% пассив 🌌' },
-      { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 0, desc: 'Редкий кот из Колеса Фортуны! Даёт +20% к пассивному доходу.', bonus: '+20% к пассиву 🌈' }
+      { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 0, wheelOnly: true, desc: 'Редкий кот из Колеса Фортуны! Даёт +20% к пассивному доходу.', bonus: '+20% к пассиву 🌈' }
     ];
 
     let frenzyVal = 0;
@@ -5030,6 +5030,7 @@
       skins.forEach(s => {
         const isLifeSkin = typeof s.lifeReq === 'number';
         const isLifeUnlocked = isLifeSkin && state.livesLevel >= s.lifeReq;
+        const isWheelSkin = s.wheelOnly || (s.id === 'unicorn');
         const isOwned = state.ownedSkins.includes(s.id) || isLifeUnlocked;
         const isEquipped = state.equippedSkin === s.id;
 
@@ -5039,6 +5040,7 @@
 
         let statusText = 'КУПИТЬ';
         let btnDisabled = false;
+        let btnOnClick = `buyOrEquipSkin('${s.id}')`;
 
         if (isEquipped) {
           statusText = 'НАДЕТО ✨';
@@ -5047,6 +5049,9 @@
         } else if (isLifeSkin) {
           statusText = `⭐ ${s.lifeReq}-я ЖИЗНЬ`;
           btnDisabled = true;
+        } else if (isWheelSkin) {
+          statusText = '🎁 В КОЛЕСО ФОРТУНЫ';
+          btnOnClick = "switchTab('wheel')";
         } else {
           statusText = 'КУПИТЬ';
           btnDisabled = state.fish < price;
@@ -5059,8 +5064,9 @@
           <div class="card-title">${s.name}</div>
           <div class="card-desc">${s.desc}</div>
           <div style="font-size:11px; color:#50fa7b; font-weight:bold;">${s.bonus}</div>
-          ${!isOwned && !isLifeSkin ? `<div class="card-price">${price.toLocaleString('ru-RU')} 🐟</div>` : ''}
-          <button class="card-btn ${isEquipped ? 'btn-equipped' : ''}" ${btnDisabled ? 'disabled' : ''} onclick="buyOrEquipSkin('${s.id}')">
+          ${!isOwned && !isLifeSkin && !isWheelSkin ? `<div class="card-price">${price.toLocaleString('ru-RU')} 🐟</div>` : ''}
+          ${!isOwned && isWheelSkin ? `<div class="card-price" style="color:#ffb86c; font-weight:800;">Джекпот Колеса 🎁</div>` : ''}
+          <button class="card-btn ${isEquipped ? 'btn-equipped' : ''}" ${btnDisabled ? 'disabled' : ''} onclick="${btnOnClick}">
             ${statusText}
           </button>
         `;
