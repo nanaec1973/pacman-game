@@ -203,14 +203,14 @@
       100% { opacity: 0; transform: translateY(-70px) scale(1); }
     }
 
-    /* Нижнее меню вкладок (5 кнопок) */
+    /* Нижнее меню вкладок (6 кнопок) */
     #nav-bar {
       width: 100%;
       background: rgba(20, 18, 38, 0.98);
       border-top: 2px solid rgba(255, 255, 255, 0.08);
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      padding: 6px 2px 14px 2px;
+      grid-template-columns: repeat(6, 1fr);
+      padding: 6px 1px 14px 1px;
       z-index: 40;
     }
     .nav-btn {
@@ -220,13 +220,168 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      font-size: 10px;
+      gap: 2px;
+      font-size: 9px;
       font-weight: 700;
       cursor: pointer;
-      padding: 6px 0;
-      border-radius: 10px;
+      padding: 5px 0;
+      border-radius: 8px;
       transition: all 0.2s;
+    }
+
+    /* Таблица лидеров и Зал Славы */
+    .user-lb-card {
+      background: linear-gradient(135deg, rgba(255, 184, 108, 0.15), rgba(255, 121, 198, 0.15));
+      border: 1px solid rgba(255, 184, 108, 0.4);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .user-lb-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .user-lb-avatar {
+      font-size: 34px;
+      background: rgba(0,0,0,0.35);
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 2px solid #ffb86c;
+    }
+    .user-lb-info {
+      flex: 1;
+    }
+    .user-lb-info h4 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .user-lb-league {
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffb86c;
+      background: rgba(255, 184, 108, 0.2);
+      padding: 2px 8px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+    .user-lb-rank {
+      text-align: right;
+    }
+    .user-lb-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      background: rgba(0,0,0,0.25);
+      padding: 8px 6px;
+      border-radius: 12px;
+    }
+    .user-stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2px;
+    }
+    .user-stat-box span {
+      font-size: 9px;
+      color: #aaa;
+      font-weight: 700;
+    }
+    .user-stat-box b {
+      font-size: 11px;
+      color: #00ff88;
+      font-weight: 800;
+    }
+    .share-btn {
+      width: 100%;
+      background: linear-gradient(90deg, #ff79c6, #ffb86c);
+      color: #111;
+      border: none;
+      font-weight: 900;
+      font-size: 13px;
+      padding: 11px 0;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 121, 198, 0.4);
+      transition: transform 0.1s ease;
+    }
+    .share-btn:active {
+      transform: scale(0.97);
+    }
+    .lb-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .lb-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .lb-item.me {
+      background: rgba(255, 184, 108, 0.12);
+      border: 1.5px solid #ffb86c;
+      box-shadow: 0 0 12px rgba(255, 184, 108, 0.25);
+    }
+    .lb-rank {
+      font-size: 15px;
+      font-weight: 900;
+      width: 28px;
+      text-align: center;
+      color: #aaa;
+    }
+    .lb-rank.gold { color: #f1fa8c; font-size: 20px; }
+    .lb-rank.silver { color: #e0e0e0; font-size: 20px; }
+    .lb-rank.bronze { color: #cd7f32; font-size: 20px; }
+    .lb-avatar {
+      font-size: 24px;
+    }
+    .lb-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .lb-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .lb-badge-you {
+      font-size: 9px;
+      background: #ffb86c;
+      color: #111;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 900;
+    }
+    .lb-sub {
+      font-size: 11px;
+      color: #888;
+    }
+    .lb-score {
+      font-size: 13px;
+      font-weight: 900;
+      color: #00ff88;
+      text-align: right;
     }
     .nav-btn .icon { font-size: 20px; }
     .nav-btn.active {
@@ -584,6 +739,10 @@
       <span class="icon">🎮</span>
       <span>Игры</span>
     </button>
+    <button class="nav-btn" id="tab-leaderboard" onclick="switchTab('leaderboard')">
+      <span class="icon">🏆</span>
+      <span>Лидеры</span>
+    </button>
   </div>
 
   <!-- Модалка: Колесо Фортуны -->
@@ -704,6 +863,63 @@
         <div class="mole-hole"><div class="mole-character" id="mole-5" onclick="hitMole(5)">🐭</div></div>
       </div>
     </div>
+  </div>
+
+  <!-- Модалка: Таблица лидеров и Зал Славы -->
+  <div class="sheet-modal" id="modal-leaderboard">
+    <div class="sheet-header">
+      <span class="sheet-title">🏆 Зал Славы и Лидеры</span>
+      <button class="close-btn" onclick="closeModals()">✕</button>
+    </div>
+
+    <!-- Карточка профиля игрока -->
+    <div class="user-lb-card">
+      <div class="user-lb-top">
+        <div class="user-lb-avatar" id="lb-user-avatar">🐱</div>
+        <div class="user-lb-info">
+          <h4 id="lb-user-name">Твой Котик</h4>
+          <span class="user-lb-league" id="lb-user-league">🥉 Бронзовая Лига</span>
+        </div>
+        <div class="user-lb-rank">
+          <div style="font-size: 10px; color: #aaa; text-transform: uppercase;">Твой Ранг</div>
+          <div id="lb-user-rank-val" style="font-size: 20px; font-weight: 900; color: #ffb86c;">#1</div>
+        </div>
+      </div>
+      <div class="user-lb-stats">
+        <div class="user-stat-box">
+          <span>🐟 Всего</span>
+          <b id="lb-stat-fish">0</b>
+        </div>
+        <div class="user-stat-box">
+          <span>⭐ Жизнь</span>
+          <b id="lb-stat-life">1/9</b>
+        </div>
+        <div class="user-stat-box">
+          <span>⚔️ Боссы</span>
+          <b id="lb-stat-bosses">0/5</b>
+        </div>
+        <div class="user-stat-box">
+          <span>🐭 Мышки</span>
+          <b id="lb-stat-mouse">0</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- Кнопка бросить вызов -->
+    <button class="share-btn" onclick="shareLeaderboard()">
+      📢 Поделиться рекордом в Telegram! 🐾
+    </button>
+
+    <!-- Фильтры категорий -->
+    <div class="subtabs-bar" style="margin-top: 12px;">
+      <button class="subtab-btn active" id="lbtab-fish" onclick="switchLeaderboardCategory('fish')">🐟 Рыбки</button>
+      <button class="subtab-btn" id="lbtab-bosses" onclick="switchLeaderboardCategory('bosses')">⚔️ Боссы</button>
+      <button class="subtab-btn" id="lbtab-mouse" onclick="switchLeaderboardCategory('mouse')">🐭 Мышки</button>
+      <button class="subtab-btn" id="lbtab-fishing" onclick="switchLeaderboardCategory('fishing')">🎣 Рыбалка</button>
+    </div>
+
+    <!-- Список лидеров -->
+    <div id="leaderboard-list" class="lb-list"></div>
   </div>
 
   <!-- Модалка: Престиж «9 Жизней Котика» -->
@@ -862,6 +1078,9 @@
       equippedSkin: 'classic',
       ownedSkins: ['classic'],
       unlockedKittens: [],
+      bossesDefeated: [],
+      mouseHighScore: 0,
+      fishingHighScore: 0,
       upgrades: {
         fish_treat: 0,
         mint: 0,
@@ -884,6 +1103,9 @@
       try {
         const parsed = JSON.parse(saved);
         state = { ...state, ...parsed, upgrades: { ...state.upgrades, ...parsed.upgrades } };
+        if (!state.bossesDefeated) state.bossesDefeated = [];
+        if (state.mouseHighScore === undefined) state.mouseHighScore = 0;
+        if (state.fishingHighScore === undefined) state.fishingHighScore = 0;
       } catch (e) {}
     }
 
@@ -1791,6 +2013,11 @@
         playSound('victory');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         addFish(activeBoss.reward);
+        if (!state.bossesDefeated) state.bossesDefeated = [];
+        if (!state.bossesDefeated.includes(activeBoss.id)) {
+          state.bossesDefeated.push(activeBoss.id);
+        }
+        saveGame();
 
         if (activeBoss.id === 'vacuum' && !state.unlockedKittens.includes('coal')) {
           state.unlockedKittens.push('coal');
@@ -1900,7 +2127,12 @@
       clearInterval(fishSpawnInterval);
       playSound('buy');
 
-      addFish(fishGameScore * state.livesLevel);
+      const gainedFish = fishGameScore * state.livesLevel;
+      addFish(gainedFish);
+      if (fishGameScore > (state.fishingHighScore || 0)) {
+        state.fishingHighScore = fishGameScore;
+      }
+      saveGame();
 
       const area = document.getElementById('fishing-area');
       area.innerHTML = `
@@ -2003,6 +2235,10 @@
 
       const finalReward = mouseGameScore * state.livesLevel;
       addFish(finalReward);
+      if (mouseGameScore > (state.mouseHighScore || 0)) {
+        state.mouseHighScore = mouseGameScore;
+      }
+      saveGame();
 
       alert(`🎉 ОХОТА НА МЫШЕЙ ЗАВЕРШЕНА!\nТы наловил мышек на: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
       document.getElementById('moles-start-screen').style.display = 'block';
@@ -2034,6 +2270,208 @@
       } else if (tab === 'minigame') {
         document.getElementById('tab-game').classList.add('active');
         document.getElementById('modal-minigame').style.display = 'flex';
+      } else if (tab === 'leaderboard') {
+        document.getElementById('tab-leaderboard').classList.add('active');
+        renderLeaderboard();
+        document.getElementById('modal-leaderboard').style.display = 'flex';
+      }
+    }
+
+    // --- Таблица Лидеров и Зал Славы ---
+    let currentLbCategory = 'fish';
+
+    function switchLeaderboardCategory(cat) {
+      initAudio();
+      currentLbCategory = cat;
+      document.querySelectorAll('#modal-leaderboard .subtab-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById(`lbtab-${cat}`);
+      if (btn) btn.classList.add('active');
+      renderLeaderboard();
+    }
+
+    function getPlayerName() {
+      if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const u = tg.initDataUnsafe.user;
+        if (u.first_name) return u.first_name;
+        if (u.username) return '@' + u.username;
+      }
+      return 'Твой Котик';
+    }
+
+    function getPlayerAvatar() {
+      const skinObj = skins.find(s => s.id === state.equippedSkin);
+      return skinObj ? skinObj.icon : '🐱';
+    }
+
+    function getPlayerLeague(lives) {
+      if (lives >= 9) return { name: '👑 Лига Мяу-Легенд', tier: 5 };
+      if (lives >= 7) return { name: '💎 Алмазная Лига', tier: 4 };
+      if (lives >= 4) return { name: '🥇 Золотая Лига', tier: 3 };
+      if (lives >= 2) return { name: '🥈 Серебряная Лига', tier: 2 };
+      return { name: '🥉 Бронзовая Лига', tier: 1 };
+    }
+
+    function renderLeaderboard() {
+      const pName = getPlayerName();
+      const pAvatar = getPlayerAvatar();
+      const pLeague = getPlayerLeague(state.livesLevel);
+      const pBossesCount = (state.bossesDefeated || []).length;
+      const pTotalFish = Math.floor(state.totalEarned || state.fish);
+      const pMouseScore = state.mouseHighScore || 0;
+      const pFishScore = state.fishingHighScore || 0;
+
+      // Обновление карточки игрока
+      document.getElementById('lb-user-name').innerText = pName;
+      document.getElementById('lb-user-avatar').innerText = pAvatar;
+      document.getElementById('lb-user-league').innerText = pLeague.name;
+      document.getElementById('lb-stat-fish').innerText = pTotalFish.toLocaleString('ru-RU');
+      document.getElementById('lb-stat-life').innerText = `${state.livesLevel}/9`;
+      document.getElementById('lb-stat-bosses').innerText = `${pBossesCount}/5`;
+      document.getElementById('lb-stat-mouse').innerText = pMouseScore;
+
+      let items = [];
+
+      if (currentLbCategory === 'fish') {
+        const competitors = [
+          { name: 'Лорд Пушок', avatar: '🦄', league: '👑 Лига Мяу-Легенд', score: 25000000, suffix: ' 🐟' },
+          { name: 'Граф Мурчелло', avatar: '👑', league: '💎 Алмазная Лига', score: 8500000, suffix: ' 🐟' },
+          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: '🥇 Золотая Лига', score: 1200000, suffix: ' 🐟' },
+          { name: 'Ниндзя Мурзик', avatar: '🥷', league: '🥇 Золотая Лига', score: 450000, suffix: ' 🐟' },
+          { name: 'Шериф Кис-Кис', avatar: '🤠', league: '🥈 Серебряная Лига', score: 120000, suffix: ' 🐟' },
+          { name: 'Мастер Котей', avatar: '🧙‍♂️', league: '🥈 Серебряная Лига', score: 35000, suffix: ' 🐟' },
+          { name: 'Барсик Шустрый', avatar: '🐱', league: '🥉 Бронзовая Лига', score: 8000, suffix: ' 🐟' },
+          { name: 'Рыжик-Новичок', avatar: '🐱', league: '🥉 Бронзовая Лига', score: 1500, suffix: ' 🐟' }
+        ];
+        items = competitors.map(c => ({ ...c, isMe: false }));
+        items.push({
+          name: pName,
+          avatar: pAvatar,
+          league: pLeague.name,
+          score: pTotalFish,
+          suffix: ' 🐟',
+          isMe: true
+        });
+      } else if (currentLbCategory === 'bosses') {
+        const competitors = [
+          { name: 'Лорд Пушок', avatar: '🦄', league: '👑 5/5 боссов', score: 5, suffix: ' побед' },
+          { name: 'Граф Мурчелло', avatar: '👑', league: '💎 5/5 боссов', score: 5, suffix: ' побед' },
+          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: '🥇 4/5 боссов', score: 4, suffix: ' побед' },
+          { name: 'Ниндзя Мурзик', avatar: '🥷', league: '🥇 3/5 боссов', score: 3, suffix: ' побед' },
+          { name: 'Барон Котзилла', avatar: '🦖', league: '🥈 2/5 боссов', score: 2, suffix: ' побед' },
+          { name: 'Шериф Кис-Кис', avatar: '🤠', league: '🥈 2/5 боссов', score: 2, suffix: ' побед' },
+          { name: 'Барсик Шустрый', avatar: '🐱', league: '🥉 1/5 боссов', score: 1, suffix: ' побед' }
+        ];
+        items = competitors.map(c => ({ ...c, isMe: false }));
+        items.push({
+          name: pName,
+          avatar: pAvatar,
+          league: `${pBossesCount}/5 боссов`,
+          score: pBossesCount,
+          suffix: ' побед',
+          isMe: true
+        });
+      } else if (currentLbCategory === 'mouse') {
+        const competitors = [
+          { name: 'Ниндзя Мурзик', avatar: '🥷', league: 'Молниеносный коготь', score: 420, suffix: ' очков' },
+          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: 'Гроза мышей', score: 340, suffix: ' очков' },
+          { name: 'Лорд Пушок', avatar: '🦄', league: 'Мастер реакции', score: 290, suffix: ' очков' },
+          { name: 'Шериф Кис-Кис', avatar: '🤠', league: 'Меткая лапа', score: 210, suffix: ' очков' },
+          { name: 'Барсик Шустрый', avatar: '🐱', league: 'Ловец норки', score: 140, suffix: ' очков' },
+          { name: 'Рыжик-Новичок', avatar: '🐱', league: 'Котёнок-охотник', score: 60, suffix: ' очков' }
+        ];
+        items = competitors.map(c => ({ ...c, isMe: false }));
+        items.push({
+          name: pName,
+          avatar: pAvatar,
+          league: 'Твой рекорд',
+          score: pMouseScore,
+          suffix: ' очков',
+          isMe: true
+        });
+      } else if (currentLbCategory === 'fishing') {
+        const competitors = [
+          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: 'Морской Волк', score: 380, suffix: ' очков' },
+          { name: 'Лорд Пушок', avatar: '🦄', league: 'Золотой Сачок', score: 320, suffix: ' очков' },
+          { name: 'Граф Мурчелло', avatar: '👑', league: 'Владыка Морей', score: 260, suffix: ' очков' },
+          { name: 'Ниндзя Мурзик', avatar: '🥷', league: 'Ловкий Рыболов', score: 190, suffix: ' очков' },
+          { name: 'Барсик Шустрый', avatar: '🐱', league: 'Любитель карасиков', score: 110, suffix: ' очков' }
+        ];
+        items = competitors.map(c => ({ ...c, isMe: false }));
+        items.push({
+          name: pName,
+          avatar: pAvatar,
+          league: 'Твой рекорд',
+          score: pFishScore,
+          suffix: ' очков',
+          isMe: true
+        });
+      }
+
+      items.sort((a, b) => b.score - a.score);
+
+      const myRankIndex = items.findIndex(x => x.isMe);
+      const userRank = myRankIndex !== -1 ? myRankIndex + 1 : items.length;
+      document.getElementById('lb-user-rank-val').innerText = `#${userRank}`;
+
+      const listEl = document.getElementById('leaderboard-list');
+      listEl.innerHTML = '';
+
+      items.forEach((item, index) => {
+        const rank = index + 1;
+        let rankBadge = `#${rank}`;
+        let rankClass = '';
+        if (rank === 1) { rankBadge = '🥇'; rankClass = 'gold'; }
+        else if (rank === 2) { rankBadge = '🥈'; rankClass = 'silver'; }
+        else if (rank === 3) { rankBadge = '🥉'; rankClass = 'bronze'; }
+
+        const row = document.createElement('div');
+        row.className = `lb-item ${item.isMe ? 'me' : ''}`;
+        row.innerHTML = `
+          <div class="lb-rank ${rankClass}">${rankBadge}</div>
+          <div class="lb-avatar">${item.avatar}</div>
+          <div class="lb-details">
+            <div class="lb-name">
+              <span>${item.name}</span>
+              ${item.isMe ? '<span class="lb-badge-you">ТЫ 🐾</span>' : ''}
+            </div>
+            <div class="lb-sub">${item.league}</div>
+          </div>
+          <div class="lb-score">${item.score.toLocaleString('ru-RU')}${item.suffix}</div>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    function shareLeaderboard() {
+      initAudio();
+      playSound('purr');
+      const pTotalFish = Math.floor(state.totalEarned || state.fish).toLocaleString('ru-RU');
+      const pBossesCount = (state.bossesDefeated || []).length;
+      const pMouseScore = state.mouseHighScore || 0;
+      const pFishScore = state.fishingHighScore || 0;
+
+      const text = `🐱 Мой котик в Кото-Тапалке!
+` +
+        `🐟 Собрано рыбок: ${pTotalFish}
+` +
+        `⭐ Жизнь котика: ${state.livesLevel}/9
+` +
+        `⚔️ Боссов побеждено: ${pBossesCount}/5
+` +
+        `🐭 Рекорд ловли мышек: ${pMouseScore} очков
+` +
+        `🎣 Рекорд рыбалки: ${pFishScore} очков
+
+` +
+        `Сможешь побить мой рекорд? Заходи играть: @I_ALIRA_I_bot 🐾`;
+
+      const botUrl = 'https://t.me/I_ALIRA_I_bot';
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`;
+
+      if (tg && tg.openTelegramLink) {
+        tg.openTelegramLink(shareUrl);
+      } else {
+        window.open(shareUrl, '_blank');
       }
     }
 
@@ -2091,5 +2529,3 @@
   </script>
 </body>
 </html>
-
-   
