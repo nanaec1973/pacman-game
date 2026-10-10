@@ -1400,10 +1400,10 @@
         ctx.restore();
       }
 
-      // 4. Улучшение: Золотая когтеточка (Справа)
+      // 4. Улучшение: Золотая когтеточка (Справа у стены)
       if (upg.post > 0) {
         ctx.save();
-        const postX = canvas.width - 70;
+        const postX = canvas.width - 55;
         const postY = canvas.height - 110;
         ctx.fillStyle = '#f1fa8c';
         ctx.strokeStyle = '#ffb86c';
@@ -1420,31 +1420,31 @@
         ctx.restore();
       }
 
-      // 5. Улучшение: Аквариум с плавающей рыбкой (Справа на полу)
+      // 5. Улучшение: Аквариум с плавающей рыбкой (Справа у стены)
       if (upg.aquarium > 0) {
         ctx.save();
-        const aqX = canvas.width - 40;
+        const aqX = canvas.width - 30;
         const aqY = canvas.height - 85;
         ctx.fillStyle = 'rgba(139, 233, 253, 0.45)';
         ctx.strokeStyle = '#8be9fd';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(aqX, aqY, 20, 0, Math.PI * 2);
+        ctx.arc(aqX, aqY, 18, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.fillRect(aqX - 10, aqY - 22, 20, 3.5);
+        ctx.fillRect(aqX - 9, aqY - 20, 18, 3.5);
         // Плавающая рыбка
-        const fX = aqX + Math.sin(catAnimTime * 3) * 6;
-        const fY = aqY + Math.cos(catAnimTime * 2) * 3;
+        const fX = aqX + Math.sin(catAnimTime * 3) * 5;
+        const fY = aqY + Math.cos(catAnimTime * 2) * 2.5;
         ctx.fillStyle = '#ff9f43';
         ctx.beginPath();
-        ctx.ellipse(fX, fY, 5.5, 3, 0, 0, Math.PI * 2);
+        ctx.ellipse(fX, fY, 5, 2.8, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(fX + 4, fY);
-        ctx.lineTo(fX + 8, fY - 2.5);
-        ctx.lineTo(fX + 8, fY + 2.5);
+        ctx.moveTo(fX + 3.5, fY);
+        ctx.lineTo(fX + 7, fY - 2.2);
+        ctx.lineTo(fX + 7, fY + 2.2);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
@@ -1481,19 +1481,19 @@
       if (decorList.includes('fireplace')) {
         ctx.save();
         ctx.fillStyle = '#442211';
-        ctx.fillRect(14, canvas.height - 95, 55, 65);
+        ctx.fillRect(10, canvas.height - 95, 52, 65);
         ctx.fillStyle = '#110c08';
-        ctx.fillRect(22, canvas.height - 75, 39, 45);
+        ctx.fillRect(17, canvas.height - 75, 38, 45);
         const flameH = 18 + Math.sin(catAnimTime * 12) * 5;
         ctx.fillStyle = '#ff5555';
         ctx.beginPath();
-        ctx.moveTo(32, canvas.height - 30);
-        ctx.lineTo(41, canvas.height - 30 - flameH);
-        ctx.lineTo(50, canvas.height - 30);
+        ctx.moveTo(27, canvas.height - 30);
+        ctx.lineTo(36, canvas.height - 30 - flameH);
+        ctx.lineTo(45, canvas.height - 30);
         ctx.fill();
         ctx.fillStyle = '#f1fa8c';
         ctx.beginPath();
-        ctx.arc(41, canvas.height - 30 - flameH * 0.5, 6, 0, Math.PI * 2);
+        ctx.arc(36, canvas.height - 30 - flameH * 0.5, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -1502,12 +1502,12 @@
       if (decorList.includes('plant')) {
         ctx.save();
         ctx.fillStyle = '#c0392b';
-        ctx.fillRect(canvas.width - 60, canvas.height - 65, 36, 32);
+        ctx.fillRect(canvas.width - 50, canvas.height - 65, 34, 32);
         ctx.fillStyle = '#2ecc71';
         ctx.beginPath();
-        ctx.arc(canvas.width - 42, canvas.height - 75, 18, 0, Math.PI * 2);
-        ctx.arc(canvas.width - 52, canvas.height - 85, 12, 0, Math.PI * 2);
-        ctx.arc(canvas.width - 32, canvas.height - 85, 12, 0, Math.PI * 2);
+        ctx.arc(canvas.width - 33, canvas.height - 75, 17, 0, Math.PI * 2);
+        ctx.arc(canvas.width - 43, canvas.height - 85, 11, 0, Math.PI * 2);
+        ctx.arc(canvas.width - 23, canvas.height - 85, 11, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -1548,44 +1548,74 @@
         ctx.restore();
       }
 
-      // Улучшение: Мисочка с кормом / рыбкой / мятой
+      // Улучшение: Мисочка с кормом / рыбкой / мятой (разнесена левее от котика)
       if (upg.feeder > 0 || upg.fish_treat > 0 || upg.mint > 0) {
         ctx.save();
-        ctx.translate(-75, 75);
+        ctx.translate(-112, 72);
+
+        // Тень под миской
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(0, 6, 20, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Корпус мисочки
         ctx.fillStyle = '#ff79c6';
-        ctx.strokeStyle = '#bd93f9';
+        ctx.strokeStyle = '#ff92d0';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 18, 8, 0, 0, Math.PI * 2);
+        ctx.moveTo(-18, 0);
+        ctx.quadraticCurveTo(-15, 8, 0, 8);
+        ctx.quadraticCurveTo(15, 8, 18, 0);
+        ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        if (upg.fish_treat > 0) {
+
+        // Верхний ободок миски
+        ctx.fillStyle = '#ff53a5';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Содержимое
+        if (upg.mint > 0) {
+          // Кошачья мята (кустик зеленых листочков)
+          ctx.fillStyle = '#50fa7b';
+          ctx.beginPath();
+          ctx.ellipse(-5, -3, 6, 3.5, -0.4, 0, Math.PI * 2);
+          ctx.ellipse(5, -3, 6, 3.5, 0.4, 0, Math.PI * 2);
+          ctx.ellipse(0, -5, 5, 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#00ff88';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else if (upg.fish_treat > 0) {
+          // Аппетитная рыбка
           ctx.fillStyle = '#8be9fd';
           ctx.beginPath();
           ctx.ellipse(0, -2, 10, 4, 0, 0, Math.PI * 2);
           ctx.fill();
-        } else if (upg.mint > 0) {
-          ctx.fillStyle = '#50fa7b';
-          ctx.beginPath();
-          ctx.arc(-2, -2, 4, 0, Math.PI * 2);
-          ctx.arc(2, -2, 4, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(-5, -2.5, 1.2, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ff79c6';
+          ctx.beginPath(); ctx.moveTo(7, -2); ctx.lineTo(11, -5); ctx.lineTo(11, 1); ctx.closePath(); ctx.fill();
         } else {
+          // Хрустящий сухой корм
           ctx.fillStyle = '#8d6e63';
           ctx.beginPath();
-          ctx.arc(-4, -2, 2.5, 0, Math.PI * 2);
-          ctx.arc(0, -3, 3, 0, Math.PI * 2);
-          ctx.arc(4, -2, 2.5, 0, Math.PI * 2);
+          ctx.arc(-5, -1, 3, 0, Math.PI * 2);
+          ctx.arc(0, -2, 3.2, 0, Math.PI * 2);
+          ctx.arc(5, -1, 3, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
       }
 
-      // Улучшение: Заводная мышка (бегает по полу)
+      // Улучшение: Заводная мышка (бегает по полу перед котиком)
       if (upg.mouse > 0) {
         ctx.save();
-        const mX = Math.sin(catAnimTime * 2.2) * 50;
-        const mY = 82 + Math.cos(catAnimTime * 4.4) * 3;
+        const mX = Math.sin(catAnimTime * 2.2) * 65;
+        const mY = 84 + Math.cos(catAnimTime * 4.4) * 3;
         const dir = Math.cos(catAnimTime * 2.2) >= 0 ? 1 : -1;
         ctx.translate(mX, mY);
         ctx.scale(dir, 1);
@@ -1852,11 +1882,12 @@
         ctx.fill();
       }
 
-      // Отрисовка разблокированных котят
+      // Отрисовка разблокированных котят (разнесены по бокам)
       if (state.livesLevel >= 2) {
         // Белый котёнок «Снежок» слева
         ctx.save();
-        ctx.translate(-95, 45);
+        const snowBob = Math.sin(catAnimTime * 3) * 2;
+        ctx.translate(-118, 38 + snowBob);
         ctx.scale(0.48, 0.48);
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
@@ -1870,16 +1901,58 @@
       }
 
       if (state.unlockedKittens.includes('coal')) {
-        // Чёрный котёнок «Уголёк» справа
+        // Чёрный котёнок-ниндзя «Уголёк» справа (отодвинут дальше от главного кота)
         ctx.save();
-        ctx.translate(95, 45);
-        ctx.scale(0.48, 0.48);
-        ctx.fillStyle = '#222';
-        ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-25,-15); ctx.lineTo(-15,-45); ctx.lineTo(0,-20); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(25,-15); ctx.lineTo(15,-45); ctx.lineTo(0,-20); ctx.fill();
+        const coalBob = Math.sin(catAnimTime * 3 + 1.2) * 2;
+        ctx.translate(118, 42 + coalBob);
+        ctx.scale(0.52, 0.52);
+
+        // Тень под котёнком
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(0, 32, 22, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Тельце и голова (красивый графитовый шелк с контуром)
+        ctx.fillStyle = '#2d3142';
+        ctx.strokeStyle = '#4f5d75';
+        ctx.lineWidth = 2;
+
+        // Голова
+        ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+        // Ушки
+        ctx.beginPath(); ctx.moveTo(-25, -15); ctx.lineTo(-15, -46); ctx.lineTo(0, -22); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(25, -15); ctx.lineTo(15, -46); ctx.lineTo(0, -22); ctx.fill(); ctx.stroke();
+
+        // Розовые ушки внутри
+        ctx.fillStyle = '#ff79c6';
+        ctx.beginPath(); ctx.moveTo(-20, -18); ctx.lineTo(-14, -38); ctx.lineTo(-4, -22); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(20, -18); ctx.lineTo(14, -38); ctx.lineTo(4, -22); ctx.fill();
+
+        // Красная повязка ниндзя на лбу
+        ctx.fillStyle = '#ff5555';
+        ctx.fillRect(-26, -18, 52, 8);
+        ctx.fillStyle = '#f1fa8c';
+        ctx.beginPath(); ctx.arc(0, -14, 3, 0, Math.PI * 2); ctx.fill();
+
+        // Светящиеся изумрудные глазки с блеском
         ctx.fillStyle = '#50fa7b';
-        ctx.beginPath(); ctx.arc(-10, -4, 4, 0, Math.PI*2); ctx.arc(10, -4, 4, 0, Math.PI*2); ctx.fill();
+        ctx.shadowColor = '#50fa7b';
+        ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(-11, 0, 5, 0, Math.PI * 2); ctx.arc(11, 0, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Зрачки и блики
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(-11, 0, 2.5, 0, Math.PI * 2); ctx.arc(11, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-12, -1.5, 1.5, 0, Math.PI * 2); ctx.arc(10, -1.5, 1.5, 0, Math.PI * 2); ctx.fill();
+
+        // Розовый носик
+        ctx.fillStyle = '#ff79c6';
+        ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(-3, 2); ctx.lineTo(3, 2); ctx.closePath(); ctx.fill();
+
         ctx.restore();
       }
 
