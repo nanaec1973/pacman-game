@@ -612,7 +612,7 @@
     .boss-info h4 { font-size: 15px; color: #ff5555; margin-bottom: 3px; font-weight: 800; }
     .boss-info p { font-size: 12px; color: #aaa; }
     .boss-btn {
-      background: #ff5555;
+      background: linear-gradient(135deg, #ff5555, #ff79c6);
       color: #fff;
       border: none;
       font-weight: 900;
@@ -621,10 +621,37 @@
       border-radius: 20px;
       cursor: pointer;
       box-shadow: 0 0 12px rgba(255, 85, 85, 0.5);
+      transition: transform 0.1s;
     }
     .boss-btn:active { transform: scale(0.95); }
 
-    /* Активный экран боя с боссом */
+    .hardcore-toggle-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 184, 108, 0.4);
+      color: #ffb86c;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .hardcore-toggle-btn.active {
+      background: linear-gradient(135deg, #ff5555, #ffb86c);
+      color: #111;
+      border-color: #ff5555;
+      box-shadow: 0 0 12px rgba(255, 85, 85, 0.6);
+    }
+    .boss-card.defeated {
+      border-color: rgba(80, 250, 123, 0.4);
+      background: rgba(80, 250, 123, 0.04);
+    }
+    .boss-card.hardcore {
+      border-color: rgba(255, 184, 108, 0.4);
+      background: rgba(255, 184, 108, 0.04);
+    }
+
+    /* Активный экран боя с боссом 2.0 */
     #boss-fight-screen {
       display: none;
       flex-direction: column;
@@ -632,15 +659,17 @@
       justify-content: space-between;
       height: 100%;
       text-align: center;
+      position: relative;
     }
     .boss-hp-wrap {
-      width: 90%;
+      width: 100%;
       background: rgba(0, 0, 0, 0.6);
       border: 2px solid #ff5555;
       border-radius: 14px;
-      padding: 4px;
-      margin: 10px 0;
+      padding: 3px;
+      margin: 6px 0;
       position: relative;
+      overflow: hidden;
     }
     .boss-hp-bar {
       height: 16px;
@@ -649,17 +678,191 @@
       width: 100%;
       transition: width 0.08s linear;
     }
+    
+    /* Арена и Сцена Босса */
+    .boss-arena-stage {
+      position: relative;
+      width: 100%;
+      height: 190px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 8px 0;
+    }
+
+    .boss-shield-aura {
+      position: absolute;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      border: 3px dashed #00e5ff;
+      box-shadow: 0 0 25px rgba(0, 229, 255, 0.7), inset 0 0 20px rgba(0, 229, 255, 0.3);
+      background: rgba(0, 229, 255, 0.08);
+      animation: spinShield 4s linear infinite, pulseShield 1.2s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 1;
+    }
+    @keyframes spinShield {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulseShield {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      100% { transform: scale(1.05); opacity: 1.0; }
+    }
+
+    .boss-stun-indicator {
+      position: absolute;
+      top: 0px;
+      font-size: 13px;
+      font-weight: 900;
+      color: #f1fa8c;
+      background: rgba(241, 250, 140, 0.2);
+      padding: 4px 12px;
+      border-radius: 14px;
+      border: 1px solid #f1fa8c;
+      box-shadow: 0 0 10px rgba(241, 250, 140, 0.5);
+      animation: bounceStun 0.5s infinite alternate;
+      z-index: 5;
+    }
+    @keyframes bounceStun {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px); }
+    }
+
     .boss-avatar-btn {
-      font-size: 90px;
+      font-size: 92px;
       cursor: pointer;
       background: none;
       border: none;
-      margin: 25px 0;
       transition: transform 0.08s ease;
       touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      z-index: 2;
     }
     .boss-avatar-btn:active {
       transform: scale(0.85) rotate(-5deg);
+    }
+    .boss-avatar-btn.enraged {
+      animation: enragedShake 0.2s infinite;
+      filter: drop-shadow(0 0 15px #ff5555);
+    }
+    @keyframes enragedShake {
+      0% { transform: translate(1px, 1px) rotate(0deg); }
+      50% { transform: translate(-1px, -2px) rotate(-2deg); }
+      100% { transform: translate(2px, 1px) rotate(2deg); }
+    }
+
+    /* Крит-Зона (Weak Spot) */
+    .boss-weak-spot {
+      position: absolute;
+      cursor: pointer;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: pulseWeakSpot 0.6s infinite alternate;
+      touch-action: manipulation;
+    }
+    .weak-spot-ring {
+      width: 52px;
+      height: 52px;
+      border: 3px solid #ff1744;
+      border-radius: 50%;
+      box-shadow: 0 0 16px #ff1744, inset 0 0 10px rgba(255, 23, 68, 0.5);
+      background: rgba(255, 23, 68, 0.35);
+      position: relative;
+    }
+    .weak-spot-ring::after {
+      content: '🎯';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+    }
+    .boss-weak-spot span {
+      font-size: 11px;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 6px #ff1744;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 1px 6px;
+      border-radius: 8px;
+      margin-top: 2px;
+    }
+    @keyframes pulseWeakSpot {
+      0% { transform: scale(0.92); }
+      100% { transform: scale(1.12); }
+    }
+
+    /* QTE Блок / Уворот */
+    .boss-qte-container {
+      width: 100%;
+      background: rgba(255, 0, 0, 0.25);
+      border: 2px solid #ff5555;
+      border-radius: 14px;
+      padding: 8px 12px;
+      margin: 6px 0;
+      box-shadow: 0 0 18px rgba(255, 85, 85, 0.6);
+      animation: blinkQTE 0.4s infinite alternate;
+    }
+    @keyframes blinkQTE {
+      0% { border-color: #ff5555; }
+      100% { border-color: #f1fa8c; }
+    }
+    .boss-qte-warning {
+      font-size: 13px;
+      font-weight: 900;
+      color: #ff5555;
+      margin-bottom: 4px;
+    }
+    .boss-qte-timer-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 3px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .boss-qte-progress {
+      height: 100%;
+      background: linear-gradient(90deg, #ff5555, #f1fa8c);
+      width: 100%;
+      transition: width 0.05s linear;
+    }
+    .boss-dodge-btn {
+      background: linear-gradient(135deg, #50fa7b, #00e5ff);
+      color: #111;
+      font-weight: 900;
+      font-size: 14px;
+      padding: 8px 20px;
+      border: none;
+      border-radius: 18px;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(80, 250, 123, 0.7);
+      animation: pulseBtn 0.5s infinite alternate;
+      touch-action: manipulation;
+    }
+    .boss-dodge-btn:active {
+      transform: scale(0.92);
+    }
+    @keyframes pulseBtn {
+      0% { transform: scale(0.98); }
+      100% { transform: scale(1.04); }
+    }
+
+    /* Screen shake on boss damage */
+    .screen-shake {
+      animation: screenShakeAnim 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+    @keyframes screenShakeAnim {
+      10%, 90% { transform: translate3d(-3px, 0, 0); }
+      20%, 80% { transform: translate3d(5px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-7px, 0, 0); }
+      40%, 60% { transform: translate3d(7px, 0, 0); }
     }
 
     /* Колесо Фортуны (Рулетка) */
@@ -847,29 +1050,65 @@
   <!-- Модалка: Битвы с Боссами -->
   <div class="sheet-modal" id="modal-boss">
     <div class="sheet-header">
-      <span class="sheet-title">⚔️ Арена Боссов</span>
+      <span class="sheet-title">⚔️ Арена Боссов 2.0</span>
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
     
     <div id="boss-list-view">
-      <p style="font-size: 12px; color: #aaa; margin-bottom: 14px;">Побеждай страшных врагов котика и получай горы рыбок! 🏆</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+        <p style="font-size: 12px; color: #aaa; margin: 0;">Побеждай врагов и открывай новые награды! 🏆</p>
+        <button id="hardcore-toggle-btn" class="hardcore-toggle-btn" onclick="toggleHardcoreMode()">★ Хардкор: ВЫКЛ</button>
+      </div>
       <div id="bosses-container"></div>
     </div>
 
-    <!-- Экран сражения с боссом -->
+    <!-- Экран сражения с боссом 2.0 -->
     <div id="boss-fight-screen">
-      <div>
-        <h3 id="bf-title" style="color: #ff5555; font-size: 20px; margin-bottom: 4px;">Злой Пылесос 🌪️</h3>
-        <div style="font-size: 14px; font-weight: 800; color: #ffb86c;">⏱️ Осталось: <span id="bf-timer">25</span>с</div>
+      <div style="width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <h3 id="bf-title" style="color: #ff5555; font-size: 18px; margin: 0;">Злой Пылесос 🌪️</h3>
+          <div style="font-size: 14px; font-weight: 800; color: #ffb86c;">⏱️ <span id="bf-timer">25</span>с</div>
+        </div>
+        
         <div class="boss-hp-wrap">
           <div class="boss-hp-bar" id="bf-hp-bar"></div>
         </div>
-        <div style="font-size: 12px; color: #ddd; font-weight: 700;"><span id="bf-cur-hp">200</span> / <span id="bf-max-hp">200</span> HP</div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #ddd; font-weight: 700; margin-top: 2px;">
+          <span id="bf-status-badge" style="color: #50fa7b;">⚔️ АТАКА!</span>
+          <span><span id="bf-cur-hp">200</span> / <span id="bf-max-hp">200</span> HP</span>
+        </div>
       </div>
 
-      <button class="boss-avatar-btn" id="bf-btn" onclick="attackBoss(event)">🌪️</button>
+      <!-- Арена босса со щитом, крит-зоной и оглушением -->
+      <div class="boss-arena-stage" id="boss-stage">
+        <!-- Аура щита -->
+        <div class="boss-shield-aura" id="bf-shield-aura" style="display: none;"></div>
+        
+        <!-- Оглушение индикатор -->
+        <div class="boss-stun-indicator" id="bf-stun-indicator" style="display: none;">💫 ОГЛУШЁН! x3 КРИТ!</div>
 
-      <div style="font-size: 13px; color: #ff79c6; font-weight: 800; margin-bottom: 10px;">
+        <!-- Кнопка Босса -->
+        <button class="boss-avatar-btn" id="bf-btn" onclick="attackBoss(event)">🌪️</button>
+
+        <!-- Пульсирующая Крит-Зона / Слабое Место -->
+        <div class="boss-weak-spot" id="bf-weak-spot" onclick="hitWeakSpot(event)" style="display: none;">
+          <div class="weak-spot-ring"></div>
+          <span>💥 КРИТ!</span>
+        </div>
+      </div>
+
+      <!-- Баннер QTE Атаки Босса / Уворота -->
+      <div class="boss-qte-container" id="bf-qte-wrap" style="display: none;">
+        <div class="boss-qte-warning">⚠️ БОСС ГОТОВИТ УДАР!</div>
+        <div class="boss-qte-timer-bar">
+          <div class="boss-qte-progress" id="bf-qte-progress"></div>
+        </div>
+        <button class="boss-dodge-btn" id="bf-dodge-btn" onclick="dodgeBossAttack(event)">
+          🛡️ УВЕРНУТЬСЯ / БЛОК! 💨
+        </button>
+      </div>
+
+      <div id="bf-hint-text" style="font-size: 12px; color: #ff79c6; font-weight: 800; min-height: 18px; margin-bottom: 6px;">
         БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥
       </div>
     </div>
@@ -1248,71 +1487,81 @@
       if (state.livesLevel >= 4 && !state.unlockedKittens.includes('tiger')) {
         state.unlockedKittens.push('tiger');
       }
+      // Уголёк должен быть открыт ТОЛЬКО если побеждён босс "Злой Пылесос" (vacuum)
+      if (!state.bossesDefeated || !state.bossesDefeated.includes('vacuum')) {
+        state.unlockedKittens = state.unlockedKittens.filter(k => k !== 'coal');
+      }
     }
     updateKittensUnlock();
 
     // --- Каталог Декора Комнаты (Room Interior) ---
     const roomDecorCatalog = [
-      { id: 'rug', name: 'Персидский коврик', icon: '🧶', price: 1000, desc: 'Мягкий и тёплый коврик под лапки.', bonus: '+5% ко всей рыбе 🌟' },
-      { id: 'garland', name: 'Неоновая гирлянда', icon: '💡', price: 4000, desc: 'Праздничные разноцветные огоньки.', bonus: '+10% к силе тапа ⚡' },
-      { id: 'plant', name: 'Кошачья мята в горшке', icon: '🪴', price: 12000, desc: 'Зелёный уют в комнате.', bonus: '+15% шанс бабочки 🦋' },
-      { id: 'fireplace', name: 'Уютный камин', icon: '🔥', price: 35000, desc: 'Потрескивающие дрова и тепло.', bonus: '+20% к пассивному AFK 🛋️' },
-      { id: 'window', name: 'Панорамное окно', icon: '🪟', price: 100000, desc: 'Вид на ночной звёздный город.', bonus: '+50% ко ВСЕМУ доходу 🌌' }
+      { id: 'rug', name: 'Персидский коврик', icon: '🧶', price: 5000, desc: 'Мягкий и тёплый коврик под лапки.', bonus: '+5% ко всей рыбе 🌟' },
+      { id: 'garland', name: 'Неоновая гирлянда', icon: '💡', price: 30000, desc: 'Праздничные разноцветные огоньки.', bonus: '+10% к силе тапа ⚡' },
+      { id: 'plant', name: 'Кошачья мята в горшке', icon: '🪴', price: 150000, desc: 'Зелёный уют в комнате.', bonus: '+15% шанс бабочки 🦋' },
+      { id: 'fireplace', name: 'Уютный камин', icon: '🔥', price: 750000, desc: 'Потрескивающие дрова и тепло.', bonus: '+20% к пассивному AFK 🛋️' },
+      { id: 'window', name: 'Панорамное окно', icon: '🪟', price: 4000000, desc: 'Вид на ночной звёздный город.', bonus: '+50% ко ВСЕМУ доходу 🌌' }
     ];
 
     // --- Каталог Зелий (Crafting / Potions) ---
     const potionsCatalog = [
-      { id: 'energy', name: 'Кошачий Энергетик', icon: '⚡', price: 800, duration: 120, desc: 'Утраивает пассивный AFK доход (x3) на 2 минуты!', bonus: 'x3 Пассивный доход ⚡' },
-      { id: 'magnet', name: 'Рыбный Магнит', icon: '🧲', price: 1500, duration: 120, desc: 'Удваивает рыбки от тапов и бабочек на 2 минуты!', bonus: 'x2 Клики и Бабочки 🧲' },
-      { id: 'bite', name: 'Эликсир «Супер-Кусь»', icon: '💥', price: 3000, duration: 60, desc: 'Увеличивает урон по боссам в 5 раз на 1 минуту!', bonus: 'x5 Урон по боссам 💥' }
+      { id: 'energy', name: 'Кошачий Энергетик', icon: '⚡', price: 2000, duration: 120, desc: 'Утраивает пассивный AFK доход (x3) на 2 минуты!', bonus: 'x3 Пассивный доход ⚡' },
+      { id: 'magnet', name: 'Рыбный Магнит', icon: '🧲', price: 5000, duration: 120, desc: 'Удваивает рыбки от тапов и бабочек на 2 минуты!', bonus: 'x2 Клики и Бабочки 🧲' },
+      { id: 'bite', name: 'Эликсир «Супер-Кусь»', icon: '💥', price: 10000, duration: 60, desc: 'Увеличивает урон по боссам в 5 раз на 1 минуту!', bonus: 'x5 Урон по боссам 💥' }
     ];
 
-    // --- Каталог Боссов ---
+    // --- Каталог Боссов 2.0 ---
     const bossCatalog = [
-      { id: 'cucumber', name: 'Страшный Огурец', icon: '🥒', maxHp: 60, time: 20, reward: 500, desc: 'Коварно подкрался сзади дивана!' },
-      { id: 'vacuum',   name: 'Злой Пылесос',   icon: '🌪️', maxHp: 200, time: 25, reward: 2500, desc: 'Громко гудит и пугает котика! (Открывает котёнка Уголька 🖤)' },
-      { id: 'dog',      name: 'Соседский Пёс',  icon: '🐶', maxHp: 600, time: 30, reward: 8000, desc: 'Лает за забором и дразнится!' },
-      { id: 'cyber',    name: 'Кибер-Пылесос',  icon: '🤖', maxHp: 1800, time: 30, reward: 30000, desc: 'Робот взбунтовался и едет на котика!' },
-      { id: 'godzilla', name: 'Дино-Годзилла',  icon: '🦖', maxHp: 5000, time: 35, reward: 120000, desc: 'Великан вторгся в кошачий город!' }
+      { id: 'cucumber', name: 'Страшный Огурец', icon: '🥒', maxHp: 800, time: 20, reward: 2500, desc: 'Коварно подкрался сзади дивана! Используй крит-зоны.' },
+      { id: 'vacuum',   name: 'Злой Пылесос',   icon: '🌪️', maxHp: 4500, time: 25, reward: 18000, desc: 'Громко гудит и атакует вихрем! (Открывает котёнка Уголька 🖤)' },
+      { id: 'dog',      name: 'Соседский Пёс',  icon: '🐶', maxHp: 35000, time: 25, reward: 90000, desc: 'Грозный Барбос лает за забором! Уворачивайся от рыка.' },
+      { id: 'cyber',    name: 'Кибер-Пылесос 3000', icon: '🤖', maxHp: 200000, time: 30, reward: 500000, desc: 'Робот взбунтовался с силовым нано-щитом!' },
+      { id: 'godzilla', name: 'Дино-Годзилла',  icon: '🦖', maxHp: 1000000, time: 30, reward: 2500000, desc: 'Великан крушит кошачий город сокрушительным хвостом!' },
+      { id: 'kraken',   name: 'Космический Кракен', icon: '🌌', maxHp: 5000000, time: 35, reward: 12000000, desc: 'Межгалактический монстр с чернильным щитом!' },
+      { id: 'darklord', name: 'Тёмный Кот-Лорд', icon: '👑', maxHp: 20000000, time: 40, reward: 60000000, desc: 'Древний владыка теней. Величайшее испытание для кошачьего героя!' }
     ];
 
     // --- Каталог Котят ---
     const kittensCatalog = [
       { id: 'snowball', name: 'Снежок 🤍', icon: '🐱', req: '⭐ 2-я Жизнь Котика', desc: 'Белый пушистик! +10 🐟/сек пассивно.', unlocked: () => state.livesLevel >= 2 },
-      { id: 'coal', name: 'Уголёк 🖤', icon: '🐱‍👤', req: '🌪️ Победить Злого Пылесоса', desc: 'Бесстрашный боец! Помогает в битвах с боссами (+25 к урону).', unlocked: () => state.unlockedKittens.includes('coal') },
+      { id: 'coal', name: 'Уголёк 🖤', icon: '🐱‍👤', req: '🌪️ Победить Злого Пылесоса', desc: 'Бесстрашный боец! Помогает в битвах с боссами (+25 к урону).', unlocked: () => state.bossesDefeated && state.bossesDefeated.includes('vacuum') },
       { id: 'tiger', name: 'Тигрёнок 🐯', icon: '🐯', req: '⭐ 4-я Жизнь Котика', desc: 'Грозный хищник! Увеличивает шанс крита +30%.', unlocked: () => state.livesLevel >= 4 },
-      { id: 'princess', name: 'Принцесса 🎀', icon: '😻', price: 5000, desc: 'Золотые Бабочки 🦋 прилетают в 2 раза чаще!', unlocked: () => state.unlockedKittens.includes('princess') },
-      { id: 'gentleman', name: 'Джентльмен 🎩', icon: '😼', price: 15000, desc: 'Приносит царскую скидку 15% на всё в магазине!', unlocked: () => state.unlockedKittens.includes('gentleman') }
+      { id: 'princess', name: 'Принцесса 🎀', icon: '😻', price: 50000, desc: 'Золотые Бабочки 🦋 прилетают в 2 раза чаще!', unlocked: () => state.unlockedKittens.includes('princess') },
+      { id: 'gentleman', name: 'Джентльмен 🎩', icon: '😼', price: 200000, desc: 'Приносит царскую скидку 15% на всё в магазине!', unlocked: () => state.unlockedKittens.includes('gentleman') }
     ];
 
     // --- Каталог Улучшений ---
     const upgradesClickConfig = [
-      { id: 'fish_treat', name: 'Вкусная рыбка', icon: '🐟', basePrice: 20, power: 1, desc: '+1 к силе каждого тапа' },
-      { id: 'mint', name: 'Кошачья мята', icon: '🌿', basePrice: 100, power: 3, desc: '+3 к силе каждого тапа' },
-      { id: 'claws', name: 'Острые коготки', icon: '🧤', basePrice: 500, power: 10, desc: '+10 к силе каждого тапа' },
-      { id: 'post', name: 'Золотая когтеточка', icon: '✨', basePrice: 2000, power: 30, desc: '+30 к силе каждого тапа' },
-      { id: 'laser_paws', name: 'Лазерные лапки', icon: '⚡', basePrice: 8000, power: 100, desc: '+100 к силе каждого тапа' },
-      { id: 'diamond_claws', name: 'Алмазные когти', icon: '💎', basePrice: 30000, power: 500, desc: '+500 к силе каждого тапа' }
+      { id: 'fish_treat', name: 'Вкусная рыбка', icon: '🐟', basePrice: 25, power: 1, desc: '+1 к силе каждого тапа' },
+      { id: 'mint', name: 'Кошачья мята', icon: '🌿', basePrice: 120, power: 3, desc: '+3 к силе каждого тапа' },
+      { id: 'claws', name: 'Острые коготки', icon: '🧤', basePrice: 600, power: 10, desc: '+10 к силе каждого тапа' },
+      { id: 'post', name: 'Золотая когтеточка', icon: '✨', basePrice: 3000, power: 35, desc: '+35 к силе каждого тапа' },
+      { id: 'laser_paws', name: 'Лазерные лапки', icon: '⚡', basePrice: 15000, power: 120, desc: '+120 к силе каждого тапа' },
+      { id: 'diamond_claws', name: 'Алмазные когти', icon: '💎', basePrice: 80000, power: 450, desc: '+450 к силе каждого тапа' },
+      { id: 'cosmic_yarn', name: 'Космический клубок', icon: '🧶', basePrice: 400000, power: 2000, desc: '+2,000 к силе каждого тапа' },
+      { id: 'divine_purr', name: 'Божественное Мурчание', icon: '🌌', basePrice: 2500000, power: 10000, desc: '+10,000 к силе каждого тапа' }
     ];
 
     const upgradesPassiveConfig = [
-      { id: 'mouse', name: 'Заводная мышка', icon: '🐭', basePrice: 30, perSec: 1, desc: '+1 🐟/сек пассивно' },
-      { id: 'feeder', name: 'Авто-кормушка', icon: '🥣', basePrice: 150, perSec: 5, desc: '+5 🐟/сек пассивно' },
-      { id: 'vacuum', name: 'Робот-пылесос-друг', icon: '🤖', basePrice: 800, perSec: 20, desc: '+20 🐟/сек (котик катается на нем)' },
-      { id: 'tree', name: 'Кошачье дерево', icon: '🌳', basePrice: 3500, perSec: 80, desc: '+80 🐟/сек пассивно' },
-      { id: 'aquarium', name: 'Аквариум с рыбками', icon: '🐟', basePrice: 12000, perSec: 300, desc: '+300 🐟/сек пассивно' },
-      { id: 'mansion', name: 'Кошачий особняк', icon: '🏰', basePrice: 50000, perSec: 1200, desc: '+1,200 🐟/сек пассивно' }
+      { id: 'mouse', name: 'Заводная мышка', icon: '🐭', basePrice: 35, perSec: 1, desc: '+1 🐟/сек пассивно' },
+      { id: 'feeder', name: 'Авто-кормушка', icon: '🥣', basePrice: 200, perSec: 5, desc: '+5 🐟/сек пассивно' },
+      { id: 'vacuum', name: 'Робот-пылесос-друг', icon: '🤖', basePrice: 1200, perSec: 25, desc: '+25 🐟/сек (котик катается на нем)' },
+      { id: 'tree', name: 'Кошачье дерево', icon: '🌳', basePrice: 6000, perSec: 90, desc: '+90 🐟/сек пассивно' },
+      { id: 'aquarium', name: 'Аквариум с рыбками', icon: '🐟', basePrice: 30000, perSec: 350, desc: '+350 🐟/сек пассивно' },
+      { id: 'mansion', name: 'Кошачий особняк', icon: '🏰', basePrice: 150000, perSec: 1500, desc: '+1,500 🐟/сек пассивно' },
+      { id: 'cat_island', name: 'Кошачий Остров Мечты', icon: '🏝️', basePrice: 800000, perSec: 7000, desc: '+7,000 🐟/сек пассивно' },
+      { id: 'galaxy_palace', name: 'Галактический Дворец', icon: '🌌', basePrice: 5000000, perSec: 35000, desc: '+35,000 🐟/сек пассивно' }
     ];
 
     // --- Каталог Скинов ---
     const skins = [
       { id: 'classic', name: 'Рыжик', icon: '🐱', price: 0, desc: 'Милый и пушистый домашний котик.', bonus: 'Базовый клик' },
-      { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 200, desc: 'Треуголка, повязка на глаз и шанс критического куся x10!', bonus: 'Шанс крита x10 💥' },
-      { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 1000, desc: 'Скафандр и невесомость. +50% к пассивному доходу!', bonus: '+50% пассив 🌌' },
-      { id: 'wizard', name: 'Волшебник', icon: '🧙‍♂️', price: 3000, desc: 'Колпак и магическая палочка. Удваивает силу клика!', bonus: 'Сила клика x2 🔮' },
-      { id: 'king', name: 'Кот-Король', icon: '👑', price: 10000, desc: 'Золотая корона и мантия. -25% цены на всё в магазине!', bonus: 'Скидка на всё 25% 🏰' },
-      { id: 'ninja', name: 'Кот-Ниндзя', icon: '🥷', price: 35000, desc: 'Маска шиноби и сюрикены. Супер-скорость Ража x5!', bonus: 'Супер-Раж x5 ⚡' },
-      { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 80000, desc: 'Радужный рог и магия! Даёт постоянный бонус +200% ко всему!', bonus: '+200% ко всему 🌈' }
+      { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 2500, desc: 'Треуголка, повязка на глаз и шанс критического куся x10!', bonus: 'Шанс крита x10 💥' },
+      { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 15000, desc: 'Скафандр и невесомость. +50% к пассивному доходу!', bonus: '+50% пассив 🌌' },
+      { id: 'wizard', name: 'Волшебник', icon: '🧙‍♂️', price: 60000, desc: 'Колпак и магическая палочка. Удваивает силу клика!', bonus: 'Сила клика x2 🔮' },
+      { id: 'king', name: 'Кот-Король', icon: '👑', price: 250000, desc: 'Золотая корона и мантия. -25% цены на всё в магазине!', bonus: 'Скидка на всё 25% 🏰' },
+      { id: 'ninja', name: 'Кот-Ниндзя', icon: '🥷', price: 1000000, desc: 'Маска шиноби и сюрикены. Супер-скорость Ража x5!', bonus: 'Супер-Раж x5 ⚡' },
+      { id: 'unicorn', name: 'Кот-Единорог', icon: '🦄', price: 5000000, desc: 'Радужный рог и магия! Даёт постоянный бонус +200% ко всему!', bonus: '+200% ко всему 🌈' }
     ];
 
     let frenzyVal = 0;
@@ -1667,6 +1916,8 @@
         ctx.restore();
       }
 
+      // 9. Главный котик (с анимацией тапа / сжатия)
+      ctx.save();
       ctx.scale(catScaleX * 1.1, catScaleY * 1.1);
 
       // Тень
@@ -1881,80 +2132,787 @@
         ctx.moveTo(-10, -85); ctx.lineTo(0, -145); ctx.lineTo(10, -85); ctx.closePath();
         ctx.fill();
       }
+      ctx.restore(); // Сброс масштаба главного кота
+      ctx.restore(); // Сброс смещения центра комнаты (cx, cy)
 
-      // Отрисовка разблокированных котят (разнесены по бокам)
-      if (state.livesLevel >= 2) {
-        // Белый котёнок «Снежок» слева
-        ctx.save();
-        const snowBob = Math.sin(catAnimTime * 3) * 2;
-        ctx.translate(-118, 38 + snowBob);
-        ctx.scale(0.48, 0.48);
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-25,-15); ctx.lineTo(-15,-45); ctx.lineTo(0,-20); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(25,-15); ctx.lineTo(15,-45); ctx.lineTo(0,-20); ctx.fill();
-        ctx.fillStyle = '#ff79c6';
-        ctx.beginPath(); ctx.arc(0, 4, 4, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#333';
-        ctx.beginPath(); ctx.arc(-10, -4, 4, 0, Math.PI*2); ctx.arc(10, -4, 4, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
+      // 10. Отрисовка разблокированных котят-спутников (в изолированных координатах холста)
+      drawHelperKittens();
+    }
+
+    // --- Отрисовка разблокированных котят-помощников в комнатном пространстве ---
+    function drawHelperKittens() {
+      // 1. Снежок 🤍 (Слева)
+      if (state.livesLevel >= 2 || (state.unlockedKittens && state.unlockedKittens.includes('snowball'))) {
+        drawSnowballKitten(ctx, 48, 235, catAnimTime);
       }
 
-      if (state.unlockedKittens.includes('coal')) {
-        // Чёрный котёнок-ниндзя «Уголёк» справа (отодвинут дальше от главного кота)
-        ctx.save();
-        const coalBob = Math.sin(catAnimTime * 3 + 1.2) * 2;
-        ctx.translate(118, 42 + coalBob);
-        ctx.scale(0.52, 0.52);
+      // 2. Уголёк 🖤 (Справа — строго только после победы над пылесосом)
+      if (state.bossesDefeated && state.bossesDefeated.includes('vacuum') && state.unlockedKittens && state.unlockedKittens.includes('coal')) {
+        drawCoalKitten(ctx, 312, 235, catAnimTime);
+      }
 
-        // Тень под котёнком
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      // 3. Тигрёнок 🐯 (Спереди слева)
+      if (state.livesLevel >= 4 || (state.unlockedKittens && state.unlockedKittens.includes('tiger'))) {
+        drawTigerKitten(ctx, 92, 276, catAnimTime);
+      }
+
+      // 4. Принцесса 🎀 (Спереди справа)
+      if (state.unlockedKittens && state.unlockedKittens.includes('princess')) {
+        drawPrincessKitten(ctx, 268, 276, catAnimTime);
+      }
+
+      // 5. Джентльмен 🎩 (Вверху справа на полочке)
+      if (state.unlockedKittens && state.unlockedKittens.includes('gentleman')) {
+        drawGentlemanKitten(ctx, 312, 130, catAnimTime);
+      }
+    }
+
+    // --- Отрисовка котят-спутников с уникальным детализированным дизайном ---
+    function drawSnowballKitten(ctx, x, y, animTime) {
+      ctx.save();
+      const bob = Math.sin(animTime * 3) * 2;
+      ctx.translate(x, y + bob);
+      ctx.scale(0.52, 0.52);
+
+      // Тень под котёнком
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.beginPath();
+      ctx.ellipse(0, 34, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Пушистый белый хвостик с покачиванием
+      ctx.save();
+      ctx.translate(-16, 18);
+      ctx.rotate(Math.sin(animTime * 4) * 0.25 - 0.4);
+      ctx.strokeStyle = '#f0f4f8';
+      ctx.lineWidth = 9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-14, -10, -8, -25);
+      ctx.stroke();
+      ctx.restore();
+
+      // Белоснежное пушистое тельце
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(0, 16, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#dbe4ee';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Круглая голова
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, -6, 25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Пушистые круглые щёчки
+      ctx.beginPath();
+      ctx.arc(-20, 0, 8, 0, Math.PI * 2);
+      ctx.arc(20, 0, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Милый розовый румянец на щёчках
+      ctx.fillStyle = 'rgba(255, 140, 180, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(-14, 2, 5, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(14, 2, 5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ушки
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#dbe4ee';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-22, -18); ctx.lineTo(-15, -44); ctx.lineTo(-2, -26); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(22, -18); ctx.lineTo(15, -44); ctx.lineTo(2, -26); ctx.fill(); ctx.stroke();
+
+      // Розовые ушки внутри
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(-18, -20); ctx.lineTo(-14, -38); ctx.lineTo(-5, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, -20); ctx.lineTo(14, -38); ctx.lineTo(5, -26); ctx.fill();
+
+      // Небесно-голубые выразительные глазки
+      [-9, 9].forEach((gx, idx) => {
+        ctx.fillStyle = '#0984e3';
         ctx.beginPath();
-        ctx.ellipse(0, 32, 22, 7, 0, 0, Math.PI * 2);
+        ctx.ellipse(gx, -7, 5, 6.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Тельце и голова (красивый графитовый шелк с контуром)
-        ctx.fillStyle = '#2d3142';
-        ctx.strokeStyle = '#4f5d75';
-        ctx.lineWidth = 2;
+        ctx.fillStyle = '#00d2d3';
+        ctx.beginPath();
+        ctx.arc(gx, -4.5, 3, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Голова
-        ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-        // Ушки
-        ctx.beginPath(); ctx.moveTo(-25, -15); ctx.lineTo(-15, -46); ctx.lineTo(0, -22); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(25, -15); ctx.lineTo(15, -46); ctx.lineTo(0, -22); ctx.fill(); ctx.stroke();
-
-        // Розовые ушки внутри
-        ctx.fillStyle = '#ff79c6';
-        ctx.beginPath(); ctx.moveTo(-20, -18); ctx.lineTo(-14, -38); ctx.lineTo(-4, -22); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(20, -18); ctx.lineTo(14, -38); ctx.lineTo(4, -22); ctx.fill();
-
-        // Красная повязка ниндзя на лбу
-        ctx.fillStyle = '#ff5555';
-        ctx.fillRect(-26, -18, 52, 8);
-        ctx.fillStyle = '#f1fa8c';
-        ctx.beginPath(); ctx.arc(0, -14, 3, 0, Math.PI * 2); ctx.fill();
-
-        // Светящиеся изумрудные глазки с блеском
-        ctx.fillStyle = '#50fa7b';
-        ctx.shadowColor = '#50fa7b';
-        ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.arc(-11, 0, 5, 0, Math.PI * 2); ctx.arc(11, 0, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Зрачки и блики
         ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.arc(-11, 0, 2.5, 0, Math.PI * 2); ctx.arc(11, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 2.5, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Блики
         ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(-12, -1.5, 1.5, 0, Math.PI * 2); ctx.arc(10, -1.5, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(gx - 1.5, -9, 1.8, 0, Math.PI * 2);
+        ctx.arc(gx + 1.5, -5, 0.9, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Розовый носик
-        ctx.fillStyle = '#ff79c6';
-        ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(-3, 2); ctx.lineTo(3, 2); ctx.closePath(); ctx.fill();
+        // Реснички
+        ctx.strokeStyle = '#2d3436';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(gx - (idx===0?4:-1), -13);
+        ctx.lineTo(gx - (idx===0?2:-3), -11);
+        ctx.stroke();
+      });
 
+      // Носик и ротик
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(0, 1); ctx.lineTo(-2.5, -2); ctx.lineTo(2.5, -2); ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#57606f';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(-3, 3, 3, 0.1, Math.PI - 0.2);
+      ctx.arc(3, 3, 3, 0.2, Math.PI - 0.1);
+      ctx.stroke();
+
+      // Усики
+      ctx.strokeStyle = 'rgba(100, 110, 120, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-14, 0); ctx.lineTo(-28, -2);
+      ctx.moveTo(-14, 3); ctx.lineTo(-28, 4);
+      ctx.moveTo(14, 0); ctx.lineTo(28, -2);
+      ctx.moveTo(14, 3); ctx.lineTo(28, 4);
+      ctx.stroke();
+
+      // Красный ошейник с золотым бубенчиком
+      ctx.fillStyle = '#ff4757';
+      ctx.beginPath();
+      ctx.ellipse(0, 14, 15, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#f1c40f';
+      ctx.strokeStyle = '#e67e22';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 16, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-1, 14.5, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Передние лапки
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#dbe4ee';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(-7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawCoalKitten(ctx, x, y, animTime) {
+      ctx.save();
+      const bob = Math.sin(animTime * 3 + 1.2) * 2;
+      ctx.translate(x, y + bob);
+      ctx.scale(0.54, 0.54);
+
+      // Тень под котёнком
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(0, 34, 24, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Хвост ниндзя
+      ctx.save();
+      ctx.translate(16, 18);
+      ctx.rotate(-Math.sin(animTime * 4) * 0.25 + 0.4);
+      ctx.strokeStyle = '#1e1f29';
+      ctx.lineWidth = 9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(14, -10, 8, -25);
+      ctx.stroke();
+      ctx.strokeStyle = '#ff4757';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(9, -20); ctx.lineTo(7, -24);
+      ctx.stroke();
+      ctx.restore();
+
+      // Тельце (графитовый бархат с мягким контуром)
+      ctx.fillStyle = '#222430';
+      ctx.strokeStyle = '#576574';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.ellipse(0, 16, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Свиток ниндзя за спиной
+      ctx.fillStyle = '#eccc68';
+      ctx.strokeStyle = '#7f8c8d';
+      ctx.lineWidth = 1;
+      ctx.save();
+      ctx.translate(-14, 12);
+      ctx.rotate(-0.5);
+      ctx.fillRect(-3, -12, 6, 24);
+      ctx.fillStyle = '#ff4757';
+      ctx.fillRect(-3, -2, 6, 4);
+      ctx.restore();
+
+      // Голова
+      ctx.fillStyle = '#222430';
+      ctx.strokeStyle = '#576574';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, -6, 25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Ушки
+      ctx.beginPath();
+      ctx.moveTo(-22, -18); ctx.lineTo(-15, -45); ctx.lineTo(-2, -26); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(22, -18); ctx.lineTo(15, -45); ctx.lineTo(2, -26); ctx.fill(); ctx.stroke();
+
+      // Розовые ушки внутри
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(-18, -20); ctx.lineTo(-14, -38); ctx.lineTo(-5, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, -20); ctx.lineTo(14, -38); ctx.lineTo(5, -26); ctx.fill();
+
+      // Красная повязка ниндзя
+      ctx.fillStyle = '#ff4757';
+      ctx.fillRect(-24, -20, 48, 8);
+
+      // Развевающиеся ленты повязки
+      const flutter = Math.sin(animTime * 5) * 5;
+      ctx.save();
+      ctx.translate(22, -18);
+      ctx.fillStyle = '#ff4757';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(12, 4 + flutter, 20, 8 + flutter);
+      ctx.lineTo(20, 14 + flutter);
+      ctx.quadraticCurveTo(10, 8 + flutter, 0, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // Золотая кошачья лапка на повязке
+      ctx.fillStyle = '#f1c40f';
+      ctx.beginPath();
+      ctx.arc(0, -16, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-2.2, -19, 1.1, 0, Math.PI * 2);
+      ctx.arc(0, -20, 1.2, 0, Math.PI * 2);
+      ctx.arc(2.2, -19, 1.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Сияющие изумрудные глаза
+      [-9, 9].forEach(gx => {
+        ctx.save();
+        ctx.shadowColor = '#2ecc71';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#2ecc71';
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 5.5, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
-      }
+
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 2, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(gx - 1.8, -9, 1.8, 0, Math.PI * 2);
+        ctx.arc(gx + 1.5, -5, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Розовый носик
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(0, 1); ctx.lineTo(-2.5, -2); ctx.lineTo(2.5, -2); ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#8395a7';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(-3, 3, 3, 0.1, Math.PI - 0.2);
+      ctx.arc(3, 3, 3, 0.2, Math.PI - 0.1);
+      ctx.stroke();
+
+      // Белые усики
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-14, 0); ctx.lineTo(-28, -2);
+      ctx.moveTo(-14, 3); ctx.lineTo(-28, 4);
+      ctx.moveTo(14, 0); ctx.lineTo(28, -2);
+      ctx.moveTo(14, 3); ctx.lineTo(28, 4);
+      ctx.stroke();
+
+      // Лапки
+      ctx.fillStyle = '#222430';
+      ctx.strokeStyle = '#576574';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(-7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawTigerKitten(ctx, x, y, animTime) {
+      ctx.save();
+      const bob = Math.sin(animTime * 3 + 2.1) * 2;
+      ctx.translate(x, y + bob);
+      ctx.scale(0.52, 0.52);
+
+      // Тень
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(0, 34, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Полосатый тигриный хвостик
+      ctx.save();
+      ctx.translate(-16, 18);
+      ctx.rotate(Math.sin(animTime * 4.5) * 0.35 - 0.3);
+      ctx.strokeStyle = '#ff9f43';
+      ctx.lineWidth = 9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-15, -12, -8, -26);
+      ctx.stroke();
+      ctx.strokeStyle = '#2d3436';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-7, -8); ctx.lineTo(-12, -9);
+      ctx.moveTo(-9, -15); ctx.lineTo(-14, -16);
+      ctx.moveTo(-6, -23); ctx.lineTo(-10, -25);
+      ctx.stroke();
+      ctx.restore();
+
+      // Тельце
+      ctx.fillStyle = '#ff9f43';
+      ctx.beginPath();
+      ctx.ellipse(0, 16, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Белая грудка
+      ctx.fillStyle = '#fff5ea';
+      ctx.beginPath();
+      ctx.ellipse(0, 18, 12, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Голова
+      ctx.fillStyle = '#ff9f43';
+      ctx.beginPath();
+      ctx.arc(0, -6, 25, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Мордочка
+      ctx.fillStyle = '#fff5ea';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 16, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Тигриные полоски на мордочке
+      ctx.fillStyle = '#2d3436';
+      ctx.beginPath();
+      ctx.moveTo(-4, -26); ctx.lineTo(0, -18); ctx.lineTo(4, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-10, -23); ctx.lineTo(-5, -19); ctx.lineTo(-8, -25); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(10, -23); ctx.lineTo(5, -19); ctx.lineTo(8, -25); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-22, -8); ctx.lineTo(-14, -7); ctx.lineTo(-20, -5); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-22, -2); ctx.lineTo(-14, 0); ctx.lineTo(-20, 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(22, -8); ctx.lineTo(14, -7); ctx.lineTo(20, -5); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(22, -2); ctx.lineTo(14, 0); ctx.lineTo(20, 2); ctx.fill();
+
+      // Ушки
+      ctx.fillStyle = '#ff9f43';
+      ctx.beginPath();
+      ctx.moveTo(-22, -18); ctx.lineTo(-15, -44); ctx.lineTo(-2, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(22, -18); ctx.lineTo(15, -44); ctx.lineTo(2, -26); ctx.fill();
+
+      // Внутри ушек
+      ctx.fillStyle = '#fff5ea';
+      ctx.beginPath();
+      ctx.moveTo(-18, -20); ctx.lineTo(-14, -38); ctx.lineTo(-5, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, -20); ctx.lineTo(14, -38); ctx.lineTo(5, -26); ctx.fill();
+
+      // Янтарные глазки
+      [-9, 9].forEach(gx => {
+        ctx.fillStyle = '#f39c12';
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 5, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 2.5, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(gx - 1.5, -9, 1.8, 0, Math.PI * 2);
+        ctx.arc(gx + 1.5, -5, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Носик и ротик
+      ctx.fillStyle = '#e17055';
+      ctx.beginPath();
+      ctx.moveTo(0, 1); ctx.lineTo(-2.5, -2); ctx.lineTo(2.5, -2); ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#2d3436';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(-3, 3, 3, 0.1, Math.PI - 0.2);
+      ctx.arc(3, 3, 3, 0.2, Math.PI - 0.1);
+      ctx.stroke();
+
+      // Красная бандана
+      ctx.fillStyle = '#e84118';
+      ctx.beginPath();
+      ctx.moveTo(-14, 10);
+      ctx.lineTo(14, 10);
+      ctx.lineTo(0, 20);
+      ctx.closePath();
+      ctx.fill();
+
+      // Лапки
+      ctx.fillStyle = '#fff5ea';
+      ctx.beginPath();
+      ctx.ellipse(-7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawPrincessKitten(ctx, x, y, animTime) {
+      ctx.save();
+      const bob = Math.sin(animTime * 3 + 3.3) * 2;
+      ctx.translate(x, y + bob);
+      ctx.scale(0.52, 0.52);
+
+      // Тень
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(0, 34, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Хвостик с розовым бантиком
+      ctx.save();
+      ctx.translate(16, 18);
+      ctx.rotate(-Math.sin(animTime * 3.5) * 0.25 + 0.35);
+      ctx.strokeStyle = '#fff0f5';
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(15, -10, 8, -25);
+      ctx.stroke();
+      ctx.fillStyle = '#fd79a8';
+      ctx.beginPath();
+      ctx.arc(8, -23, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Тельце
+      ctx.fillStyle = '#fff0f5';
+      ctx.beginPath();
+      ctx.ellipse(0, 16, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f8a5c2';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Голова
+      ctx.fillStyle = '#fff0f5';
+      ctx.beginPath();
+      ctx.arc(0, -6, 25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Ушки
+      ctx.beginPath();
+      ctx.moveTo(-22, -18); ctx.lineTo(-15, -44); ctx.lineTo(-2, -26); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(22, -18); ctx.lineTo(15, -44); ctx.lineTo(2, -26); ctx.fill(); ctx.stroke();
+
+      // Внутри ушек
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(-18, -20); ctx.lineTo(-14, -38); ctx.lineTo(-5, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, -20); ctx.lineTo(14, -38); ctx.lineTo(5, -26); ctx.fill();
+
+      // Золотая корона с рубином
+      ctx.fillStyle = '#f1c40f';
+      ctx.strokeStyle = '#e67e22';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-12, -30);
+      ctx.lineTo(-14, -45);
+      ctx.lineTo(-6, -37);
+      ctx.lineTo(0, -48);
+      ctx.lineTo(6, -37);
+      ctx.lineTo(14, -45);
+      ctx.lineTo(12, -30);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#e84393';
+      ctx.beginPath();
+      ctx.arc(0, -36, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-0.8, -37, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Аметистовые фиолетовые глазки с ресницами
+      [-9, 9].forEach((gx, idx) => {
+        ctx.fillStyle = '#9b59b6';
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 5, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#e056fd';
+        ctx.beginPath();
+        ctx.arc(gx, -4.5, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.ellipse(gx, -7, 2.5, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(gx - 1.5, -9, 1.8, 0, Math.PI * 2);
+        ctx.arc(gx + 1.5, -5, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#2d3436';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(gx - (idx===0?5:-1), -13); ctx.lineTo(gx - (idx===0?2:-3), -11);
+        ctx.moveTo(gx - (idx===0?7:-3), -10); ctx.lineTo(gx - (idx===0?4:-1), -9);
+        ctx.stroke();
+      });
+
+      // Носик
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(0, 1); ctx.lineTo(-2.5, -2); ctx.lineTo(2.5, -2); ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#57606f';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(-3, 3, 3, 0.1, Math.PI - 0.2);
+      ctx.arc(3, 3, 3, 0.2, Math.PI - 0.1);
+      ctx.stroke();
+
+      // Бантик на шее
+      ctx.fillStyle = '#fd79a8';
+      ctx.beginPath();
+      ctx.moveTo(0, 14); ctx.lineTo(-8, 9); ctx.lineTo(-8, 19); ctx.closePath();
+      ctx.moveTo(0, 14); ctx.lineTo(8, 9); ctx.lineTo(8, 19); ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#f1c40f';
+      ctx.beginPath();
+      ctx.arc(0, 14, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Лапки
+      ctx.fillStyle = '#fff0f5';
+      ctx.beginPath();
+      ctx.ellipse(-7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawGentlemanKitten(ctx, x, y, animTime) {
+      ctx.save();
+      const bob = Math.sin(animTime * 3 + 4.2) * 2;
+      ctx.translate(x, y + bob);
+      ctx.scale(0.52, 0.52);
+
+      // Тень
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(0, 34, 22, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Хвостик
+      ctx.save();
+      ctx.translate(-16, 18);
+      ctx.rotate(Math.sin(animTime * 3.5) * 0.25 - 0.35);
+      ctx.strokeStyle = '#747d8c';
+      ctx.lineWidth = 9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-15, -10, -8, -25);
+      ctx.stroke();
+      ctx.restore();
+
+      // Тельце
+      ctx.fillStyle = '#747d8c';
+      ctx.beginPath();
+      ctx.ellipse(0, 16, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Белая манишка
+      ctx.fillStyle = '#f5f6fa';
+      ctx.beginPath();
+      ctx.moveTo(-8, 8); ctx.lineTo(8, 8); ctx.lineTo(0, 24); ctx.closePath();
+      ctx.fill();
+
+      // Красная бабочка
+      ctx.fillStyle = '#c0392b';
+      ctx.beginPath();
+      ctx.moveTo(0, 14); ctx.lineTo(-7, 10); ctx.lineTo(-7, 18); ctx.closePath();
+      ctx.moveTo(0, 14); ctx.lineTo(7, 10); ctx.lineTo(7, 18); ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath(); ctx.arc(0, 14, 2, 0, Math.PI * 2); ctx.fill();
+
+      // Голова
+      ctx.fillStyle = '#747d8c';
+      ctx.beginPath();
+      ctx.arc(0, -6, 25, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ушки
+      ctx.beginPath();
+      ctx.moveTo(-22, -18); ctx.lineTo(-15, -44); ctx.lineTo(-2, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(22, -18); ctx.lineTo(15, -44); ctx.lineTo(2, -26); ctx.fill();
+
+      // Внутри ушек
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(-18, -20); ctx.lineTo(-14, -38); ctx.lineTo(-5, -26); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, -20); ctx.lineTo(14, -38); ctx.lineTo(5, -26); ctx.fill();
+
+      // Чёрный цилиндр с красной лентой
+      ctx.fillStyle = '#1e1f29';
+      ctx.beginPath();
+      ctx.ellipse(0, -28, 20, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-12, -54, 24, 26);
+      ctx.beginPath();
+      ctx.ellipse(0, -54, 12, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(-12, -34, 24, 6);
+
+      // Правый глаз
+      ctx.fillStyle = '#2ed573';
+      ctx.beginPath();
+      ctx.ellipse(9, -7, 5, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.ellipse(9, -7, 2.5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(7.5, -9, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Левый глаз с моноклем
+      ctx.fillStyle = '#2ed573';
+      ctx.beginPath();
+      ctx.ellipse(-9, -7, 5, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.ellipse(-9, -7, 2.5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-10.5, -9, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Золотая оправа монокля
+      ctx.strokeStyle = '#f1c40f';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-9, -7, 8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Цепочка монокля
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-16, -4);
+      ctx.quadraticCurveTo(-22, 6, -14, 14);
+      ctx.stroke();
+
+      // Носик
+      ctx.fillStyle = '#ff79c6';
+      ctx.beginPath();
+      ctx.moveTo(0, 1); ctx.lineTo(-2.5, -2); ctx.lineTo(2.5, -2); ctx.closePath();
+      ctx.fill();
+
+      // Закрученные усы
+      ctx.strokeStyle = '#2f3542';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-2, 3);
+      ctx.quadraticCurveTo(-14, 2, -22, -2);
+      ctx.moveTo(2, 3);
+      ctx.quadraticCurveTo(14, 2, 22, -2);
+      ctx.stroke();
+
+      // Лапки
+      ctx.fillStyle = '#747d8c';
+      ctx.beginPath();
+      ctx.ellipse(-7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(7, 28, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
 
       ctx.restore();
     }
@@ -1993,9 +2951,9 @@
     // --- Обработка клика по котику ---
     function handleCatTap(e) {
       initAudio();
-      const touch = e.touches ? e.touches[0] : e;
-      const x = touch.clientX;
-      const y = touch.clientY;
+      const touch = e ? (e.touches && e.touches[0] ? e.touches[0] : e) : null;
+      const x = touch && typeof touch.clientX === 'number' ? touch.clientX : (window.innerWidth / 2);
+      const y = touch && typeof touch.clientY === 'number' ? touch.clientY : (window.innerHeight / 2);
 
       catScaleX = 1.18;
       catScaleY = 0.82;
@@ -2094,7 +3052,7 @@
 
     function getUpgradePrice(u) {
       const count = state.upgrades[u.id] || 0;
-      let cost = Math.floor(u.basePrice * Math.pow(1.16, count));
+      let cost = Math.floor(u.basePrice * Math.pow(1.18, count));
       if (state.equippedSkin === 'king') cost = Math.floor(cost * 0.75);
       if (state.unlockedKittens.includes('gentleman')) cost = Math.floor(cost * 0.85);
       return cost;
@@ -2580,30 +3538,61 @@
       });
     }
 
-    // --- Арена Боссов ---
+    // --- Арена Боссов 2.0 (Тактические Битвы) ---
     let activeBoss = null;
     let bossHp = 0;
+    let bossMaxHp = 0;
     let bossTimer = 0;
     let bossInterval = null;
+    let bossActionTimer = null;
+    let bossQteInterval = null;
+
+    let bossShieldActive = false;
+    let bossStunned = false;
+    let bossStunTimer = null;
+    let bossQteActive = false;
+    let bossHardcoreMode = false;
+
+    function toggleHardcoreMode() {
+      initAudio();
+      bossHardcoreMode = !bossHardcoreMode;
+      const btn = document.getElementById('hardcore-toggle-btn');
+      if (btn) {
+        btn.innerText = bossHardcoreMode ? '★ Хардкор: ВКЛ (x4 HP, x3 🐟)' : '★ Хардкор: ВЫКЛ';
+        btn.classList.toggle('active', bossHardcoreMode);
+      }
+      playSound(bossHardcoreMode ? 'victory' : 'tick');
+      renderBossesList();
+    }
 
     function renderBossesList() {
       document.getElementById('boss-list-view').style.display = 'block';
       document.getElementById('boss-fight-screen').style.display = 'none';
 
+      const hcBtn = document.getElementById('hardcore-toggle-btn');
+      if (hcBtn) {
+        hcBtn.innerText = bossHardcoreMode ? '★ Хардкор: ВКЛ (x4 HP, x3 🐟)' : '★ Хардкор: ВЫКЛ';
+        hcBtn.classList.toggle('active', bossHardcoreMode);
+      }
+
       const container = document.getElementById('bosses-container');
       container.innerHTML = '';
 
       bossCatalog.forEach(b => {
+        const isDefeated = state.bossesDefeated && state.bossesDefeated.includes(b.id);
+        const hp = bossHardcoreMode ? b.maxHp * 4 : b.maxHp;
+        const reward = bossHardcoreMode ? b.reward * 3 : b.reward;
+
         const card = document.createElement('div');
-        card.className = 'boss-card';
+        card.className = `boss-card ${isDefeated ? 'defeated' : ''} ${bossHardcoreMode ? 'hardcore' : ''}`;
         card.innerHTML = `
           <div class="boss-left">
             <div class="boss-icon">${b.icon}</div>
             <div class="boss-info">
-              <h4>${b.name}</h4>
+              <h4>${b.name} ${isDefeated ? '✅' : ''} ${bossHardcoreMode ? '<span style="color:#ff5555;font-size:11px;">[★ ХАРДКОР]</span>' : ''}</h4>
               <p>${b.desc}</p>
               <div style="font-size:11px; color:#ffb86c; font-weight:800; margin-top:2px;">
-                ❤️ ${b.maxHp} HP | ⏱️ ${b.time}с | 🏆 +${b.reward.toLocaleString('ru-RU')} 🐟
+                ❤️ ${hp.toLocaleString('ru-RU')} HP | ⏱️ ${b.time}с | 🏆 +${reward.toLocaleString('ru-RU')} 🐟
               </div>
             </div>
           </div>
@@ -2618,18 +3607,36 @@
       activeBoss = bossCatalog.find(x => x.id === id);
       if (!activeBoss) return;
 
-      bossHp = activeBoss.maxHp;
+      bossMaxHp = bossHardcoreMode ? activeBoss.maxHp * 4 : activeBoss.maxHp;
+      bossHp = bossMaxHp;
       bossTimer = activeBoss.time;
+
+      bossShieldActive = false;
+      bossStunned = false;
+      bossQteActive = false;
+      if (bossStunTimer) clearTimeout(bossStunTimer);
+      if (bossActionTimer) clearTimeout(bossActionTimer);
+      if (bossQteInterval) clearInterval(bossQteInterval);
 
       document.getElementById('boss-list-view').style.display = 'none';
       document.getElementById('boss-fight-screen').style.display = 'flex';
 
-      document.getElementById('bf-title').innerText = `${activeBoss.name} ${activeBoss.icon}`;
-      document.getElementById('bf-btn').innerText = activeBoss.icon;
-      document.getElementById('bf-cur-hp').innerText = bossHp;
-      document.getElementById('bf-max-hp').innerText = activeBoss.maxHp;
+      const titleSuffix = bossHardcoreMode ? ' ★ [ХАРДКОР]' : '';
+      document.getElementById('bf-title').innerText = `${activeBoss.name} ${activeBoss.icon}${titleSuffix}`;
+      const btn = document.getElementById('bf-btn');
+      btn.innerText = activeBoss.icon;
+      btn.classList.remove('enraged');
+
+      document.getElementById('bf-cur-hp').innerText = bossHp.toLocaleString('ru-RU');
+      document.getElementById('bf-max-hp').innerText = bossMaxHp.toLocaleString('ru-RU');
       document.getElementById('bf-timer').innerText = bossTimer;
       document.getElementById('bf-hp-bar').style.width = '100%';
+      document.getElementById('bf-shield-aura').style.display = 'none';
+      document.getElementById('bf-weak-spot').style.display = 'none';
+      document.getElementById('bf-stun-indicator').style.display = 'none';
+      document.getElementById('bf-qte-wrap').style.display = 'none';
+      document.getElementById('bf-status-badge').innerHTML = '<span style="color:#50fa7b;">⚔️ АТАКА!</span>';
+      document.getElementById('bf-hint-text').innerText = 'БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥';
 
       clearInterval(bossInterval);
       bossInterval = setInterval(() => {
@@ -2639,61 +3646,264 @@
           endBossFight(false);
         }
       }, 1000);
+
+      scheduleNextBossAction();
     }
 
-    function attackBoss(e) {
+    function scheduleNextBossAction() {
+      if (!activeBoss || bossHp <= 0 || bossTimer <= 0) return;
+      if (bossActionTimer) clearTimeout(bossActionTimer);
+
+      const delay = 4000 + Math.random() * 3000;
+      bossActionTimer = setTimeout(() => {
+        if (!activeBoss || bossHp <= 0 || bossTimer <= 0) return;
+        if (bossStunned || bossQteActive) {
+          scheduleNextBossAction();
+          return;
+        }
+
+        const isShield = Math.random() < 0.55;
+        if (isShield) {
+          triggerBossShield();
+        } else {
+          triggerBossAttackQTE();
+        }
+      }, delay);
+    }
+
+    function triggerBossShield() {
+      if (bossShieldActive || bossStunned || bossQteActive) return;
+      bossShieldActive = true;
+      playSound('hit');
+
+      document.getElementById('bf-shield-aura').style.display = 'block';
+      document.getElementById('bf-status-badge').innerHTML = '<span style="color:#00e5ff;">🛡️ ЩИТ (-85% УРОНА)</span>';
+      document.getElementById('bf-hint-text').innerText = '🛡️ ЩИТ БОССА! НАЖМИ НА 💥 КРИТ-ЗОНУ, ЧТОБЫ СЛОМАТЬ ЩИТ!';
+
+      const weakSpot = document.getElementById('bf-weak-spot');
+      const posX = 15 + Math.floor(Math.random() * 65);
+      const posY = 15 + Math.floor(Math.random() * 65);
+      weakSpot.style.left = posX + '%';
+      weakSpot.style.top = posY + '%';
+      weakSpot.style.display = 'flex';
+    }
+
+    function hitWeakSpot(e) {
+      if (e) {
+        if (e.stopPropagation) e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+      }
       if (!activeBoss || bossHp <= 0) return;
       initAudio();
 
-      let dmg = calculateClickPower();
-      if (state.unlockedKittens.includes('coal')) dmg += 25;
-      if (state.activePotions && state.activePotions.bite > Date.now()) dmg *= 5;
+      bossShieldActive = false;
+      document.getElementById('bf-shield-aura').style.display = 'none';
+      document.getElementById('bf-weak-spot').style.display = 'none';
 
-      if (state.equippedSkin === 'pirate' && Math.random() < 0.20) {
-        dmg *= 10;
-        playSound('meow');
-      } else {
-        playSound('hit');
-      }
+      bossStunned = true;
+      playSound('victory');
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-      if (frenzyActive) dmg *= frenzyMultiplier;
+      document.getElementById('bf-stun-indicator').style.display = 'block';
+      document.getElementById('bf-status-badge').innerHTML = '<span style="color:#f1fa8c;">💫 ОГЛУШЁН (x3 УРОН!)</span>';
+      document.getElementById('bf-hint-text').innerText = '💫 БОСС ОГЛУШЁН! БЕЙ СО ВСЕЙ СИЛЫ (x3 УРОН)! 💥';
 
-      bossHp = Math.max(0, bossHp - dmg);
-      document.getElementById('bf-cur-hp').innerText = bossHp;
-      const pct = (bossHp / activeBoss.maxHp) * 100;
-      document.getElementById('bf-hp-bar').style.width = pct + '%';
+      let critDmg = calculateClickPower() * 5;
+      if (state.unlockedKittens.includes('coal')) critDmg += 75;
+      if (frenzyActive) critDmg *= frenzyMultiplier;
+      bossHp = Math.max(0, bossHp - critDmg);
 
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      const stage = document.getElementById('boss-stage');
+      const rect = stage ? stage.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+      const popupX = (e && typeof e.clientX === 'number') ? e.clientX : rect.left + 50;
+      const popupY = (e && typeof e.clientY === 'number') ? e.clientY : rect.top + 50;
+      spawnTapPopup(popupX, popupY, `💥 ЩИТ СЛОМАН! -${critDmg.toLocaleString('ru-RU')}`, '#f1fa8c');
 
-      const x = e.clientX || window.innerWidth / 2;
-      const y = e.clientY || window.innerHeight / 2;
-      spawnTapPopup(x, y, `💥 -${dmg} HP`, '#ff5555');
+      updateBossHpUI();
+
+      if (bossStunTimer) clearTimeout(bossStunTimer);
+      bossStunTimer = setTimeout(() => {
+        bossStunned = false;
+        document.getElementById('bf-stun-indicator').style.display = 'none';
+        document.getElementById('bf-status-badge').innerHTML = '<span style="color:#50fa7b;">⚔️ АТАКА!</span>';
+        document.getElementById('bf-hint-text').innerText = 'БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥';
+        scheduleNextBossAction();
+      }, 3500);
 
       if (bossHp <= 0) {
         endBossFight(true);
       }
     }
 
+    function triggerBossAttackQTE() {
+      if (bossQteActive || bossStunned || bossShieldActive) return;
+      bossQteActive = true;
+      playSound('squeak');
+
+      const qteWrap = document.getElementById('bf-qte-wrap');
+      const qteBar = document.getElementById('bf-qte-progress');
+      qteWrap.style.display = 'block';
+      qteBar.style.width = '100%';
+
+      document.getElementById('bf-status-badge').innerHTML = '<span style="color:#ff5555;">⚠️ ОПАСНОСТЬ: УДАР!</span>';
+      document.getElementById('bf-hint-text').innerText = '⚠️ БОСС ГОТОВИТ УДАР! ЖМИ УВЕРНУТЬСЯ / БЛОК!';
+
+      let qteDuration = 1800;
+      let qteStart = Date.now();
+
+      if (bossQteInterval) clearInterval(bossQteInterval);
+      bossQteInterval = setInterval(() => {
+        const elapsed = Date.now() - qteStart;
+        const remainingPct = Math.max(0, 100 - (elapsed / qteDuration) * 100);
+        qteBar.style.width = remainingPct + '%';
+
+        if (elapsed >= qteDuration) {
+          clearInterval(bossQteInterval);
+          bossQteActive = false;
+          qteWrap.style.display = 'none';
+
+          bossTimer = Math.max(0, bossTimer - 3);
+          document.getElementById('bf-timer').innerText = bossTimer;
+
+          playSound('hit');
+          if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+
+          const screen = document.getElementById('boss-fight-screen');
+          screen.classList.add('screen-shake');
+          setTimeout(() => screen.classList.remove('screen-shake'), 400);
+
+          spawnTapPopup(window.innerWidth / 2, window.innerHeight / 2, '💥 УДАР БОССА! -3 СЕК ⏳', '#ff5555');
+          document.getElementById('bf-status-badge').innerHTML = '<span style="color:#50fa7b;">⚔️ АТАКА!</span>';
+          document.getElementById('bf-hint-text').innerText = 'БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥';
+
+          if (bossTimer <= 0) {
+            endBossFight(false);
+          } else {
+            scheduleNextBossAction();
+          }
+        }
+      }, 50);
+    }
+
+    function dodgeBossAttack(e) {
+      if (e) {
+        if (e.stopPropagation) e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+      }
+      if (!bossQteActive) return;
+      initAudio();
+
+      clearInterval(bossQteInterval);
+      bossQteActive = false;
+      document.getElementById('bf-qte-wrap').style.display = 'none';
+
+      playSound('purr');
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      const x = (e && typeof e.clientX === 'number') ? e.clientX : window.innerWidth / 2;
+      const y = (e && typeof e.clientY === 'number') ? e.clientY : window.innerHeight / 2;
+      spawnTapPopup(x, y, '💨 УВОРОТ! Котик прыгнул!', '#50fa7b');
+
+      document.getElementById('bf-status-badge').innerHTML = '<span style="color:#50fa7b;">⚔️ АТАКА!</span>';
+      document.getElementById('bf-hint-text').innerText = 'БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥';
+
+      scheduleNextBossAction();
+    }
+
+    function attackBoss(e) {
+      if (!activeBoss || bossHp <= 0 || bossTimer <= 0) return;
+      initAudio();
+
+      let dmg = calculateClickPower();
+      if (state.unlockedKittens.includes('coal')) dmg += 25;
+      if (state.activePotions && state.activePotions.bite > Date.now()) dmg *= 5;
+
+      let isPirateCrit = false;
+      if (state.equippedSkin === 'pirate' && Math.random() < 0.20) {
+        dmg *= 10;
+        isPirateCrit = true;
+      }
+
+      if (frenzyActive) dmg *= frenzyMultiplier;
+
+      if (bossStunned) {
+        dmg *= 3;
+      }
+
+      if (bossShieldActive) {
+        dmg = Math.max(1, Math.floor(dmg * 0.15));
+      }
+
+      if (isPirateCrit || bossStunned) {
+        playSound('meow');
+      } else {
+        playSound('hit');
+      }
+
+      bossHp = Math.max(0, bossHp - dmg);
+      updateBossHpUI();
+
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      const x = (e && typeof e.clientX === 'number') ? e.clientX : (e && e.touches && e.touches[0] ? e.touches[0].clientX : window.innerWidth / 2);
+      const y = (e && typeof e.clientY === 'number') ? e.clientY : (e && e.touches && e.touches[0] ? e.touches[0].clientY : window.innerHeight / 2);
+      
+      const popupColor = bossShieldActive ? '#00e5ff' : (bossStunned || isPirateCrit ? '#f1fa8c' : '#ff5555');
+      const popupLabel = bossShieldActive ? `🛡️ -${dmg}` : (bossStunned ? `💫 x3 -${dmg.toLocaleString('ru-RU')}` : `💥 -${dmg.toLocaleString('ru-RU')}`);
+      spawnTapPopup(x, y, popupLabel, popupColor);
+
+      if (bossHp <= 0) {
+        endBossFight(true);
+      }
+    }
+
+    function updateBossHpUI() {
+      if (!activeBoss) return;
+      document.getElementById('bf-cur-hp').innerText = bossHp.toLocaleString('ru-RU');
+      const pct = (bossHp / bossMaxHp) * 100;
+      document.getElementById('bf-hp-bar').style.width = pct + '%';
+
+      const btn = document.getElementById('bf-btn');
+      if (pct < 30) {
+        btn.classList.add('enraged');
+      } else {
+        btn.classList.remove('enraged');
+      }
+    }
+
     function endBossFight(won) {
       clearInterval(bossInterval);
+      if (bossActionTimer) clearTimeout(bossActionTimer);
+      if (bossStunTimer) clearTimeout(bossStunTimer);
+      if (bossQteInterval) clearInterval(bossQteInterval);
+
+      bossShieldActive = false;
+      bossStunned = false;
+      bossQteActive = false;
+
+      const btn = document.getElementById('bf-btn');
+      if (btn) btn.classList.remove('enraged');
+
       if (won) {
         playSound('victory');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        addFish(activeBoss.reward);
+        const reward = bossHardcoreMode ? activeBoss.reward * 3 : activeBoss.reward;
+        addFish(reward);
         if (!state.bossesDefeated) state.bossesDefeated = [];
         if (!state.bossesDefeated.includes(activeBoss.id)) {
           state.bossesDefeated.push(activeBoss.id);
         }
         saveGame();
 
+        const hcTag = bossHardcoreMode ? ' ★ [ХАРДКОР]' : '';
         if (activeBoss.id === 'vacuum' && !state.unlockedKittens.includes('coal')) {
           state.unlockedKittens.push('coal');
-          alert(`🎉 ПОБЕДА НАД ПЫЛЕСОСОМ!\nТы получил награду +${activeBoss.reward.toLocaleString('ru-RU')} 🐟 и ЗАСЛУЖИЛ ЧЁРНОГО КОТЁНКА «УГОЛЬКА» 🖤!`);
+          alert(`🎉 ПОБЕДА НАД ПЫЛЕСОСОМ${hcTag}!\nТы получил награду +${reward.toLocaleString('ru-RU')} 🐟 и ЗАСЛУЖИЛ ЧЁРНОГО КОТЁНКА «УГОЛЬКА» 🖤!`);
         } else {
-          alert(`🎉 ПОБЕДА НАД ${activeBoss.name.toUpperCase()}!\nТы получил награду: +${activeBoss.reward.toLocaleString('ru-RU')} 🐟!`);
+          alert(`🎉 ПОБЕДА НАД ${activeBoss.name.toUpperCase()}${hcTag}!\nТы получил награду: +${reward.toLocaleString('ru-RU')} 🐟!`);
         }
       } else {
-        alert(`⏳ ВРЕМЯ ВЫШЛО!\n${activeBoss.name} убежал! Прокачай лапки в магазине и попробуй снова!`);
+        alert(`⏳ ВРЕМЯ ВЫШЛО!\n${activeBoss.name} оказался слишком сильным! Прокачай лапки в магазине, используй зелья и крит-зоны, и попробуй снова!`);
       }
       renderBossesList();
     }
@@ -2764,7 +3974,7 @@
     let laserGameInterval = null;
     let laserAnimFrame = null;
     let laserX = 150, laserY = 150;
-    let laserVx = 4, laserVy = 3.5;
+    let laserVx = 4.5, laserVy = 4.0;
     let laserCombo = 1;
     let laserComboTimer = null;
 
@@ -2781,8 +3991,8 @@
       laserGameTime = 30;
       laserCombo = 1;
       laserX = 150; laserY = 150;
-      laserVx = (Math.random() > 0.5 ? 4.5 : -4.5);
-      laserVy = (Math.random() > 0.5 ? 4.0 : -4.0);
+      laserVx = (Math.random() > 0.5 ? 5.0 : -5.0);
+      laserVy = (Math.random() > 0.5 ? 4.5 : -4.5);
 
       document.getElementById('game-score').innerText = '0';
       document.getElementById('game-timer').innerText = '30';
@@ -2800,8 +4010,8 @@
     function runLaserPhysics() {
       if (!laserGameActive) return;
       const area = document.getElementById('laser-area');
-      const maxX = area.clientWidth - 20;
-      const maxY = area.clientHeight - 20;
+      const maxX = (area ? area.clientWidth : 300) - 20;
+      const maxY = (area ? area.clientHeight : 380) - 20;
 
       laserX += laserVx;
       laserY += laserVy;
@@ -2813,41 +4023,49 @@
       else if (laserY >= maxY) { laserY = maxY; laserVy = -Math.abs(laserVy); }
 
       const dot = document.getElementById('laser-dot');
-      dot.style.left = laserX + 'px';
-      dot.style.top = laserY + 'px';
+      if (dot) {
+        dot.style.left = laserX + 'px';
+        dot.style.top = laserY + 'px';
+      }
 
       laserAnimFrame = requestAnimationFrame(runLaserPhysics);
     }
 
     function hitLaserDot(e) {
       if (!laserGameActive) return;
+      if (e && e.stopPropagation) e.stopPropagation();
       initAudio();
       playSound('squeak');
       if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
-      const pts = 20 * laserCombo;
+      const isSuper = Math.random() < 0.15;
+      const basePts = isSuper ? 35 : 15;
+      const pts = basePts * laserCombo;
       laserGameScore += pts;
       document.getElementById('game-score').innerText = laserGameScore;
 
       if (laserCombo < 10) laserCombo++;
       const comboBadge = document.getElementById('laser-combo-badge');
-      comboBadge.innerText = `COMBO x${laserCombo} 🔥`;
-      comboBadge.style.color = laserCombo >= 5 ? '#f1fa8c' : '#ff79c6';
+      if (comboBadge) {
+        comboBadge.innerText = `COMBO x${laserCombo} 🔥`;
+        comboBadge.style.color = laserCombo >= 5 ? '#f1fa8c' : '#ff79c6';
+      }
 
       clearTimeout(laserComboTimer);
       laserComboTimer = setTimeout(() => {
         laserCombo = 1;
         if (comboBadge) comboBadge.innerText = 'COMBO x1 ⚡';
-      }, 1800);
+      }, 1500);
 
-      laserVx = (Math.random() > 0.5 ? 1 : -1) * (4.5 + Math.min(6, laserCombo * 0.5));
-      laserVy = (Math.random() > 0.5 ? 1 : -1) * (4.5 + Math.min(6, laserCombo * 0.5));
+      const speed = 4.8 + Math.min(8.0, laserCombo * 0.7);
+      laserVx = (Math.random() > 0.5 ? 1 : -1) * speed;
+      laserVy = (Math.random() > 0.5 ? 1 : -1) * speed;
 
       const area = document.getElementById('laser-area');
-      const rect = area.getBoundingClientRect();
-      const popupX = e.clientX || (rect.left + laserX);
-      const popupY = e.clientY || (rect.top + laserY);
-      spawnTapPopup(popupX, popupY, `💥 +${pts}`, '#ff1744');
+      const rect = area ? area.getBoundingClientRect() : { left: 0, top: 0 };
+      const popupX = (e && typeof e.clientX === 'number') ? e.clientX : (rect.left + laserX);
+      const popupY = (e && typeof e.clientY === 'number') ? e.clientY : (rect.top + laserY);
+      spawnTapPopup(popupX, popupY, isSuper ? `⚡ +${pts}!` : `💥 +${pts}`, isSuper ? '#f1fa8c' : '#ff1744');
     }
 
     function endLaserGame() {
@@ -2868,8 +4086,7 @@
       }
       saveGame();
 
-      alert(`🎉 ОХОТА НА ЛАЗЕР ЗАВЕРШЕНА!
-Ты набрал ${laserGameScore} очков и заработал: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
+      alert(`🎉 ОХОТА НА ЛАЗЕР ЗАВЕРШЕНА!\nТы набрал ${laserGameScore} очков и заработал: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
       document.getElementById('laser-start-screen').style.display = 'block';
     }
 
@@ -2889,35 +4106,55 @@
       document.getElementById('game-score').innerText = '0';
       document.getElementById('game-timer').innerText = '30';
 
-      const area = document.getElementById('fishing-area');
-
       fishGameInterval = setInterval(() => {
         fishGameTime--;
         document.getElementById('game-timer').innerText = fishGameTime;
         if (fishGameTime <= 0) endFishingGame();
       }, 1000);
 
-      fishSpawnInterval = setInterval(spawnSwimmingFish, 600);
+      fishSpawnInterval = setInterval(spawnSwimmingFish, 650);
     }
 
     function spawnSwimmingFish() {
       if (!fishGameActive) return;
       const area = document.getElementById('fishing-area');
-      const isShoe = Math.random() < 0.2;
-      const isGold = Math.random() < 0.25;
+      if (!area) return;
+
+      const rand = Math.random();
+      let type = 'fish'; // fish, gold, shoe, jelly
+      let icon = '🐟';
+
+      if (rand < 0.15) {
+        type = 'jelly';
+        icon = '🪼';
+      } else if (rand < 0.30) {
+        type = 'shoe';
+        icon = '👞';
+      } else if (rand < 0.50) {
+        type = 'gold';
+        icon = '🌟';
+      }
 
       const item = document.createElement('div');
       item.className = 'swimming-target';
-      item.innerText = isShoe ? '👞' : (isGold ? '🌟' : '🐟');
-      item.style.left = (Math.random() * (area.clientWidth - 50)) + 'px';
-      item.style.top = (Math.random() * (area.clientHeight - 50)) + 'px';
+      item.innerText = icon;
+      const maxX = Math.max(50, area.clientWidth - 50);
+      const maxY = Math.max(50, area.clientHeight - 50);
+      item.style.left = (Math.random() * maxX) + 'px';
+      item.style.top = (Math.random() * maxY) + 'px';
 
-      item.onclick = () => {
-        if (isShoe) {
-          fishGameScore = Math.max(0, fishGameScore - 20);
+      item.onclick = (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (type === 'jelly') {
+          fishGameScore = Math.max(0, fishGameScore - 50);
+          playSound('hit');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        } else if (type === 'shoe') {
+          fishGameScore = Math.max(0, fishGameScore - 25);
+          playSound('hit');
+          if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
         } else {
-          const val = isGold ? 30 : 10;
+          const val = type === 'gold' ? 40 : 12;
           fishGameScore += val;
           playSound('purr');
           if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
@@ -2927,7 +4164,7 @@
       };
 
       area.appendChild(item);
-      setTimeout(() => { if (item.parentNode) item.remove(); }, 1600);
+      setTimeout(() => { if (item.parentNode) item.remove(); }, 1500);
     }
 
     function endFishingGame() {
@@ -2944,13 +4181,15 @@
       saveGame();
 
       const area = document.getElementById('fishing-area');
-      area.innerHTML = `
-        <div style="text-align:center;">
-          <h3 style="color:#50fa7b; font-size:24px; margin-bottom:8px;">Время вышло! 🎉</h3>
-          <p style="font-size:16px; color:#fff; margin-bottom:15px;">Ты наловил: <b>+${(fishGameScore * state.livesLevel).toLocaleString('ru-RU')} 🐟</b></p>
-          <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">СЫГРАТЬ ЕЩЁ РАЗ 🎣</button>
-        </div>
-      `;
+      if (area) {
+        area.innerHTML = `
+          <div style="text-align:center;">
+            <h3 style="color:#50fa7b; font-size:24px; margin-bottom:8px;">Время вышло! 🎉</h3>
+            <p style="font-size:16px; color:#fff; margin-bottom:15px;">Ты наловил: <b>+${(fishGameScore * state.livesLevel).toLocaleString('ru-RU')} 🐟</b></p>
+            <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startFishingGame()">СЫГРАТЬ ЕЩЁ РАЗ 🎣</button>
+          </div>
+        `;
+      }
     }
 
     // 2. Мини-игра «Поймай мышку в норке» (Whack-a-Mole)
@@ -2960,7 +4199,7 @@
     let mouseGameInterval = null;
     let mousePopInterval = null;
     let activeMoleIndex = -1;
-    let moleType = 'mouse'; // 'mouse', 'gold', 'hedgehog'
+    let moleType = 'mouse'; // 'mouse', 'gold', 'hedgehog', 'bomb'
 
     function startMouseGame() {
       initAudio();
@@ -2977,32 +4216,37 @@
         if (mouseGameTime <= 0) endMouseGame();
       }, 1000);
 
-      mousePopInterval = setInterval(popRandomMole, 700);
+      mousePopInterval = setInterval(popRandomMole, 550);
     }
 
     function popRandomMole() {
       if (!mouseGameActive) return;
 
-      // Спрятать предыдущего
       if (activeMoleIndex !== -1) {
         const el = document.getElementById(`mole-${activeMoleIndex}`);
         if (el) el.classList.remove('up');
       }
 
-      // Выбрать новую норку
       activeMoleIndex = Math.floor(Math.random() * 6);
       const rand = Math.random();
-      if (rand < 0.20) {
+      if (rand < 0.10) {
+        moleType = 'bomb'; // 💣 Бомбочка
+      } else if (rand < 0.25) {
         moleType = 'hedgehog'; // 🦔 Ежик
-      } else if (rand < 0.40) {
-        moleType = 'gold'; // ✨ Золотая мышь
+      } else if (rand < 0.45) {
+        moleType = 'gold'; // ⚡ Золотая молния-мышь
       } else {
         moleType = 'mouse'; // 🐭 Обычная мышь
       }
 
       const moleEl = document.getElementById(`mole-${activeMoleIndex}`);
       if (moleEl) {
-        moleEl.innerText = moleType === 'hedgehog' ? '🦔' : (moleType === 'gold' ? '✨' : '🐭');
+        let icon = '🐭';
+        if (moleType === 'bomb') icon = '💣';
+        else if (moleType === 'hedgehog') icon = '🦔';
+        else if (moleType === 'gold') icon = '⚡';
+
+        moleEl.innerText = icon;
         moleEl.classList.add('up');
         playSound('tick');
       }
@@ -3018,12 +4262,16 @@
       moleEl.classList.remove('up');
       activeMoleIndex = -1;
 
-      if (moleType === 'hedgehog') {
-        mouseGameScore = Math.max(0, mouseGameScore - 30);
+      if (moleType === 'bomb') {
+        mouseGameScore = Math.max(0, mouseGameScore - 80);
+        playSound('hit');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      } else if (moleType === 'hedgehog') {
+        mouseGameScore = Math.max(0, mouseGameScore - 40);
         playSound('hit');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
       } else {
-        const pts = moleType === 'gold' ? 50 : 15;
+        const pts = moleType === 'gold' ? 60 : 15;
         mouseGameScore += pts;
         playSound('squeak');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
