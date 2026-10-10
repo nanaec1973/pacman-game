@@ -37,7 +37,7 @@
       width: 100%;
       background: rgba(20, 18, 38, 0.95);
       border-bottom: 2px solid rgba(255, 255, 255, 0.08);
-      padding: 10px 16px;
+      padding: 10px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -48,26 +48,29 @@
       flex-direction: column;
     }
     .score-title {
-      font-size: 11px;
+      font-size: 10px;
       color: #ffb86c;
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
     .score-val {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 900;
       color: #fff;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       text-shadow: 0 0 15px rgba(255, 184, 108, 0.6);
     }
-    .per-sec {
-      font-size: 12px;
-      color: #00ff88;
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
       font-weight: 700;
     }
+    .per-click { color: #ff79c6; }
+    .per-sec { color: #00ff88; }
     .level-badge {
       background: linear-gradient(135deg, #ff5555, #ff79c6);
       padding: 6px 12px;
@@ -95,13 +98,14 @@
 
     /* Шкала Кошачьего Ража (Frenzy Mode) */
     #frenzy-bar-wrap {
-      width: 85%;
+      width: 88%;
       max-width: 320px;
-      margin-top: 10px;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 12px;
+      margin-top: 26px;
+      margin-bottom: 4px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 14px;
       padding: 3px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       position: relative;
     }
     #frenzy-bar {
@@ -109,29 +113,31 @@
       border-radius: 8px;
       width: 0%;
       background: linear-gradient(90deg, #ffb86c, #ff5555, #ff79c6);
-      box-shadow: 0 0 10px rgba(255, 85, 85, 0.8);
+      box-shadow: 0 0 12px rgba(255, 85, 85, 0.8);
       transition: width 0.1s linear;
     }
     #frenzy-label {
       position: absolute;
-      top: -18px;
+      top: -22px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 11px;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 900;
       color: #ff79c6;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
       white-space: nowrap;
+      text-shadow: 0 0 10px rgba(255, 121, 198, 0.8);
     }
 
     /* Холст с котиком */
     #cat-canvas {
       width: 100%;
       max-width: 360px;
-      height: 300px;
+      height: 320px;
       touch-action: none;
       cursor: pointer;
+      margin: auto 0;
     }
 
     /* Плавающие клик-партиклы */
@@ -150,14 +156,14 @@
       100% { opacity: 0; transform: translateY(-70px) scale(1); }
     }
 
-    /* Нижнее меню вкладок */
+    /* Нижнее меню вкладок (5 кнопок) */
     #nav-bar {
       width: 100%;
       background: rgba(20, 18, 38, 0.98);
       border-top: 2px solid rgba(255, 255, 255, 0.08);
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      padding: 6px 4px 14px 4px;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 2px 14px 2px;
       z-index: 40;
     }
     .nav-btn {
@@ -168,20 +174,20 @@
       flex-direction: column;
       align-items: center;
       gap: 3px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       cursor: pointer;
       padding: 6px 0;
       border-radius: 10px;
       transition: all 0.2s;
     }
-    .nav-btn .icon { font-size: 22px; }
+    .nav-btn .icon { font-size: 20px; }
     .nav-btn.active {
       color: #ffb86c;
       background: rgba(255, 184, 108, 0.12);
     }
 
-    /* Модальные окна (Магазин, Гардероб, Мини-игры) */
+    /* Модальные окна */
     .sheet-modal {
       position: absolute;
       top: 0;
@@ -205,12 +211,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
     .sheet-title {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
       color: #ffb86c;
       display: flex;
@@ -227,6 +233,33 @@
       height: 32px;
       border-radius: 50%;
       cursor: pointer;
+    }
+
+    /* Подвкладки внутри магазина */
+    .subtabs-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: 12px;
+    }
+    .subtab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #aaa;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 8px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .subtab-btn.active {
+      background: #ffb86c;
+      color: #111;
+      box-shadow: 0 0 10px rgba(255, 184, 108, 0.4);
     }
 
     /* Карточки товаров и скинов */
@@ -257,8 +290,8 @@
       box-shadow: 0 0 15px rgba(255, 121, 198, 0.4);
       background: rgba(255, 121, 198, 0.1);
     }
-    .card-icon { font-size: 38px; margin: 4px 0; }
-    .card-title { font-size: 14px; font-weight: 800; }
+    .card-icon { font-size: 36px; margin: 2px 0; }
+    .card-title { font-size: 13px; font-weight: 800; }
     .card-desc { font-size: 11px; color: #aaa; line-height: 1.3; min-height: 28px; }
     .card-price { font-size: 13px; font-weight: 800; color: #ffb86c; }
     .card-btn {
@@ -267,7 +300,7 @@
       color: #111;
       border: none;
       font-weight: 800;
-      font-size: 13px;
+      font-size: 12px;
       padding: 8px 0;
       border-radius: 20px;
       cursor: pointer;
@@ -275,7 +308,77 @@
     }
     .card-btn:active { transform: scale(0.95); }
     .card-btn.btn-equipped { background: #ff79c6; color: #fff; }
-    .card-btn.btn-buy:disabled { background: #444; color: #888; }
+    .card-btn:disabled { background: #444; color: #888; }
+
+    /* Арена Битв с Боссами */
+    .boss-card {
+      background: rgba(255, 85, 85, 0.08);
+      border: 1px solid rgba(255, 85, 85, 0.3);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .boss-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .boss-icon { font-size: 40px; }
+    .boss-info h4 { font-size: 15px; color: #ff5555; margin-bottom: 3px; font-weight: 800; }
+    .boss-info p { font-size: 12px; color: #aaa; }
+    .boss-btn {
+      background: #ff5555;
+      color: #fff;
+      border: none;
+      font-weight: 900;
+      font-size: 13px;
+      padding: 10px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(255, 85, 85, 0.5);
+    }
+    .boss-btn:active { transform: scale(0.95); }
+
+    /* Активный экран боя с боссом */
+    #boss-fight-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+      text-align: center;
+    }
+    .boss-hp-wrap {
+      width: 90%;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #ff5555;
+      border-radius: 14px;
+      padding: 4px;
+      margin: 10px 0;
+      position: relative;
+    }
+    .boss-hp-bar {
+      height: 16px;
+      background: linear-gradient(90deg, #ff5555, #ffb86c);
+      border-radius: 8px;
+      width: 100%;
+      transition: width 0.08s linear;
+    }
+    .boss-avatar-btn {
+      font-size: 90px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      margin: 30px 0;
+      transition: transform 0.08s ease;
+      touch-action: manipulation;
+    }
+    .boss-avatar-btn:active {
+      transform: scale(0.85) rotate(-5deg);
+    }
 
     /* Мини-игра «Рыбалка» */
     #fishing-area {
@@ -326,7 +429,10 @@
     <div class="score-container">
       <span class="score-title">ТВОИ РЫБКИ</span>
       <div class="score-val"><span id="fish-count">0</span> 🐟</div>
-      <span class="per-sec">+<span id="per-sec-val">0</span> / сек</span>
+      <div class="stats-row">
+        <span class="per-click">🐾 +<span id="per-click-val">1</span> / тап</span>
+        <span class="per-sec">⚡ +<span id="per-sec-val">0</span> / сек</span>
+      </div>
     </div>
     <div class="level-badge" id="lvl-badge">
       <span>👑</span> <span id="lvl-name">Ур. 1 • Гостиная</span>
@@ -343,29 +449,80 @@
     <!-- Интерактивный холст с котиком -->
     <canvas id="cat-canvas" width="360" height="320"></canvas>
 
-    <div style="font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 600;">
+    <div style="font-size: 13px; color: #ffb86c; margin-bottom: 12px; font-weight: 700; background: rgba(0, 0, 0, 0.35); padding: 5px 16px; border-radius: 20px; border: 1px solid rgba(255, 184, 108, 0.25); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">
       Тапай котика, чтобы собирать рыбки! 🐾
     </div>
   </div>
 
-  <!-- Вкладки навигации -->
+  <!-- Вкладки навигации (5 штук) -->
   <div id="nav-bar">
     <button class="nav-btn active" id="tab-cat" onclick="switchTab('stage')">
       <span class="icon">🐱</span>
       <span>Котик</span>
     </button>
-    <button class="nav-btn" id="tab-wardrobe" onclick="switchTab('wardrobe')">
-      <span class="icon">🎩</span>
-      <span>Гардероб</span>
+    <button class="nav-btn" id="tab-boss" onclick="switchTab('boss')">
+      <span class="icon">⚔️</span>
+      <span>Боссы</span>
     </button>
     <button class="nav-btn" id="tab-shop" onclick="switchTab('shop')">
       <span class="icon">🏪</span>
       <span>Магазин</span>
     </button>
+    <button class="nav-btn" id="tab-wardrobe" onclick="switchTab('wardrobe')">
+      <span class="icon">🎩</span>
+      <span>Гардероб</span>
+    </button>
     <button class="nav-btn" id="tab-game" onclick="switchTab('minigame')">
       <span class="icon">🎣</span>
       <span>Рыбалка</span>
     </button>
+  </div>
+
+  <!-- Модалка: Битвы с Боссами -->
+  <div class="sheet-modal" id="modal-boss">
+    <div class="sheet-header">
+      <span class="sheet-title">⚔️ Арена Боссов</span>
+      <button class="close-btn" onclick="closeModals()">✕</button>
+    </div>
+    
+    <div id="boss-list-view">
+      <p style="font-size: 12px; color: #aaa; margin-bottom: 14px;">Побеждай страшных врагов котика и получай горы рыбок! 🏆</p>
+      <div id="bosses-container"></div>
+    </div>
+
+    <!-- Экран сражения с боссом -->
+    <div id="boss-fight-screen">
+      <div>
+        <h3 id="bf-title" style="color: #ff5555; font-size: 20px; margin-bottom: 4px;">Злой Пылесос 🌪️</h3>
+        <div style="font-size: 14px; font-weight: 800; color: #ffb86c;">⏱️ Осталось: <span id="bf-timer">25</span>с</div>
+        <div class="boss-hp-wrap">
+          <div class="boss-hp-bar" id="bf-hp-bar"></div>
+        </div>
+        <div style="font-size: 12px; color: #ddd; font-weight: 700;"><span id="bf-cur-hp">200</span> / <span id="bf-max-hp">200</span> HP</div>
+      </div>
+
+      <button class="boss-avatar-btn" id="bf-btn" onclick="attackBoss(event)">🌪️</button>
+
+      <div style="font-size: 13px; color: #ff79c6; font-weight: 800; margin-bottom: 10px;">
+        БЕЙ ЛАПКОЙ ПО БОССУ КАК МОЖНО БЫСТРЕЕ! 🐾💥
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: Магазин (Коготки / Домик) -->
+  <div class="sheet-modal" id="modal-shop">
+    <div class="sheet-header">
+      <span class="sheet-title">🏪 Магазин Улучшений</span>
+      <button class="close-btn" onclick="closeModals()">✕</button>
+    </div>
+
+    <!-- Переключатель категорий: Клик / Пассив -->
+    <div class="subtabs-bar">
+      <button class="subtab-btn active" id="subtab-click" onclick="switchShopCategory('click')">🐾 Когти (Клик)</button>
+      <button class="subtab-btn" id="subtab-passive" onclick="switchShopCategory('passive')">🛋️ Домик (Пассив)</button>
+    </div>
+
+    <div class="item-grid" id="shop-grid"></div>
   </div>
 
   <!-- Модалка: Гардероб и Костюмы -->
@@ -375,15 +532,6 @@
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
     <div class="item-grid" id="wardrobe-grid"></div>
-  </div>
-
-  <!-- Модалка: Магазин Улучшений и Дома -->
-  <div class="sheet-modal" id="modal-shop">
-    <div class="sheet-header">
-      <span class="sheet-title">🏪 Товары для дома</span>
-      <button class="close-btn" onclick="closeModals()">✕</button>
-    </div>
-    <div class="item-grid" id="shop-grid"></div>
   </div>
 
   <!-- Модалка: Мини-игра «Рыбалка» -->
@@ -468,6 +616,18 @@
         gain.connect(audioCtx.destination);
         osc.start(now);
         osc.stop(now + 0.12);
+      } else if (type === 'hit') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(350, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
       } else if (type === 'buy') {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -480,18 +640,18 @@
         gain.connect(audioCtx.destination);
         osc.start(now);
         osc.stop(now + 0.25);
-      } else if (type === 'frenzy') {
+      } else if (type === 'frenzy' || type === 'victory') {
         [523, 659, 783, 1046].forEach((f, idx) => {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(f, now + idx * 0.08);
-          gain.gain.setValueAtTime(0.15, now + idx * 0.08);
-          gain.gain.linearRampToValueAtTime(0, now + idx * 0.08 + 0.1);
+          gain.gain.setValueAtTime(0.18, now + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0, now + idx * 0.08 + 0.12);
           osc.connect(gain);
           gain.connect(audioCtx.destination);
           osc.start(now + idx * 0.08);
-          osc.stop(now + idx * 0.08 + 0.1);
+          osc.stop(now + idx * 0.08 + 0.12);
         });
       }
     }
@@ -505,48 +665,75 @@
       equippedSkin: 'classic',
       ownedSkins: ['classic'],
       upgrades: {
+        // Сила клика (Коготки)
+        fish_treat: 0,
+        mint: 0,
+        claws: 0,
+        post: 0,
+        laser_paws: 0,
+        diamond_claws: 0,
+        // Пассивный доход (Домик)
+        mouse: 0,
         feeder: 0,
-        yarn: 0,
         vacuum: 0,
         tree: 0,
         aquarium: 0,
-        mouse_factory: 0
+        mansion: 0
       },
       lastSavedTime: Date.now()
     };
 
-    // Загрузка состояния
-    const saved = localStorage.getItem('cat_clicker_save');
+    // Загрузка сохранения
+    const saved = localStorage.getItem('cat_clicker_save_v2');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        state = { ...state, ...parsed };
+        state = { ...state, ...parsed, upgrades: { ...state.upgrades, ...parsed.upgrades } };
       } catch (e) {}
     }
 
-    // --- База данных: Скины и Костюмы ---
-    const skins = [
-      { id: 'classic', name: 'Рыжик', icon: '🐱', price: 0, desc: 'Милый и пушистый домашний котик.', bonus: 'Базовый клик' },
-      { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 150, desc: 'Треуголка, повязка на глаз и шанс критического куся x10!', bonus: 'Шанс крита x10 💥' },
-      { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 800, desc: 'Скафандр и невесомость. +50% к пассивному доходу!', bonus: '+50% пассив 🌌' },
-      { id: 'wizard', name: 'Волшебник', icon: '🧙‍♂️', price: 2500, desc: 'Колпак и магическая палочка. Удваивает клик-силу!', bonus: 'Сила клика x2 🔮' },
-      { id: 'king', name: 'Кот-Король', icon: '👑', price: 8000, desc: 'Золотая корона и мантия. -25% цены на всё в магазине!', bonus: 'Скидка на всё 25% 🏰' },
-      { id: 'ninja', name: 'Кот-Ниндзя', icon: '🥷', price: 25000, desc: 'Маска шиноби и сюрикены. Супер-скорость Ража!', bonus: 'Супер-Раж x5 ⚡' }
+    // --- Каталог Боссов ---
+    const bossCatalog = [
+      { id: 'cucumber', name: 'Страшный Огурец', icon: '🥒', maxHp: 60, time: 20, reward: 500, desc: 'Коварно подкрался сзади дивана!' },
+      { id: 'vacuum',   name: 'Злой Пылесос',   icon: '🌪️', maxHp: 200, time: 25, reward: 2500, desc: 'Громко гудит и пугает котика!' },
+      { id: 'dog',      name: 'Соседский Пёс',  icon: '🐶', maxHp: 600, time: 30, reward: 8000, desc: 'Лает за забором и дразнится!' },
+      { id: 'cyber',    name: 'Кибер-Пылесос',  icon: '🤖', maxHp: 1800, time: 30, reward: 30000, desc: 'Робот взбунтовался и едет на котика!' },
+      { id: 'godzilla', name: 'Дино-Годзилла',  icon: '🦖', maxHp: 5000, time: 35, reward: 120000, desc: 'Великан вторгся в кошачий город!' }
     ];
 
-    // --- База данных: Улучшения и Авто-доход ---
-    const upgradesConfig = [
-      { id: 'feeder', name: 'Авто-кормушка', icon: '🥣', basePrice: 20, perSec: 1, desc: 'Автоматически насыпает свежий корм.' },
-      { id: 'yarn', name: 'Клубок ниток', icon: '🧶', basePrice: 100, perSec: 5, desc: 'Котик увлеченно катает мягкий клубок.' },
-      { id: 'vacuum', name: 'Робот-пылесос', icon: '🤖', basePrice: 500, perSec: 20, desc: 'Котик катается на роботе верхом!' },
-      { id: 'tree', name: 'Кошачье дерево', icon: '🌳', basePrice: 2000, perSec: 80, desc: 'Многоуровневый замок с когтеточкой.' },
-      { id: 'aquarium', name: 'Аквариум с рыбками', icon: '🐟', basePrice: 8000, perSec: 300, desc: 'Бесконечный запас золотых рыбок.' },
-      { id: 'mouse_factory', name: 'Мышиная фабрика', icon: '🐭', basePrice: 30000, perSec: 1200, desc: 'Целая армия заводных мышек!' }
+    // --- Каталог Улучшений (Клик + Пассив) ---
+    const upgradesClickConfig = [
+      { id: 'fish_treat', name: 'Вкусная рыбка', icon: '🐟', basePrice: 20, power: 1, desc: '+1 к силе каждого тапа' },
+      { id: 'mint', name: 'Кошачья мята', icon: '🌿', basePrice: 100, power: 3, desc: '+3 к силе каждого тапа' },
+      { id: 'claws', name: 'Острые коготки', icon: '🧤', basePrice: 500, power: 10, desc: '+10 к силе каждого тапа' },
+      { id: 'post', name: 'Золотая когтеточка', icon: '✨', basePrice: 2000, power: 30, desc: '+30 к силе каждого тапа' },
+      { id: 'laser_paws', name: 'Лазерные лапки', icon: '⚡', basePrice: 8000, power: 100, desc: '+100 к силе каждого тапа' },
+      { id: 'diamond_claws', name: 'Алмазные когти', icon: '💎', basePrice: 30000, power: 500, desc: '+500 к силе каждого тапа' }
+    ];
+
+    const upgradesPassiveConfig = [
+      { id: 'mouse', name: 'Заводная мышка', icon: '🐭', basePrice: 30, perSec: 1, desc: '+1 🐟/сек пассивно' },
+      { id: 'feeder', name: 'Авто-кормушка', icon: '🥣', basePrice: 150, perSec: 5, desc: '+5 🐟/сек пассивно' },
+      { id: 'vacuum', name: 'Робот-пылесос-друг', icon: '🤖', basePrice: 800, perSec: 20, desc: '+20 🐟/сек (котик катается на нем)' },
+      { id: 'tree', name: 'Кошачье дерево', icon: '🌳', basePrice: 3500, perSec: 80, desc: '+80 🐟/сек пассивно' },
+      { id: 'aquarium', name: 'Аквариум с рыбками', icon: '🐟', basePrice: 12000, perSec: 300, desc: '+300 🐟/сек пассивно' },
+      { id: 'mansion', name: 'Кошачий особняк', icon: '🏰', basePrice: 50000, perSec: 1200, desc: '+1,200 🐟/сек пассивно' }
+    ];
+
+    // --- Каталог Скинов ---
+    const skins = [
+      { id: 'classic', name: 'Рыжик', icon: '🐱', price: 0, desc: 'Милый и пушистый домашний котик.', bonus: 'Базовый клик' },
+      { id: 'pirate', name: 'Кот-Пират', icon: '🏴‍☠️', price: 200, desc: 'Треуголка, повязка на глаз и шанс критического куся x10!', bonus: 'Шанс крита x10 💥' },
+      { id: 'cosmonaut', name: 'Космонавт', icon: '🚀', price: 1000, desc: 'Скафандр и невесомость. +50% к пассивному доходу!', bonus: '+50% пассив 🌌' },
+      { id: 'wizard', name: 'Волшебник', icon: '🧙‍♂️', price: 3000, desc: 'Колпак и магическая палочка. Удваивает силу клика!', bonus: 'Сила клика x2 🔮' },
+      { id: 'king', name: 'Кот-Король', icon: '👑', price: 10000, desc: 'Золотая корона и мантия. -25% цены на всё в магазине!', bonus: 'Скидка на всё 25% 🏰' },
+      { id: 'ninja', name: 'Кот-Ниндзя', icon: '🥷', price: 35000, desc: 'Маска шиноби и сюрикены. Супер-скорость Ража x5!', bonus: 'Супер-Раж x5 ⚡' }
     ];
 
     // --- Раж (Frenzy Mode) ---
     let frenzyVal = 0;
     let frenzyActive = false;
+    let currentShopSubtab = 'click';
 
     // --- Canvas Анимация Котика ---
     const canvas = document.getElementById('cat-canvas');
@@ -554,17 +741,16 @@
     let catScaleY = 1.0;
     let catScaleX = 1.0;
     let eyeBlink = 0;
-    let tailAngle = 0;
     let catAnimTime = 0;
 
     function drawCat() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const cx = canvas.width / 2;
-      const cy = canvas.height / 2 + 30;
+      const cy = canvas.height / 2 + 35;
 
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.scale(catScaleX, catScaleY);
+      ctx.scale(catScaleX * 1.1, catScaleY * 1.1);
 
       // 1. Тень под котиком
       ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
@@ -586,7 +772,7 @@
       ctx.restore();
 
       // 3. Тело котика
-      ctx.fillStyle = '#ff9f43'; // Рыжий цвет
+      ctx.fillStyle = '#ff9f43';
       ctx.beginPath();
       ctx.ellipse(0, 30, 60, 50, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -610,14 +796,14 @@
       ctx.beginPath();
       ctx.moveTo(45, -55); ctx.lineTo(20, -90); ctx.lineTo(5, -65); ctx.fill();
 
-      // Внутри ушек (розовое)
+      // Внутри ушек
       ctx.fillStyle = '#ff79c6';
       ctx.beginPath();
       ctx.moveTo(-40, -58); ctx.lineTo(-20, -82); ctx.lineTo(-10, -66); ctx.fill();
       ctx.beginPath();
       ctx.moveTo(40, -58); ctx.lineTo(20, -82); ctx.lineTo(10, -66); ctx.fill();
 
-      // Мордочка (белая)
+      // Мордочка
       ctx.fillStyle = '#fff5ea';
       ctx.beginPath();
       ctx.ellipse(0, -22, 28, 18, 0, 0, Math.PI * 2);
@@ -651,7 +837,6 @@
 
       // Глазки
       if (eyeBlink < 5) {
-        // Моргание (закрыты)
         ctx.strokeStyle = '#573b22';
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -661,14 +846,12 @@
         ctx.arc(20, -42, 8, 0.2, Math.PI - 0.2);
         ctx.stroke();
       } else {
-        // Открытые глазки (светящиеся при Раже!)
         ctx.fillStyle = frenzyActive ? '#00ffff' : '#282a36';
         ctx.beginPath();
         ctx.arc(-20, -42, 9, 0, Math.PI * 2);
         ctx.arc(20, -42, 9, 0, Math.PI * 2);
         ctx.fill();
 
-        // Блики
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(-22, -45, 3.5, 0, Math.PI * 2);
@@ -683,58 +866,47 @@
       ctx.ellipse(26, 68, 14, 10, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // --- 6. КОСТЮМЫ И ГАРДЕРОБ (Отрисовка выбранного скина) ---
+      // 6. Костюмы и Скины
       const skin = state.equippedSkin;
-
       if (skin === 'pirate') {
-        // Треуголка пирата
         ctx.fillStyle = '#222';
         ctx.beginPath();
         ctx.moveTo(-55, -75); ctx.lineTo(0, -125); ctx.lineTo(55, -75); ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = '#f1fa8c'; ctx.lineWidth = 3; ctx.stroke();
-        // Череп на шляпе
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(0, -92, 7, 0, Math.PI * 2); ctx.fill();
-        // Повязка на правый глаз
         ctx.fillStyle = '#111';
         ctx.beginPath(); ctx.arc(20, -42, 11, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(0, -55); ctx.lineTo(38, -32); ctx.stroke();
       } else if (skin === 'cosmonaut') {
-        // Стеклянный шлем космонавта
         ctx.strokeStyle = '#8be9fd'; ctx.lineWidth = 5;
         ctx.fillStyle = 'rgba(139, 233, 253, 0.25)';
         ctx.beginPath(); ctx.arc(0, -35, 62, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        // Блик на стекле
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(0, -35, 55, -Math.PI * 0.75, -Math.PI * 0.45); ctx.stroke();
       } else if (skin === 'wizard') {
-        // Колпак мага
         ctx.fillStyle = '#6272a4';
         ctx.beginPath();
         ctx.moveTo(-45, -70); ctx.lineTo(0, -135); ctx.lineTo(45, -70); ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#f1fa8c';
-        ctx.beginPath(); ctx.arc(0, -135, 6, 0, Math.PI * 2); ctx.fill(); // Звездочка на конце
+        ctx.beginPath(); ctx.arc(0, -135, 6, 0, Math.PI * 2); ctx.fill();
       } else if (skin === 'king') {
-        // Золотая корона
         ctx.fillStyle = '#f1fa8c';
         ctx.beginPath();
         ctx.moveTo(-35, -75); ctx.lineTo(-30, -105); ctx.lineTo(-15, -85);
         ctx.lineTo(0, -112); ctx.lineTo(15, -85); ctx.lineTo(30, -105); ctx.lineTo(35, -75); ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = '#ffb86c'; ctx.lineWidth = 2; ctx.stroke();
-        // Рубины
         ctx.fillStyle = '#ff5555';
         ctx.beginPath(); ctx.arc(0, -98, 4, 0, Math.PI * 2); ctx.arc(-22, -92, 3, 0, Math.PI * 2); ctx.arc(22, -92, 3, 0, Math.PI * 2); ctx.fill();
       } else if (skin === 'ninja') {
-        // Маска ниндзя
         ctx.fillStyle = '#1e1f29';
         ctx.beginPath();
         ctx.ellipse(0, -22, 36, 18, 0, 0, Math.PI * 2);
         ctx.fill();
-        // Красная повязка на лоб
         ctx.fillStyle = '#ff5555';
         ctx.fillRect(-45, -65, 90, 10);
       }
@@ -742,16 +914,13 @@
       ctx.restore();
     }
 
-    // Главный цикл отрисовки котика
     function catLoop() {
       catAnimTime += 0.04;
-      eyeBlink = (eyeBlink + 1) % 180; // Моргает раз в ~3 секунды
+      eyeBlink = (eyeBlink + 1) % 180;
 
-      // Плавное возвращение формы котика после тапа
       catScaleX += (1.0 - catScaleX) * 0.15;
       catScaleY += (1.0 - catScaleY) * 0.15;
 
-      // Затухание Ража
       if (frenzyVal > 0) {
         frenzyVal -= 0.18;
         if (frenzyVal <= 0) {
@@ -767,39 +936,31 @@
       requestAnimationFrame(catLoop);
     }
 
-    // --- Обработка клика / тапа по котику ---
+    // --- Обработка клика по котику ---
     function handleCatTap(e) {
       initAudio();
-      const rect = canvas.getBoundingClientRect();
       const touch = e.touches ? e.touches[0] : e;
       const x = touch.clientX;
       const y = touch.clientY;
 
-      // Физика отскока (Squish)
       catScaleX = 1.18;
       catScaleY = 0.82;
 
-      // Расчет силы клика
-      let power = state.clickPower;
-      if (state.equippedSkin === 'wizard') power *= 2;
+      let power = calculateClickPower();
 
-      // Проверка на Критический Кусь у Пирата
       let isCrit = false;
-      if (state.equippedSkin === 'pirate' && Math.random() < 0.18) {
+      if (state.equippedSkin === 'pirate' && Math.random() < 0.20) {
         power *= 10;
         isCrit = true;
       }
 
-      // Множитель Ража
       if (frenzyActive) {
         const mult = state.equippedSkin === 'ninja' ? 5 : 3;
         power *= mult;
       }
 
-      // Начисление рыбок
       addFish(power);
 
-      // Заполнение шкалы Ража
       frenzyVal = Math.min(100, frenzyVal + 5);
       if (frenzyVal >= 100 && !frenzyActive) {
         frenzyActive = true;
@@ -810,11 +971,9 @@
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       }
 
-      // Звук и Haptic
       playSound(isCrit ? 'meow' : 'purr');
       if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(isCrit ? 'heavy' : 'light');
 
-      // Создание вылетающего текста
       spawnTapPopup(x, y, isCrit ? `💥 +${power} КРИТ!` : `+${power} 🐟`, isCrit ? '#ff5555' : (frenzyActive ? '#00ffff' : '#ffb86c'));
     }
 
@@ -832,7 +991,7 @@
       setTimeout(() => el.remove(), 800);
     }
 
-    // --- Экономика и Улучшения ---
+    // --- Экономика и Расчеты ---
     function addFish(n) {
       state.fish += n;
       state.totalEarned += n;
@@ -840,9 +999,18 @@
       saveGame();
     }
 
+    function calculateClickPower() {
+      let p = 1;
+      upgradesClickConfig.forEach(u => {
+        p += (state.upgrades[u.id] || 0) * u.power;
+      });
+      if (state.equippedSkin === 'wizard') p *= 2;
+      return p;
+    }
+
     function calculatePassive() {
       let total = 0;
-      upgradesConfig.forEach(u => {
+      upgradesPassiveConfig.forEach(u => {
         total += (state.upgrades[u.id] || 0) * u.perSec;
       });
       if (state.equippedSkin === 'cosmonaut') total = Math.floor(total * 1.5);
@@ -851,15 +1019,17 @@
 
     function getUpgradePrice(u) {
       const count = state.upgrades[u.id] || 0;
-      let cost = Math.floor(u.basePrice * Math.pow(1.15, count));
-      if (state.equippedSkin === 'king') cost = Math.floor(cost * 0.75); // Скидка 25% у короля
+      let cost = Math.floor(u.basePrice * Math.pow(1.16, count));
+      if (state.equippedSkin === 'king') cost = Math.floor(cost * 0.75);
       return cost;
     }
 
-    function buyUpgrade(id) {
+    function buyUpgrade(id, type) {
       initAudio();
-      const u = upgradesConfig.find(x => x.id === id);
+      const list = type === 'click' ? upgradesClickConfig : upgradesPassiveConfig;
+      const u = list.find(x => x.id === id);
       if (!u) return;
+
       const price = getUpgradePrice(u);
       if (state.fish >= price) {
         state.fish -= price;
@@ -899,7 +1069,42 @@
       saveGame();
     }
 
-    // Рендер Гардероба
+    // --- Рендеринг Магазина ---
+    function switchShopCategory(cat) {
+      initAudio();
+      currentShopSubtab = cat;
+      document.getElementById('subtab-click').classList.toggle('active', cat === 'click');
+      document.getElementById('subtab-passive').classList.toggle('active', cat === 'passive');
+      renderShop();
+    }
+
+    function renderShop() {
+      const grid = document.getElementById('shop-grid');
+      grid.innerHTML = '';
+      const list = currentShopSubtab === 'click' ? upgradesClickConfig : upgradesPassiveConfig;
+
+      list.forEach(u => {
+        const count = state.upgrades[u.id] || 0;
+        const price = getUpgradePrice(u);
+        const benefit = currentShopSubtab === 'click' ? `+${u.power} к тапу` : `+${u.perSec} 🐟/сек`;
+
+        const card = document.createElement('div');
+        card.className = `card ${count > 0 ? 'owned' : ''}`;
+        card.innerHTML = `
+          <div class="card-icon">${u.icon}</div>
+          <div class="card-title">${u.name} <span style="color:#ff79c6;">(x${count})</span></div>
+          <div class="card-desc">${u.desc}</div>
+          <div style="font-size:11px; color:#50fa7b; font-weight:bold;">${benefit}</div>
+          <div class="card-price">${price} 🐟</div>
+          <button class="card-btn" ${state.fish < price ? 'disabled' : ''} onclick="buyUpgrade('${u.id}', '${currentShopSubtab}')">
+            КУПИТЬ 🛒
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // --- Рендеринг Гардероба ---
     function renderWardrobe() {
       const grid = document.getElementById('wardrobe-grid');
       grid.innerHTML = '';
@@ -917,7 +1122,7 @@
           <div class="card-desc">${s.desc}</div>
           <div style="font-size:11px; color:#50fa7b; font-weight:bold;">${s.bonus}</div>
           ${!isOwned ? `<div class="card-price">${price} 🐟</div>` : ''}
-          <button class="card-btn ${isEquipped ? 'btn-equipped' : 'btn-buy'}" ${!isOwned && state.fish < price ? 'disabled' : ''} onclick="buyOrEquipSkin('${s.id}')">
+          <button class="card-btn ${isEquipped ? 'btn-equipped' : ''}" ${!isOwned && state.fish < price ? 'disabled' : ''} onclick="buyOrEquipSkin('${s.id}')">
             ${isEquipped ? 'НАДЕТО ✨' : (isOwned ? 'НАДЕТЬ' : 'КУПИТЬ')}
           </button>
         `;
@@ -925,40 +1130,120 @@
       });
     }
 
-    // Рендер Магазина
-    function renderShop() {
-      const grid = document.getElementById('shop-grid');
-      grid.innerHTML = '';
-      upgradesConfig.forEach(u => {
-        const count = state.upgrades[u.id] || 0;
-        const price = getUpgradePrice(u);
+    // --- Арена Боссов ---
+    let activeBoss = null;
+    let bossHp = 0;
+    let bossTimer = 0;
+    let bossInterval = null;
 
+    function renderBossesList() {
+      document.getElementById('boss-list-view').style.display = 'block';
+      document.getElementById('boss-fight-screen').style.display = 'none';
+
+      const container = document.getElementById('bosses-container');
+      container.innerHTML = '';
+
+      bossCatalog.forEach(b => {
         const card = document.createElement('div');
-        card.className = `card ${count > 0 ? 'owned' : ''}`;
+        card.className = 'boss-card';
         card.innerHTML = `
-          <div class="card-icon">${u.icon}</div>
-          <div class="card-title">${u.name} <span style="color:#ff79c6;">(x${count})</span></div>
-          <div class="card-desc">${u.desc}</div>
-          <div style="font-size:11px; color:#50fa7b; font-weight:bold;">+${u.perSec}/сек</div>
-          <div class="card-price">${price} 🐟</div>
-          <button class="card-btn btn-buy" ${state.fish < price ? 'disabled' : ''} onclick="buyUpgrade('${u.id}')">
-            КУПИТЬ 🛒
-          </button>
+          <div class="boss-left">
+            <div class="boss-icon">${b.icon}</div>
+            <div class="boss-info">
+              <h4>${b.name}</h4>
+              <p>${b.desc}</p>
+              <div style="font-size:11px; color:#ffb86c; font-weight:800; margin-top:2px;">
+                ❤️ ${b.maxHp} HP | ⏱️ ${b.time}с | 🏆 +${b.reward.toLocaleString('ru-RU')} 🐟
+              </div>
+            </div>
+          </div>
+          <button class="boss-btn" onclick="startBossFight('${b.id}')">В БОЙ ⚔️</button>
         `;
-        grid.appendChild(card);
+        container.appendChild(card);
       });
     }
 
-    // Обновление цифр в интерфейсе
+    function startBossFight(id) {
+      initAudio();
+      activeBoss = bossCatalog.find(x => x.id === id);
+      if (!activeBoss) return;
+
+      bossHp = activeBoss.maxHp;
+      bossTimer = activeBoss.time;
+
+      document.getElementById('boss-list-view').style.display = 'none';
+      document.getElementById('boss-fight-screen').style.display = 'flex';
+
+      document.getElementById('bf-title').innerText = `${activeBoss.name} ${activeBoss.icon}`;
+      document.getElementById('bf-btn').innerText = activeBoss.icon;
+      document.getElementById('bf-cur-hp').innerText = bossHp;
+      document.getElementById('bf-max-hp').innerText = activeBoss.maxHp;
+      document.getElementById('bf-timer').innerText = bossTimer;
+      document.getElementById('bf-hp-bar').style.width = '100%';
+
+      clearInterval(bossInterval);
+      bossInterval = setInterval(() => {
+        bossTimer--;
+        document.getElementById('bf-timer').innerText = bossTimer;
+        if (bossTimer <= 0) {
+          endBossFight(false);
+        }
+      }, 1000);
+    }
+
+    function attackBoss(e) {
+      if (!activeBoss || bossHp <= 0) return;
+      initAudio();
+
+      let dmg = calculateClickPower();
+      if (state.equippedSkin === 'pirate' && Math.random() < 0.20) {
+        dmg *= 10;
+        playSound('meow');
+      } else {
+        playSound('hit');
+      }
+
+      if (frenzyActive) dmg *= 3;
+
+      bossHp = Math.max(0, bossHp - dmg);
+      document.getElementById('bf-cur-hp').innerText = bossHp;
+      const pct = (bossHp / activeBoss.maxHp) * 100;
+      document.getElementById('bf-hp-bar').style.width = pct + '%';
+
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      const x = e.clientX || window.innerWidth / 2;
+      const y = e.clientY || window.innerHeight / 2;
+      spawnTapPopup(x, y, `💥 -${dmg} HP`, '#ff5555');
+
+      if (bossHp <= 0) {
+        endBossFight(true);
+      }
+    }
+
+    function endBossFight(won) {
+      clearInterval(bossInterval);
+      if (won) {
+        playSound('victory');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        addFish(activeBoss.reward);
+        alert(`🎉 ПОБЕДА НАД ${activeBoss.name.toUpperCase()}!\nТы получил награду: +${activeBoss.reward.toLocaleString('ru-RU')} 🐟!`);
+      } else {
+        alert(`⏳ ВРЕМЯ ВЫШЛО!\n${activeBoss.name} убежал! Прокачай лапки в магазине и попробуй снова!`);
+      }
+      renderBossesList();
+    }
+
+    // --- Обновление интерфейса ---
     function updateUI() {
       document.getElementById('fish-count').innerText = Math.floor(state.fish).toLocaleString('ru-RU');
       document.getElementById('per-sec-val').innerText = state.passivePerSec.toLocaleString('ru-RU');
+      document.getElementById('per-click-val').innerText = calculateClickPower().toLocaleString('ru-RU');
 
-      // Определение уровня по накопленным рыбкам
       let lvl = 'Ур. 1 • Гостиная 🛋️';
-      if (state.totalEarned > 50000) lvl = 'Ур. 4 • Космос 🌌';
-      else if (state.totalEarned > 10000) lvl = 'Ур. 3 • Замок 🏰';
-      else if (state.totalEarned > 1500) lvl = 'Ур. 2 • Корабль ⛵';
+      if (state.totalEarned > 100000) lvl = 'Ур. 4 • Космос 🌌';
+      else if (state.totalEarned > 20000) lvl = 'Ур. 3 • Замок 🏰';
+      else if (state.totalEarned > 3000) lvl = 'Ур. 2 • Корабль ⛵';
       document.getElementById('lvl-name').innerText = lvl;
     }
 
@@ -992,7 +1277,7 @@
     function spawnSwimmingFish() {
       if (!fishGameActive) return;
       const area = document.getElementById('fishing-area');
-      const isShoe = Math.random() < 0.2; // 20% шанс старого башмака
+      const isShoe = Math.random() < 0.2;
       const isGold = Math.random() < 0.25;
 
       const item = document.createElement('div');
@@ -1025,7 +1310,6 @@
       clearInterval(fishSpawnInterval);
       playSound('buy');
 
-      // Начисление награды
       addFish(fishGameScore);
 
       const area = document.getElementById('fishing-area');
@@ -1046,14 +1330,18 @@
 
       if (tab === 'stage') {
         document.getElementById('tab-cat').classList.add('active');
-      } else if (tab === 'wardrobe') {
-        document.getElementById('tab-wardrobe').classList.add('active');
-        renderWardrobe();
-        document.getElementById('modal-wardrobe').style.display = 'flex';
+      } else if (tab === 'boss') {
+        document.getElementById('tab-boss').classList.add('active');
+        renderBossesList();
+        document.getElementById('modal-boss').style.display = 'flex';
       } else if (tab === 'shop') {
         document.getElementById('tab-shop').classList.add('active');
         renderShop();
         document.getElementById('modal-shop').style.display = 'flex';
+      } else if (tab === 'wardrobe') {
+        document.getElementById('tab-wardrobe').classList.add('active');
+        renderWardrobe();
+        document.getElementById('modal-wardrobe').style.display = 'flex';
       } else if (tab === 'minigame') {
         document.getElementById('tab-game').classList.add('active');
         document.getElementById('modal-minigame').style.display = 'flex';
@@ -1064,6 +1352,7 @@
       document.querySelectorAll('.sheet-modal').forEach(m => m.style.display = 'none');
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-cat').classList.add('active');
+      if (bossInterval) clearInterval(bossInterval);
     }
 
     // --- Пассивный доход в секунду (Таймер) ---
@@ -1074,13 +1363,11 @@
       }
     }, 100);
 
-    // --- Сохранение в LocalStorage ---
     function saveGame() {
       state.lastSavedTime = Date.now();
-      localStorage.setItem('cat_clicker_save', JSON.stringify(state));
+      localStorage.setItem('cat_clicker_save_v2', JSON.stringify(state));
     }
 
-    // --- Проверка оффлайн дохода при входе ---
     function checkOfflineEarnings() {
       const now = Date.now();
       const elapsedSec = Math.floor((now - state.lastSavedTime) / 1000);
