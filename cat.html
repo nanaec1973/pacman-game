@@ -229,6 +229,74 @@
       transition: all 0.2s;
     }
 
+    /* Активные зелья и баффы */
+    #active-potions-bar {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 3px;
+      margin-bottom: 2px;
+      min-height: 24px;
+      z-index: 10;
+    }
+    .potion-pill {
+      background: rgba(0, 0, 0, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      animation: pulseBtn 1.5s infinite;
+    }
+    .potion-pill.energy { border-color: #f1fa8c; color: #f1fa8c; box-shadow: 0 0 8px rgba(241, 250, 140, 0.4); }
+    .potion-pill.magnet { border-color: #8be9fd; color: #8be9fd; box-shadow: 0 0 8px rgba(139, 233, 253, 0.4); }
+    .potion-pill.bite { border-color: #ff5555; color: #ff5555; box-shadow: 0 0 8px rgba(255, 85, 85, 0.4); }
+
+    /* Мини-игра «Лазерная точка» */
+    #laser-area {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      background: radial-gradient(circle at center, #241433 0%, #0d0714 100%);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 23, 68, 0.5);
+      box-shadow: inset 0 0 30px rgba(255, 23, 68, 0.25);
+      touch-action: none;
+    }
+    #laser-dot {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      background: #ff1744;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #ff1744, 0 0 30px #ff5252, 0 0 50px #ff1744;
+      cursor: pointer;
+      display: none;
+      transform: translate(-50%, -50%);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #laser-combo-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1.5px solid #ff79c6;
+      color: #ff79c6;
+      font-size: 13px;
+      font-weight: 900;
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-shadow: 0 0 8px #ff79c6;
+      display: none;
+      z-index: 5;
+    }
+
     /* Таблица лидеров и Зал Славы */
     .user-lb-card {
       background: linear-gradient(135deg, rgba(255, 184, 108, 0.15), rgba(255, 121, 198, 0.15));
@@ -709,6 +777,9 @@
       <div id="frenzy-bar"></div>
     </div>
 
+    <!-- Активные зелья и баффы -->
+    <div id="active-potions-bar"></div>
+
     <!-- Интерактивный холст с котиком и котятами -->
     <canvas id="cat-canvas" width="360" height="320"></canvas>
 
@@ -799,10 +870,12 @@
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
 
-    <div class="subtabs-bar">
+    <div class="subtabs-bar" style="overflow-x: auto; flex-wrap: wrap;">
       <button class="subtab-btn active" id="subtab-click" onclick="switchShopCategory('click')">🐾 Когти</button>
       <button class="subtab-btn" id="subtab-passive" onclick="switchShopCategory('passive')">🛋️ Домик</button>
       <button class="subtab-btn" id="subtab-kittens" onclick="switchShopCategory('kittens')">🐱 Котята</button>
+      <button class="subtab-btn" id="subtab-room" onclick="switchShopCategory('room')">🏠 Комната</button>
+      <button class="subtab-btn" id="subtab-potions" onclick="switchShopCategory('potions')">🧪 Зелья</button>
     </div>
 
     <div class="item-grid" id="shop-grid"></div>
@@ -824,10 +897,11 @@
       <button class="close-btn" onclick="closeModals()">✕</button>
     </div>
 
-    <!-- Переключатель между Рыбалкой и Норками -->
+    <!-- Переключатель между Рыбалкой, Норками и Лазером -->
     <div class="subtabs-bar">
-      <button class="subtab-btn active" id="subtab-fishing" onclick="switchGameMode('fishing')">🎣 Рыбалка лапкой</button>
-      <button class="subtab-btn" id="subtab-mouse" onclick="switchGameMode('mouse')">🐭 Поймай мышку</button>
+      <button class="subtab-btn active" id="subtab-fishing" onclick="switchGameMode('fishing')">🎣 Рыбалка</button>
+      <button class="subtab-btn" id="subtab-mouse" onclick="switchGameMode('mouse')">🐭 Мышки</button>
+      <button class="subtab-btn" id="subtab-laser" onclick="switchGameMode('laser')">🔴 Лазер</button>
     </div>
 
     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 800;">
@@ -861,6 +935,20 @@
         <div class="mole-hole"><div class="mole-character" id="mole-3" onclick="hitMole(3)">🐭</div></div>
         <div class="mole-hole"><div class="mole-character" id="mole-4" onclick="hitMole(4)">🐭</div></div>
         <div class="mole-hole"><div class="mole-character" id="mole-5" onclick="hitMole(5)">🐭</div></div>
+      </div>
+    </div>
+
+    <!-- Игра 3: Охота за Лазерной Точкой -->
+    <div id="game-view-laser" style="display: none;">
+      <div id="laser-start-screen" style="text-align: center; margin-bottom: 14px;">
+        <h3 style="color:#ff5555; font-size:20px; margin-bottom:4px;">Поймай лазерную точку! 🔴🐾</h3>
+        <p style="font-size:12px; color:#ddd; margin-bottom:12px;">Тапай по быстрой красной точке! За серию попаданий растет комбо x2, x3, x5, x10!</p>
+        <button class="card-btn" style="padding:12px 30px; font-size:16px; background:#ff5555; color:#fff;" onclick="startLaserGame()">НАЧАТЬ ОХОТУ 🔴</button>
+      </div>
+
+      <div id="laser-area">
+        <div id="laser-combo-badge">COMBO x1 ⚡</div>
+        <div id="laser-dot" onpointerdown="hitLaserDot(event)"></div>
       </div>
     </div>
   </div>
@@ -911,10 +999,11 @@
     </button>
 
     <!-- Фильтры категорий -->
-    <div class="subtabs-bar" style="margin-top: 12px;">
+    <div class="subtabs-bar" style="margin-top: 12px; overflow-x: auto; flex-wrap: wrap;">
       <button class="subtab-btn active" id="lbtab-fish" onclick="switchLeaderboardCategory('fish')">🐟 Рыбки</button>
       <button class="subtab-btn" id="lbtab-bosses" onclick="switchLeaderboardCategory('bosses')">⚔️ Боссы</button>
       <button class="subtab-btn" id="lbtab-mouse" onclick="switchLeaderboardCategory('mouse')">🐭 Мышки</button>
+      <button class="subtab-btn" id="lbtab-laser" onclick="switchLeaderboardCategory('laser')">🔴 Лазер</button>
       <button class="subtab-btn" id="lbtab-fishing" onclick="switchLeaderboardCategory('fishing')">🎣 Рыбалка</button>
     </div>
 
@@ -1081,6 +1170,13 @@
       bossesDefeated: [],
       mouseHighScore: 0,
       fishingHighScore: 0,
+      laserHighScore: 0,
+      ownedRoomDecor: [],
+      activePotions: {
+        energy: 0,
+        magnet: 0,
+        bite: 0
+      },
       upgrades: {
         fish_treat: 0,
         mint: 0,
@@ -1106,6 +1202,9 @@
         if (!state.bossesDefeated) state.bossesDefeated = [];
         if (state.mouseHighScore === undefined) state.mouseHighScore = 0;
         if (state.fishingHighScore === undefined) state.fishingHighScore = 0;
+        if (state.laserHighScore === undefined) state.laserHighScore = 0;
+        if (!state.ownedRoomDecor) state.ownedRoomDecor = [];
+        if (!state.activePotions) state.activePotions = { energy: 0, magnet: 0, bite: 0 };
       } catch (e) {}
     }
 
@@ -1123,6 +1222,22 @@
       }
     }
     updateKittensUnlock();
+
+    // --- Каталог Декора Комнаты (Room Interior) ---
+    const roomDecorCatalog = [
+      { id: 'rug', name: 'Персидский коврик', icon: '🧶', price: 1000, desc: 'Мягкий и тёплый коврик под лапки.', bonus: '+5% ко всей рыбе 🌟' },
+      { id: 'garland', name: 'Неоновая гирлянда', icon: '💡', price: 4000, desc: 'Праздничные разноцветные огоньки.', bonus: '+10% к силе тапа ⚡' },
+      { id: 'plant', name: 'Кошачья мята в горшке', icon: '🪴', price: 12000, desc: 'Зелёный уют в комнате.', bonus: '+15% шанс бабочки 🦋' },
+      { id: 'fireplace', name: 'Уютный камин', icon: '🔥', price: 35000, desc: 'Потрескивающие дрова и тепло.', bonus: '+20% к пассивному AFK 🛋️' },
+      { id: 'window', name: 'Панорамное окно', icon: '🪟', price: 100000, desc: 'Вид на ночной звёздный город.', bonus: '+50% ко ВСЕМУ доходу 🌌' }
+    ];
+
+    // --- Каталог Зелий (Crafting / Potions) ---
+    const potionsCatalog = [
+      { id: 'energy', name: 'Кошачий Энергетик', icon: '⚡', price: 800, duration: 120, desc: 'Утраивает пассивный AFK доход (x3) на 2 минуты!', bonus: 'x3 Пассивный доход ⚡' },
+      { id: 'magnet', name: 'Рыбный Магнит', icon: '🧲', price: 1500, duration: 120, desc: 'Удваивает рыбки от тапов и бабочек на 2 минуты!', bonus: 'x2 Клики и Бабочки 🧲' },
+      { id: 'bite', name: 'Эликсир «Супер-Кусь»', icon: '💥', price: 3000, duration: 60, desc: 'Увеличивает урон по боссам в 5 раз на 1 минуту!', bonus: 'x5 Урон по боссам 💥' }
+    ];
 
     // --- Каталог Боссов ---
     const bossCatalog = [
@@ -1191,8 +1306,113 @@
       const cx = canvas.width / 2;
       const cy = canvas.height / 2 + 35;
 
+      // 1. Декор: Панорамное окно (звездное небо)
+      if (state.ownedRoomDecor.includes('window')) {
+        ctx.save();
+        for (let i = 0; i < 15; i++) {
+          const starX = (Math.sin(i * 99 + catAnimTime * 0.2) * 0.5 + 0.5) * canvas.width;
+          const starY = (Math.cos(i * 33 + catAnimTime * 0.2) * 0.5 + 0.5) * 120;
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(241, 250, 140, 0.6)' : 'rgba(139, 233, 253, 0.6)';
+          ctx.beginPath();
+          ctx.arc(starX, starY, (i % 3) + 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 2. Декор: Неоновая гирлянда сверху
+      if (state.ownedRoomDecor.includes('garland')) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 15);
+        ctx.quadraticCurveTo(canvas.width / 2, 45, canvas.width - 10, 15);
+        ctx.stroke();
+
+        const bulbColors = ['#ff79c6', '#8be9fd', '#50fa7b', '#f1fa8c', '#ffb86c', '#bd93f9'];
+        for (let i = 0; i < 7; i++) {
+          const t = i / 6;
+          const bx = 10 + t * (canvas.width - 20);
+          const by = 15 + Math.sin(t * Math.PI) * 22;
+          const color = bulbColors[i % bulbColors.length];
+          const blink = Math.sin(catAnimTime * 4 + i) > 0;
+          ctx.fillStyle = blink ? color : 'rgba(255, 255, 255, 0.2)';
+          ctx.shadowColor = color;
+          ctx.shadowBlur = blink ? 10 : 0;
+          ctx.beginPath();
+          ctx.arc(bx, by, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 3. Декор: Камин слева
+      if (state.ownedRoomDecor.includes('fireplace')) {
+        ctx.save();
+        ctx.fillStyle = '#442211';
+        ctx.fillRect(14, canvas.height - 95, 55, 65);
+        ctx.fillStyle = '#110c08';
+        ctx.fillRect(22, canvas.height - 75, 39, 45);
+        // Пламя
+        const flameH = 18 + Math.sin(catAnimTime * 12) * 5;
+        ctx.fillStyle = '#ff5555';
+        ctx.beginPath();
+        ctx.moveTo(32, canvas.height - 30);
+        ctx.lineTo(41, canvas.height - 30 - flameH);
+        ctx.lineTo(50, canvas.height - 30);
+        ctx.fill();
+        ctx.fillStyle = '#f1fa8c';
+        ctx.beginPath();
+        ctx.arc(41, canvas.height - 30 - flameH * 0.5, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 4. Декор: Растение справа
+      if (state.ownedRoomDecor.includes('plant')) {
+        ctx.save();
+        ctx.fillStyle = '#c0392b';
+        ctx.fillRect(canvas.width - 60, canvas.height - 65, 36, 32);
+        ctx.fillStyle = '#2ecc71';
+        ctx.beginPath();
+        ctx.arc(canvas.width - 42, canvas.height - 75, 18, 0, Math.PI * 2);
+        ctx.arc(canvas.width - 52, canvas.height - 85, 12, 0, Math.PI * 2);
+        ctx.arc(canvas.width - 32, canvas.height - 85, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
       ctx.save();
       ctx.translate(cx, cy);
+
+      // Декор: Персидский коврик под котиком
+      if (state.ownedRoomDecor.includes('rug')) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 121, 198, 0.35)';
+        ctx.strokeStyle = '#f1fa8c';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 75, 110, 32, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Аура активных зелий
+      const now = Date.now();
+      const hasPotion = (state.activePotions.energy > now) || (state.activePotions.magnet > now) || (state.activePotions.bite > now);
+      if (hasPotion) {
+        ctx.save();
+        ctx.strokeStyle = state.activePotions.bite > now ? '#ff5555' : (state.activePotions.energy > now ? '#f1fa8c' : '#8be9fd');
+        ctx.lineWidth = 3;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(0, 10, 105 + Math.sin(catAnimTime * 6) * 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (state.livesLevel > 1) {
         ctx.save();
@@ -1494,6 +1714,13 @@
       saveGame();
     }
 
+    function getRoomMultiplier() {
+      let mult = 1.0;
+      if (state.ownedRoomDecor.includes('rug')) mult += 0.05;
+      if (state.ownedRoomDecor.includes('window')) mult += 0.50;
+      return mult;
+    }
+
     function calculateClickPower() {
       let p = 1;
       upgradesClickConfig.forEach(u => {
@@ -1501,8 +1728,11 @@
       });
       if (state.equippedSkin === 'wizard') p *= 2;
       if (state.equippedSkin === 'unicorn') p *= 3;
+      if (state.ownedRoomDecor.includes('garland')) p *= 1.10;
       p *= state.livesLevel;
-      return p;
+      p *= getRoomMultiplier();
+      if (state.activePotions && state.activePotions.magnet > Date.now()) p *= 2;
+      return Math.floor(p);
     }
 
     function calculatePassive() {
@@ -1513,8 +1743,11 @@
       if (state.equippedSkin === 'cosmonaut') total = Math.floor(total * 1.5);
       if (state.equippedSkin === 'unicorn') total = Math.floor(total * 3.0);
       if (state.livesLevel >= 2) total += 10;
+      if (state.ownedRoomDecor.includes('fireplace')) total = Math.floor(total * 1.20);
       total *= state.livesLevel;
-      state.passivePerSec = total;
+      total *= getRoomMultiplier();
+      if (state.activePotions && state.activePotions.energy > Date.now()) total *= 3;
+      state.passivePerSec = Math.floor(total);
     }
 
     function getUpgradePrice(u) {
@@ -1596,6 +1829,7 @@
     function scheduleButterfly() {
       let delay = 45000 + Math.random() * 30000;
       if (state.unlockedKittens.includes('princess')) delay /= 2;
+      if (state.ownedRoomDecor.includes('plant')) delay *= 0.85;
 
       setTimeout(() => {
         spawnButterfly();
@@ -1839,12 +2073,102 @@
       document.getElementById('subtab-click').classList.toggle('active', cat === 'click');
       document.getElementById('subtab-passive').classList.toggle('active', cat === 'passive');
       document.getElementById('subtab-kittens').classList.toggle('active', cat === 'kittens');
+      document.getElementById('subtab-room').classList.toggle('active', cat === 'room');
+      document.getElementById('subtab-potions').classList.toggle('active', cat === 'potions');
       renderShop();
+    }
+
+    function buyRoomDecor(id) {
+      initAudio();
+      const d = roomDecorCatalog.find(x => x.id === id);
+      if (!d || state.ownedRoomDecor.includes(id)) return;
+      let price = d.price;
+      if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
+
+      if (state.fish >= price) {
+        state.fish -= price;
+        state.ownedRoomDecor.push(id);
+        playSound('victory');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        calculatePassive();
+        renderShop();
+        updateUI();
+        saveGame();
+      }
+    }
+
+    function brewPotion(id) {
+      initAudio();
+      const p = potionsCatalog.find(x => x.id === id);
+      if (!p) return;
+      let price = p.price;
+      if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
+
+      if (state.fish >= price) {
+        state.fish -= price;
+        const now = Date.now();
+        const cur = state.activePotions[id] > now ? state.activePotions[id] : now;
+        state.activePotions[id] = cur + (p.duration * 1000);
+        playSound('buy');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        calculatePassive();
+        renderShop();
+        renderActivePotionsBar();
+        updateUI();
+        saveGame();
+      }
     }
 
     function renderShop() {
       const grid = document.getElementById('shop-grid');
       grid.innerHTML = '';
+
+      if (currentShopSubtab === 'room') {
+        roomDecorCatalog.forEach(d => {
+          const isOwned = state.ownedRoomDecor.includes(d.id);
+          let price = d.price;
+          if (state.equippedSkin === 'king' && !isOwned) price = Math.floor(price * 0.75);
+
+          const card = document.createElement('div');
+          card.className = `card ${isOwned ? 'owned' : ''}`;
+          card.innerHTML = `
+            <div class="card-icon">${d.icon}</div>
+            <div class="card-title">${d.name}</div>
+            <div class="card-desc">${d.desc}</div>
+            <div style="font-size:11px; color:#f1fa8c; font-weight:bold;">${d.bonus}</div>
+            ${!isOwned ? `<div class="card-price">${price.toLocaleString('ru-RU')} 🐟</div>` : ''}
+            <button class="card-btn" ${isOwned || state.fish < price ? 'disabled' : ''} onclick="buyRoomDecor('${d.id}')">
+              ${isOwned ? 'УСТАНОВЛЕНО 🛋️' : 'ОБУСТРОИТЬ 🏠'}
+            </button>
+          `;
+          grid.appendChild(card);
+        });
+        return;
+      }
+
+      if (currentShopSubtab === 'potions') {
+        const now = Date.now();
+        potionsCatalog.forEach(p => {
+          const isAct = state.activePotions[p.id] > now;
+          let price = p.price;
+          if (state.equippedSkin === 'king') price = Math.floor(price * 0.75);
+
+          const card = document.createElement('div');
+          card.className = `card ${isAct ? 'owned' : ''}`;
+          card.innerHTML = `
+            <div class="card-icon">${p.icon}</div>
+            <div class="card-title">${p.name}</div>
+            <div class="card-desc">${p.desc}</div>
+            <div style="font-size:11px; color:#50fa7b; font-weight:bold;">${p.bonus}</div>
+            <div class="card-price">${price.toLocaleString('ru-RU')} 🐟</div>
+            <button class="card-btn" ${state.fish < price ? 'disabled' : ''} onclick="brewPotion('${p.id}')">
+              ${isAct ? 'ПРОДЛИТЬ 🧪' : 'СВАРИТЬ 🧪'}
+            </button>
+          `;
+          grid.appendChild(card);
+        });
+        return;
+      }
 
       if (currentShopSubtab === 'kittens') {
         kittensCatalog.forEach(k => {
@@ -1981,6 +2305,7 @@
 
       let dmg = calculateClickPower();
       if (state.unlockedKittens.includes('coal')) dmg += 25;
+      if (state.activePotions && state.activePotions.bite > Date.now()) dmg *= 5;
 
       if (state.equippedSkin === 'pirate' && Math.random() < 0.20) {
         dmg *= 10;
@@ -2032,11 +2357,35 @@
     }
 
     // --- Обновление интерфейса ---
+    function renderActivePotionsBar() {
+      const container = document.getElementById('active-potions-bar');
+      if (!container) return;
+      container.innerHTML = '';
+      const now = Date.now();
+
+      Object.keys(state.activePotions).forEach(id => {
+        const exp = state.activePotions[id];
+        if (exp > now) {
+          const secLeft = Math.ceil((exp - now) / 1000);
+          const m = Math.floor(secLeft / 60);
+          const s = secLeft % 60;
+          const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
+          const potion = potionsCatalog.find(p => p.id === id);
+
+          const pill = document.createElement('div');
+          pill.className = `potion-pill ${id}`;
+          pill.innerHTML = `<span>${potion.icon}</span> <span>${potion.name} (${timeStr})</span>`;
+          container.appendChild(pill);
+        }
+      });
+    }
+
     function updateUI() {
       document.getElementById('fish-count').innerText = Math.floor(state.fish).toLocaleString('ru-RU');
       document.getElementById('per-sec-val').innerText = state.passivePerSec.toLocaleString('ru-RU');
       document.getElementById('per-click-val').innerText = calculateClickPower().toLocaleString('ru-RU');
       document.getElementById('lives-val').innerText = state.livesLevel;
+      renderActivePotionsBar();
 
       let lvl = 'Гостиная 🛋️';
       if (state.totalEarned > 100000) lvl = 'Космос 🌌';
@@ -2056,12 +2405,130 @@
       currentGameMode = mode;
       document.getElementById('subtab-fishing').classList.toggle('active', mode === 'fishing');
       document.getElementById('subtab-mouse').classList.toggle('active', mode === 'mouse');
+      document.getElementById('subtab-laser').classList.toggle('active', mode === 'laser');
 
       document.getElementById('game-view-fishing').style.display = mode === 'fishing' ? 'block' : 'none';
       document.getElementById('game-view-mouse').style.display = mode === 'mouse' ? 'block' : 'none';
+      document.getElementById('game-view-laser').style.display = mode === 'laser' ? 'block' : 'none';
 
       document.getElementById('game-score').innerText = '0';
       document.getElementById('game-timer').innerText = '30';
+    }
+
+    // 3. Мини-игра «Охота за Лазерной Точкой»
+    let laserGameActive = false;
+    let laserGameScore = 0;
+    let laserGameTime = 30;
+    let laserGameInterval = null;
+    let laserAnimFrame = null;
+    let laserX = 150, laserY = 150;
+    let laserVx = 4, laserVy = 3.5;
+    let laserCombo = 1;
+    let laserComboTimer = null;
+
+    function startLaserGame() {
+      initAudio();
+      document.getElementById('laser-start-screen').style.display = 'none';
+      const dot = document.getElementById('laser-dot');
+      const comboBadge = document.getElementById('laser-combo-badge');
+      dot.style.display = 'block';
+      comboBadge.style.display = 'block';
+
+      laserGameActive = true;
+      laserGameScore = 0;
+      laserGameTime = 30;
+      laserCombo = 1;
+      laserX = 150; laserY = 150;
+      laserVx = (Math.random() > 0.5 ? 4.5 : -4.5);
+      laserVy = (Math.random() > 0.5 ? 4.0 : -4.0);
+
+      document.getElementById('game-score').innerText = '0';
+      document.getElementById('game-timer').innerText = '30';
+      comboBadge.innerText = 'COMBO x1 ⚡';
+
+      laserGameInterval = setInterval(() => {
+        laserGameTime--;
+        document.getElementById('game-timer').innerText = laserGameTime;
+        if (laserGameTime <= 0) endLaserGame();
+      }, 1000);
+
+      runLaserPhysics();
+    }
+
+    function runLaserPhysics() {
+      if (!laserGameActive) return;
+      const area = document.getElementById('laser-area');
+      const maxX = area.clientWidth - 20;
+      const maxY = area.clientHeight - 20;
+
+      laserX += laserVx;
+      laserY += laserVy;
+
+      if (laserX <= 15) { laserX = 15; laserVx = Math.abs(laserVx); }
+      else if (laserX >= maxX) { laserX = maxX; laserVx = -Math.abs(laserVx); }
+
+      if (laserY <= 15) { laserY = 15; laserVy = Math.abs(laserVy); }
+      else if (laserY >= maxY) { laserY = maxY; laserVy = -Math.abs(laserVy); }
+
+      const dot = document.getElementById('laser-dot');
+      dot.style.left = laserX + 'px';
+      dot.style.top = laserY + 'px';
+
+      laserAnimFrame = requestAnimationFrame(runLaserPhysics);
+    }
+
+    function hitLaserDot(e) {
+      if (!laserGameActive) return;
+      initAudio();
+      playSound('squeak');
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+      const pts = 20 * laserCombo;
+      laserGameScore += pts;
+      document.getElementById('game-score').innerText = laserGameScore;
+
+      if (laserCombo < 10) laserCombo++;
+      const comboBadge = document.getElementById('laser-combo-badge');
+      comboBadge.innerText = `COMBO x${laserCombo} 🔥`;
+      comboBadge.style.color = laserCombo >= 5 ? '#f1fa8c' : '#ff79c6';
+
+      clearTimeout(laserComboTimer);
+      laserComboTimer = setTimeout(() => {
+        laserCombo = 1;
+        if (comboBadge) comboBadge.innerText = 'COMBO x1 ⚡';
+      }, 1800);
+
+      laserVx = (Math.random() > 0.5 ? 1 : -1) * (4.5 + Math.min(6, laserCombo * 0.5));
+      laserVy = (Math.random() > 0.5 ? 1 : -1) * (4.5 + Math.min(6, laserCombo * 0.5));
+
+      const area = document.getElementById('laser-area');
+      const rect = area.getBoundingClientRect();
+      const popupX = e.clientX || (rect.left + laserX);
+      const popupY = e.clientY || (rect.top + laserY);
+      spawnTapPopup(popupX, popupY, `💥 +${pts}`, '#ff1744');
+    }
+
+    function endLaserGame() {
+      laserGameActive = false;
+      clearInterval(laserGameInterval);
+      cancelAnimationFrame(laserAnimFrame);
+      playSound('victory');
+
+      const dot = document.getElementById('laser-dot');
+      const comboBadge = document.getElementById('laser-combo-badge');
+      if (dot) dot.style.display = 'none';
+      if (comboBadge) comboBadge.style.display = 'none';
+
+      const finalReward = laserGameScore * state.livesLevel;
+      addFish(finalReward);
+      if (laserGameScore > (state.laserHighScore || 0)) {
+        state.laserHighScore = laserGameScore;
+      }
+      saveGame();
+
+      alert(`🎉 ОХОТА НА ЛАЗЕР ЗАВЕРШЕНА!
+Ты набрал ${laserGameScore} очков и заработал: +${finalReward.toLocaleString('ru-RU')} 🐟!`);
+      document.getElementById('laser-start-screen').style.display = 'block';
     }
 
     // 1. Мини-игра «Рыбалка»
@@ -2388,6 +2855,23 @@
           suffix: ' очков',
           isMe: true
         });
+      } else if (currentLbCategory === 'laser') {
+        const competitors = [
+          { name: 'Ниндзя Мурзик', avatar: '🥷', league: 'Молниеносный коготь', score: 550, suffix: ' очков' },
+          { name: 'Лорд Пушок', avatar: '🦄', league: 'Лазерный Снайпер', score: 480, suffix: ' очков' },
+          { name: 'Капитан Усик', avatar: '🏴‍☠️', league: 'Охотник за лучом', score: 360, suffix: ' очков' },
+          { name: 'Шериф Кис-Кис', avatar: '🤠', league: 'Меткая лапа', score: 240, suffix: ' очков' },
+          { name: 'Барсик Шустрый', avatar: '🐱', league: 'Игривый котик', score: 130, suffix: ' очков' }
+        ];
+        items = competitors.map(c => ({ ...c, isMe: false }));
+        items.push({
+          name: pName,
+          avatar: pAvatar,
+          league: 'Твой рекорд',
+          score: state.laserHighScore || 0,
+          suffix: ' очков',
+          isMe: true
+        });
       } else if (currentLbCategory === 'fishing') {
         const competitors = [
           { name: 'Капитан Усик', avatar: '🏴‍☠️', league: 'Морской Волк', score: 380, suffix: ' очков' },
@@ -2450,6 +2934,7 @@
       const pMouseScore = state.mouseHighScore || 0;
       const pFishScore = state.fishingHighScore || 0;
 
+      const pLaserScore = state.laserHighScore || 0;
       const text = `🐱 Мой котик в Кото-Тапалке!
 ` +
         `🐟 Собрано рыбок: ${pTotalFish}
@@ -2459,6 +2944,8 @@
         `⚔️ Боссов побеждено: ${pBossesCount}/5
 ` +
         `🐭 Рекорд ловли мышек: ${pMouseScore} очков
+` +
+        `🔴 Рекорд в лазере: ${pLaserScore} очков
 ` +
         `🎣 Рекорд рыбалки: ${pFishScore} очков
 
@@ -2482,6 +2969,8 @@
       if (bossInterval) clearInterval(bossInterval);
       if (fishGameInterval) clearInterval(fishGameInterval);
       if (mouseGameInterval) clearInterval(mouseGameInterval);
+      if (laserGameInterval) clearInterval(laserGameInterval);
+      if (laserAnimFrame) cancelAnimationFrame(laserAnimFrame);
     }
 
     // --- Пассивный доход в секунду ---
