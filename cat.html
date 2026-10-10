@@ -1335,6 +1335,7 @@
       const cy = canvas.height / 2 + 35;
 
       const decorList = Array.isArray(state.ownedRoomDecor) ? state.ownedRoomDecor : [];
+      const upg = state.upgrades || {};
 
       // 1. Декор: Панорамное окно (звездное небо)
       if (decorList.includes('window')) {
@@ -1350,7 +1351,106 @@
         ctx.restore();
       }
 
-      // 2. Декор: Неоновая гирлянда сверху
+      // 2. Улучшение: Кошачий замок / Особняк (Фон)
+      if (upg.mansion > 0) {
+        ctx.save();
+        ctx.fillStyle = '#3b3254';
+        ctx.fillRect(canvas.width / 2 - 120, 50, 48, 55);
+        ctx.fillStyle = '#ff79c6';
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2 - 125, 50);
+        ctx.lineTo(canvas.width / 2 - 96, 22);
+        ctx.lineTo(canvas.width / 2 - 67, 50);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#f1fa8c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2 - 96, 22);
+        ctx.lineTo(canvas.width / 2 - 96, 10);
+        ctx.lineTo(canvas.width / 2 - 82, 16);
+        ctx.lineTo(canvas.width / 2 - 96, 20);
+        ctx.fillStyle = '#f1fa8c';
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 3. Улучшение: Кошачье дерево (Фон слева)
+      if (upg.tree > 0) {
+        ctx.save();
+        ctx.fillStyle = '#795548';
+        ctx.fillRect(20, 95, 12, 120);
+        ctx.fillStyle = '#d7ccc8';
+        ctx.fillRect(10, 205, 32, 10);
+        ctx.fillRect(14, 145, 25, 8);
+        ctx.fillRect(16, 90, 30, 10);
+        // Висящий шарик на веревочке
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        const ballSwing = Math.sin(catAnimTime * 3) * 4;
+        ctx.beginPath();
+        ctx.moveTo(42, 98);
+        ctx.lineTo(42 + ballSwing, 120);
+        ctx.stroke();
+        ctx.fillStyle = '#ff79c6';
+        ctx.beginPath();
+        ctx.arc(42 + ballSwing, 123, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 4. Улучшение: Золотая когтеточка (Справа)
+      if (upg.post > 0) {
+        ctx.save();
+        const postX = canvas.width - 70;
+        const postY = canvas.height - 110;
+        ctx.fillStyle = '#f1fa8c';
+        ctx.strokeStyle = '#ffb86c';
+        ctx.lineWidth = 2;
+        ctx.fillRect(postX, postY, 14, 75);
+        ctx.strokeRect(postX, postY, 14, 75);
+        ctx.fillStyle = '#ffb86c';
+        ctx.fillRect(postX - 7, postY + 70, 28, 8);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(postX + 7, postY + 20, 2, 0, Math.PI * 2);
+        ctx.arc(postX + 7, postY + 50, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 5. Улучшение: Аквариум с плавающей рыбкой (Справа на полу)
+      if (upg.aquarium > 0) {
+        ctx.save();
+        const aqX = canvas.width - 40;
+        const aqY = canvas.height - 85;
+        ctx.fillStyle = 'rgba(139, 233, 253, 0.45)';
+        ctx.strokeStyle = '#8be9fd';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(aqX, aqY, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.fillRect(aqX - 10, aqY - 22, 20, 3.5);
+        // Плавающая рыбка
+        const fX = aqX + Math.sin(catAnimTime * 3) * 6;
+        const fY = aqY + Math.cos(catAnimTime * 2) * 3;
+        ctx.fillStyle = '#ff9f43';
+        ctx.beginPath();
+        ctx.ellipse(fX, fY, 5.5, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(fX + 4, fY);
+        ctx.lineTo(fX + 8, fY - 2.5);
+        ctx.lineTo(fX + 8, fY + 2.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 6. Декор: Неоновая гирлянда сверху
       if (decorList.includes('garland')) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
@@ -1377,7 +1477,7 @@
         ctx.restore();
       }
 
-      // 3. Декор: Камин слева
+      // 7. Декор: Камин слева
       if (decorList.includes('fireplace')) {
         ctx.save();
         ctx.fillStyle = '#442211';
@@ -1398,7 +1498,7 @@
         ctx.restore();
       }
 
-      // 4. Декор: Растение справа
+      // 8. Декор: Растение справа
       if (decorList.includes('plant')) {
         ctx.save();
         ctx.fillStyle = '#c0392b';
@@ -1424,6 +1524,87 @@
         ctx.beginPath();
         ctx.ellipse(0, 75, 110, 32, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Улучшение: Робот-пылесос (котик восседает на нем)
+      if (upg.vacuum > 0) {
+        ctx.save();
+        ctx.fillStyle = '#282a36';
+        ctx.strokeStyle = '#6272a4';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 78, 82, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        const ledBlink = Math.sin(catAnimTime * 5) > 0;
+        ctx.fillStyle = ledBlink ? '#50fa7b' : '#00ffff';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(0, 90, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Улучшение: Мисочка с кормом / рыбкой / мятой
+      if (upg.feeder > 0 || upg.fish_treat > 0 || upg.mint > 0) {
+        ctx.save();
+        ctx.translate(-75, 75);
+        ctx.fillStyle = '#ff79c6';
+        ctx.strokeStyle = '#bd93f9';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (upg.fish_treat > 0) {
+          ctx.fillStyle = '#8be9fd';
+          ctx.beginPath();
+          ctx.ellipse(0, -2, 10, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (upg.mint > 0) {
+          ctx.fillStyle = '#50fa7b';
+          ctx.beginPath();
+          ctx.arc(-2, -2, 4, 0, Math.PI * 2);
+          ctx.arc(2, -2, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = '#8d6e63';
+          ctx.beginPath();
+          ctx.arc(-4, -2, 2.5, 0, Math.PI * 2);
+          ctx.arc(0, -3, 3, 0, Math.PI * 2);
+          ctx.arc(4, -2, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Улучшение: Заводная мышка (бегает по полу)
+      if (upg.mouse > 0) {
+        ctx.save();
+        const mX = Math.sin(catAnimTime * 2.2) * 50;
+        const mY = 82 + Math.cos(catAnimTime * 4.4) * 3;
+        const dir = Math.cos(catAnimTime * 2.2) >= 0 ? 1 : -1;
+        ctx.translate(mX, mY);
+        ctx.scale(dir, 1);
+        ctx.fillStyle = '#9e9e9e';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 9, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff80ab';
+        ctx.beginPath(); ctx.arc(-2, -4, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(7, 0, 1.2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#f1fa8c';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-2, -5);
+        ctx.lineTo(-2, -9);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-2, -10, 2.5, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -1459,10 +1640,12 @@
       ctx.scale(catScaleX * 1.1, catScaleY * 1.1);
 
       // Тень
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      ctx.beginPath();
-      ctx.ellipse(0, 75, 70, 18, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (upg.vacuum <= 0) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.beginPath();
+        ctx.ellipse(0, 75, 70, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Хвост
       ctx.save();
@@ -1560,12 +1743,60 @@
         ctx.fill();
       }
 
-      // Лапки
+      // Лапки котика
       ctx.fillStyle = '#fff5ea';
       ctx.beginPath();
       ctx.ellipse(-26, 68, 14, 10, 0, 0, Math.PI * 2);
       ctx.ellipse(26, 68, 14, 10, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // Коготки на лапках (Острые / Лазерные / Алмазные)
+      if (upg.claws > 0 || upg.laser_paws > 0 || upg.diamond_claws > 0) {
+        [-26, 26].forEach(px => {
+          ctx.save();
+          ctx.translate(px, 73);
+          for (let c = -1; c <= 1; c++) {
+            const cxOffset = c * 4.5;
+            if (upg.diamond_claws > 0) {
+              ctx.fillStyle = '#8be9fd';
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(cxOffset, 0);
+              ctx.lineTo(cxOffset - 2, 3.5);
+              ctx.lineTo(cxOffset, 7);
+              ctx.lineTo(cxOffset + 2, 3.5);
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+              if (Math.sin(catAnimTime * 6 + c) > 0.5) {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(cxOffset, 7, 1.2, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            } else if (upg.laser_paws > 0) {
+              ctx.strokeStyle = '#00ffff';
+              ctx.shadowColor = '#00ffff';
+              ctx.shadowBlur = 6;
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(cxOffset, 0);
+              ctx.lineTo(cxOffset, 5);
+              ctx.stroke();
+            } else if (upg.claws > 0) {
+              ctx.fillStyle = '#fff';
+              ctx.beginPath();
+              ctx.moveTo(cxOffset - 1.5, 0);
+              ctx.lineTo(cxOffset, 4.5);
+              ctx.lineTo(cxOffset + 1.5, 0);
+              ctx.closePath();
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+        });
+      }
 
       // Скины
       const skin = state.equippedSkin;
