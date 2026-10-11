@@ -936,36 +936,49 @@
     #moles-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 16px 12px;
       width: 100%;
-      height: 360px;
+      max-width: 330px;
+      margin: 0 auto;
       background: #2a2015;
-      padding: 16px;
-      border-radius: 16px;
+      padding: 18px 12px;
+      border-radius: 20px;
       border: 3px solid #573b22;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.85), 0 6px 16px rgba(0,0,0,0.4);
+      box-sizing: border-box;
+      align-content: center;
     }
     .mole-hole {
-      background: #110c08;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-width: 90px;
+      margin: 0 auto;
+      background: radial-gradient(circle at 50% 40%, #1a120c 0%, #0d0805 75%, #050302 100%);
       border-radius: 50%;
-      border: 3px solid #3d2918;
+      border: 3.5px solid #4a321d;
       position: relative;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: flex-end;
-      box-shadow: inset 0 10px 15px rgba(0,0,0,0.9);
+      box-shadow: inset 0 12px 18px rgba(0,0,0,0.95), 0 3px 6px rgba(0,0,0,0.4);
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     .mole-character {
-      font-size: 42px;
+      font-size: 44px;
       position: absolute;
-      bottom: -60px;
-      transition: bottom 0.12s ease-out;
+      bottom: -65px;
+      transition: bottom 0.14s cubic-bezier(0.18, 0.89, 0.32, 1.28);
       cursor: pointer;
       user-select: none;
+      pointer-events: none;
+      line-height: 1;
     }
     .mole-character.up {
-      bottom: 6px;
+      bottom: 8px;
     }
 
     /* Окно оффлайн дохода / Престижа */
@@ -1692,12 +1705,12 @@
         <button class="card-btn" style="padding:12px 30px; font-size:16px;" onclick="startMouseGame()">ИГРАТЬ СНОВА 🐭</button>
       </div>
       <div id="moles-grid">
-        <div class="mole-hole"><div class="mole-character" id="mole-0" onclick="hitMole(0)">🐭</div></div>
-        <div class="mole-hole"><div class="mole-character" id="mole-1" onclick="hitMole(1)">🐭</div></div>
-        <div class="mole-hole"><div class="mole-character" id="mole-2" onclick="hitMole(2)">🐭</div></div>
-        <div class="mole-hole"><div class="mole-character" id="mole-3" onclick="hitMole(3)">🐭</div></div>
-        <div class="mole-hole"><div class="mole-character" id="mole-4" onclick="hitMole(4)">🐭</div></div>
-        <div class="mole-hole"><div class="mole-character" id="mole-5" onclick="hitMole(5)">🐭</div></div>
+        <div class="mole-hole" id="mole-hole-0" onpointerdown="hitMole(0, event)" onclick="hitMole(0, event)"><div class="mole-character" id="mole-0">🐭</div></div>
+        <div class="mole-hole" id="mole-hole-1" onpointerdown="hitMole(1, event)" onclick="hitMole(1, event)"><div class="mole-character" id="mole-1">🐭</div></div>
+        <div class="mole-hole" id="mole-hole-2" onpointerdown="hitMole(2, event)" onclick="hitMole(2, event)"><div class="mole-character" id="mole-2">🐭</div></div>
+        <div class="mole-hole" id="mole-hole-3" onpointerdown="hitMole(3, event)" onclick="hitMole(3, event)"><div class="mole-character" id="mole-3">🐭</div></div>
+        <div class="mole-hole" id="mole-hole-4" onpointerdown="hitMole(4, event)" onclick="hitMole(4, event)"><div class="mole-character" id="mole-4">🐭</div></div>
+        <div class="mole-hole" id="mole-hole-5" onpointerdown="hitMole(5, event)" onclick="hitMole(5, event)"><div class="mole-character" id="mole-5">🐭</div></div>
       </div>
     </div>
 
@@ -7037,7 +7050,7 @@
         if (mouseGameTime <= 0) endMouseGame();
       }, 1000);
 
-      mousePopInterval = GameEnv.setInterval(popRandomMole, 550);
+      mousePopInterval = GameEnv.setInterval(popRandomMole, 850);
     }
 
     function popRandomMole() {
@@ -7073,7 +7086,8 @@
       }
     }
 
-    function hitMole(index) {
+    function hitMole(index, e) {
+      if (e && e.stopPropagation) e.stopPropagation();
       if (!mouseGameActive || index !== activeMoleIndex) return;
       initAudio();
 
@@ -7083,20 +7097,33 @@
       moleEl.classList.remove('up');
       activeMoleIndex = -1;
 
+      let label = '';
+      let color = '#50fa7b';
       if (moleType === 'bomb') {
         mouseGameScore = Math.max(0, mouseGameScore - 60);
         playSound('hit');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        label = '💣 -60';
+        color = '#ff5555';
       } else if (moleType === 'hedgehog') {
         mouseGameScore = Math.max(0, mouseGameScore - 30);
         playSound('hit');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        label = '🦔 -30';
+        color = '#ffb86c';
       } else {
         const pts = moleType === 'gold' ? 45 : 12;
         mouseGameScore += pts;
         playSound('squeak');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        label = moleType === 'gold' ? `⚡ +${pts}` : `🐭 +${pts}`;
+        color = moleType === 'gold' ? '#f1fa8c' : '#50fa7b';
       }
+
+      const rect = moleEl.getBoundingClientRect();
+      const popupX = (e && typeof e.clientX === 'number' && e.clientX > 0) ? e.clientX : (rect.left + rect.width / 2);
+      const popupY = (e && typeof e.clientY === 'number' && e.clientY > 0) ? e.clientY : (rect.top - 10);
+      spawnTapPopup(popupX, popupY, label, color);
 
       document.getElementById('game-score').innerText = mouseGameScore;
     }
