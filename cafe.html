@@ -1171,12 +1171,16 @@
       verandaDecor: 0,
       featuredDish: 'coffee',
       gourmetsServed: 0,
+      gourmetEarned: 0,
       seenHints: {},
       gourmetEventsCount: 0
     };
 
     // --- 5. Локальный PRNG для декоративных частиц (не засоряет системный RNG) ---
     let cafeParticleSeed = 0x5a17e8b9;
+    function setCafeSeed(seed) {
+      cafeParticleSeed = seed >>> 0;
+    }
     function cafeRandom() {
       let t = (cafeParticleSeed += 0x6D2B79F5);
       t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -1327,6 +1331,7 @@
             state.verandaDecor = typeof parsed.verandaDecor === 'number' ? parsed.verandaDecor : 0;
             state.featuredDish = typeof parsed.featuredDish === 'string' ? parsed.featuredDish : 'coffee';
             state.gourmetsServed = typeof parsed.gourmetsServed === 'number' ? parsed.gourmetsServed : 0;
+            state.gourmetEarned = typeof parsed.gourmetEarned === 'number' ? parsed.gourmetEarned : 0;
             state.seenHints = parsed.seenHints || {};
             state.gourmetEventsCount = typeof parsed.gourmetEventsCount === 'number'
               ? parsed.gourmetEventsCount
@@ -2117,6 +2122,7 @@
             state.ordersServed++;
             if (c.isVIP) {
               state.gourmetsServed = (state.gourmetsServed || 0) + 1;
+              state.gourmetEarned = (state.gourmetEarned || 0) + earnedCoins;
             }
 
             playSound(c.isVIP ? 'upgrade' : 'coin');
@@ -2215,6 +2221,46 @@
           visualParticles.splice(i, 1);
         }
       }
+    }
+
+    // Сброс и детерминированная инициализация для симулятора и верификации баланса
+    function resetSimulationState(options = {}) {
+      state.coins = 0;
+      state.totalEarned = 0;
+      state.ordersServed = 0;
+      state.gourmetsServed = 0;
+      state.gourmetEarned = 0;
+      state.gourmetEventsCount = 0;
+      state.seenHints = {};
+      state.claimedQuests = [];
+      state.expansion = 0;
+      state.verandaDecor = 0;
+      state.upgrades.menu = options.menuLevel || 4;
+      state.upgrades.speed = options.stoveLevel || 1;
+      state.upgrades.helper = options.hasHelper ? 1 : 0;
+      state.upgrades.profit = options.profitLevel || 1;
+      state.upgrades.seats = options.seatsLevel || 1;
+      state.featuredDish = options.featuredDish || 'coffee';
+
+      if (typeof options.seed === 'number') {
+        setCafeSeed(options.seed);
+      }
+
+      customers.length = 0;
+      customerIdCounter = 1;
+      nextCustomerSpawnTimer = 0.5;
+      isGourmetPending = false;
+      gourmetSpawnTimer = getNextGourmetInterval();
+
+      cookingStations.forEach(st => {
+        st.isCooking = false;
+        st.dish = null;
+        st.targetCustomer = null;
+        st.progress = 0;
+        st.isFeaturedOrder = false;
+      });
+      visualParticles.length = 0;
+      updateStationPositions();
     }
 
     // Тап по игровому полю (принятие VIP заказа, ускорение готовки шефа или ласка котика)
@@ -3270,6 +3316,8 @@
         getCookTimeMultiplier,
         getDishCookTime,
         getEffectiveCookTime,
+        resetSimulationState,
+        setCafeSeed,
         checkOfflineEarnings,
         claimOfflineEarnings,
         formatOrdersCount,
