@@ -875,7 +875,8 @@
       },
       claimedQuests: [],
       expansion: 0,
-      seenHints: {}
+      seenHints: {},
+      gourmetEventsCount: 0
     };
 
     // --- 5. Локальный PRNG для декоративных частиц (не засоряет системный RNG) ---
@@ -1028,6 +1029,9 @@
             state.claimedQuests = Array.isArray(parsed.claimedQuests) ? parsed.claimedQuests : [];
             state.expansion = typeof parsed.expansion === 'number' ? parsed.expansion : 0;
             state.seenHints = parsed.seenHints || {};
+            state.gourmetEventsCount = typeof parsed.gourmetEventsCount === 'number'
+              ? parsed.gourmetEventsCount
+              : ((parsed.seenHints && parsed.seenHints.gourmet) ? 1 : 0);
           }
         }
       } catch (e) {
@@ -1430,12 +1434,19 @@
       { id: 'calico', fur: '#ffe0b2', ear: '#e65100', stripe: '#5d4037', eye: '#388e3c' }
     ];
 
-    let gourmetSpawnTimer = 90 + cafeRandom() * 60; // Спавн раз в 90-150 секунд активной игры
+    function getNextGourmetInterval() {
+      // Для нового игрока первое событие через 30-45 секунд активной игры, последующие - через 90-150с
+      const isFirst = (state.gourmetEventsCount || 0) === 0 && !state.seenHints?.gourmet;
+      return isFirst ? (30 + cafeRandom() * 15) : (90 + cafeRandom() * 60);
+    }
+
+    let gourmetSpawnTimer = getNextGourmetInterval();
+    let isGourmetPending = false;
 
     function spawnCustomer(isVIP = false) {
       const maxSeats = getMaxCustomerSeats();
       const currentWaitingCount = customers.filter(c => c.state !== 'leaving').length;
-      if (currentWaitingCount >= maxSeats) return;
+      if (currentWaitingCount >= maxSeats) return false;
 
       // Находим свободное место
       const occupiedSeatIndices = customers
@@ -1449,7 +1460,7 @@
           break;
         }
       }
-      if (freeSeatIndex === -1) return;
+      if (freeSeatIndex === -1) return false;
 
       const seatPos = getSeatPosition(freeSeatIndex);
       const availableDishes = getAvailableDishes();
@@ -1469,6 +1480,8 @@
         state: 'walking_to_seat', // 'walking_to_seat', 'waiting_vip_accept', 'waiting_order', 'eating', 'leaving'
         isVIP: !!isVIP,
         isVipAccepted: false,
+        vipAcceptTimer: 20, // 20 секунд на принятие заказа
+        totalVipAcceptTimer: 20,
         vipTimer: 0,
         totalVipTimer: 0,
         breed,
@@ -1481,18 +1494,27 @@
 
       customers.push(customer);
 
-      if (isVIP && !state.seenHints.gourmet) {
+      if (isVIP) {
+        const isFirstTime = !state.seenHints.gourmet;
         state.seenHints.gourmet = true;
-        showToast('👑 В кафе пришёл кот-гурман! Нажми на золотое облачко, чтобы принять VIP-заказ (x3 🪙)!', 3500);
+        state.gourmetEventsCount = (state.gourmetEventsCount || 0) + 1;
+        saveGame();
+        if (isFirstTime) {
+          showToast('👑 В кафе пришёл кот-гурман! Нажми на золотое облачко, чтобы принять VIP-заказ (x3 🪙)!', 4000);
+        }
       }
+
+      return true;
     }
 
     function acceptVipOrder(cat) {
-      if (!cat || !cat.isVIP || cat.isVipAccepted) return;
+      if (!cat || !cat.isVIP || cat.isVipAccepted || cat.state === 'leaving') return;
       initAudio();
       cat.isVipAccepted = true;
       cat.state = 'waiting_order';
-      // Срок готовки с запасом, гарантированно достижим при текущей скорости готовки
+      // Фактическая формула таймера приготовления:
+      // cookTimeEst = cat.dish.cookTime * getCookTimeMultiplier();
+      // totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
       const cookTimeEst = cat.dish.cookTime * getCookTimeMultiplier();
       cat.totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
       cat.vipTimer = cat.totalVipTimer;
@@ -1533,21 +1555,35 @@
     }
 
     function updateSimulation(dt) {
-      // Спавн обычных посетителей
-      nextCustomerSpawnTimer -= dt;
-      if (nextCustomerSpawnTimer <= 0) {
-        spawnCustomer(false);
-        nextCustomerSpawnTimer = 1.2 + cafeRandom() * 1.5;
+      // 1. Проверка таймера появления гурмана
+      const hasVipNow = customers.some(c => c.isVIP);
+      if (!hasVipNow && !isGourmetPending) {
+        gourmetSpawnTimer -= dt;
+        if (gourmetSpawnTimer <= 0) {
+          isGourmetPending = true;
+        }
       }
 
-      // Спавн кота-гурмана раз в 90-150 секунд активной игры (одновременно не более одного)
-      gourmetSpawnTimer -= dt;
-      if (gourmetSpawnTimer <= 0) {
-        gourmetSpawnTimer = 90 + cafeRandom() * 60;
-        const hasVipNow = customers.some(c => c.isVIP);
-        if (!hasVipNow) {
-          spawnCustomer(true);
+      // 2. Если наступило время события, отдаем свободное место гурману раньше обычного посетителя
+      if (isGourmetPending && !hasVipNow) {
+        const maxSeats = getMaxCustomerSeats();
+        const currentOccupied = customers.filter(c => c.state !== 'leaving').length;
+        if (currentOccupied < maxSeats) {
+          const spawned = spawnCustomer(true);
+          if (spawned) {
+            isGourmetPending = false;
+            gourmetSpawnTimer = getNextGourmetInterval();
+          }
         }
+      }
+
+      // 3. Спавн обычных посетителей (происходит только если гурман не ждет место)
+      nextCustomerSpawnTimer -= dt;
+      if (nextCustomerSpawnTimer <= 0) {
+        if (!isGourmetPending) {
+          spawnCustomer(false);
+        }
+        nextCustomerSpawnTimer = 1.2 + cafeRandom() * 1.5;
       }
 
       // Обновление посетителей
@@ -1564,6 +1600,8 @@
             c.y = c.targetY;
             if (c.isVIP && !c.isVipAccepted) {
               c.state = 'waiting_vip_accept';
+              c.vipAcceptTimer = 20;
+              c.totalVipAcceptTimer = 20;
             } else {
               c.state = 'waiting_order';
             }
@@ -1571,8 +1609,21 @@
             c.x += (dx / dist) * 75 * dt;
             c.y += (dy / dist) * 75 * dt;
           }
+        } else if (c.state === 'waiting_vip_accept') {
+          // Срок принятия особого заказа: 20 секунд
+          if (c.isVIP && !c.isVipAccepted) {
+            c.vipAcceptTimer -= dt;
+            if (c.vipAcceptTimer <= 0) {
+              // Игрок не успел принять заказ за 20 секунд: гурман вежливо уходит без штрафа
+              c.state = 'leaving';
+              c.targetX = canvasWidth + 50;
+              c.targetY = Math.min(canvasHeight - 30, c.y + 35);
+              addVisualParticle(c.x, c.y - 30, '😿 Время вышло...', '#78909c', 'text');
+              showToast('Кот-гурман ушёл: заказ не был принят вовремя ⏳');
+            }
+          }
         } else if (c.state === 'waiting_order') {
-          // Обработка таймера особого заказа гурмана
+          // Обработка таймера особого заказа гурмана (время приготовления)
           if (c.isVIP && c.isVipAccepted) {
             c.vipTimer -= dt;
             if (c.vipTimer <= 0) {
@@ -1580,7 +1631,7 @@
               c.state = 'leaving';
               c.targetX = canvasWidth + 50;
               c.targetY = Math.min(canvasHeight - 30, c.y + 35);
-              addVisualParticle(c.x, c.y - 30, '😿 Время вышло...', '#78909c', 'text');
+              addVisualParticle(c.x, c.y - 30, '😿 Не успели...', '#78909c', 'text');
               showToast('Кот-гурман ушёл, не дождавшись блюда ⏳');
               // Освобождаем станцию готовки, если она готовила для него
               cookingStations.forEach(st => {
@@ -2207,10 +2258,10 @@
 
         // Облачко заказа над посетителем (Thought Bubble 💭 крупно!)
         if (c.state === 'waiting_vip_accept') {
-          // Золотое облачко ожидания принятия VIP заказа
-          drawThoughtBubble(cx, cy - 36, c.dish.icon, true, false, 0, 1);
+          // Золотое облачко ожидания принятия VIP заказа с обратным отсчетом 20с
+          drawThoughtBubble(cx, cy - 36, c.dish.icon, true, false, 0, 1, c.vipAcceptTimer, c.totalVipAcceptTimer);
         } else if (c.state === 'waiting_order') {
-          // Обычное облачко или VIP с таймером
+          // Обычное облачко или VIP с таймером приготовления
           drawThoughtBubble(cx, cy - 36, c.dish.icon, c.isVIP, c.isVIP && c.isVipAccepted, c.vipTimer, c.totalVipTimer);
         } else if (c.state === 'eating') {
           // Сердечко восторга от еды (золотое у гурмана)
@@ -2225,7 +2276,7 @@
       });
     }
 
-    function drawThoughtBubble(x, y, icon, isVIP = false, showTimer = false, vipTimer = 0, totalVipTimer = 1) {
+    function drawThoughtBubble(x, y, icon, isVIP = false, showCookingTimer = false, vipTimer = 0, totalVipTimer = 1, vipAcceptTimer = 20, totalAcceptTimer = 20) {
       ctx.save();
       // Хвостик облачка
       ctx.fillStyle = isVIP ? '#fffde7' : '#ffffff';
@@ -2257,23 +2308,54 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(icon, x, y - 8);
 
-      // Плашка "ТАП! 👑" до принятия особого заказа
-      if (isVIP && !showTimer) {
+      // Плашка "ТАП! 👑" и обратный отсчёт принятия заказа
+      if (isVIP && !showCookingTimer) {
+        const secLeft = Math.ceil(Math.max(0, vipAcceptTimer));
+        const btnW = 64;
         ctx.fillStyle = '#fbc02d';
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(x - 26, y + 15, 52, 14, 7);
+          ctx.roundRect(x - btnW / 2, y + 15, btnW, 15, 7);
         } else {
-          ctx.rect(x - 26, y + 15, 52, 14);
+          ctx.rect(x - btnW / 2, y + 15, btnW, 15);
         }
         ctx.fill();
         ctx.fillStyle = '#3e2723';
         ctx.font = 'bold 9px sans-serif';
-        ctx.fillText('ТАП! 👑', x, y + 22);
+        ctx.fillText(`ТАП! 👑 ${secLeft}с`, x, y + 23);
+
+        // Полоса и таймер принятия заказа над облачком
+        const barW = 46;
+        const barH = 5;
+        const bx = x - barW / 2;
+        const by = y - 36;
+        const acceptProgress = Math.max(0, Math.min(1, vipAcceptTimer / (totalAcceptTimer || 20)));
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 3);
+        } else {
+          ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
+        }
+        ctx.fill();
+
+        ctx.fillStyle = acceptProgress < 0.25 ? '#f44336' : (acceptProgress < 0.5 ? '#ff9800' : '#ffd700');
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx, by, barW * acceptProgress, barH, 2);
+        } else {
+          ctx.rect(bx, by, barW * acceptProgress, barH);
+        }
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillText(`⏳ ${secLeft}с`, x, by - 5);
       }
 
-      // Видимый таймер приготовления над облачком
-      if (isVIP && showTimer) {
+      // Видимый таймер приготовления над облачком (после принятия заказа)
+      if (isVIP && showCookingTimer) {
         const barW = 46;
         const barH = 5;
         const bx = x - barW / 2;
@@ -2539,6 +2621,11 @@
         getUpgradeCost,
         spawnCustomer,
         spawnGourmetCat: () => spawnCustomer(true),
+        getGourmetSpawnTimer: () => gourmetSpawnTimer,
+        setGourmetSpawnTimer: (t) => { gourmetSpawnTimer = t; },
+        isGourmetPending: () => isGourmetPending,
+        setGourmetPending: (p) => { isGourmetPending = p; },
+        getNextGourmetInterval,
         acceptVipOrder,
         buyExpansion,
         getCurrentQuest,
