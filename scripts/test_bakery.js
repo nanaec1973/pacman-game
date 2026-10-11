@@ -1,4 +1,9 @@
-const puppeteer = require('puppeteer-core');
+let puppeteer;
+try {
+  puppeteer = require('puppeteer-core');
+} catch (e) {
+  puppeteer = require('/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df/scratch/node_modules/puppeteer-core');
+}
 const path = require('path');
 const fs = require('fs');
 

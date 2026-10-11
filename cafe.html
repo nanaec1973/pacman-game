@@ -1462,13 +1462,19 @@
 
     function saveGame() {
       try {
-        // Защита от потери оффлайн-дохода: не перезаписываем время последнего сохранения,
-        // пока открыта модалка с невостребованной наградой
-        if (pendingOfflineCoins === 0) {
-          state.lastSavedTime = Date.now();
-        }
-        if (pendingBakeryOfflineCoins === 0 && state.bakery) {
-          state.bakery.lastSavedTime = Date.now();
+        const now = Date.now();
+        // Разделяем сохранение данных и учёт активности:
+        // Обновляем отметку времени ТОЛЬКО для активного помещения.
+        // Защита от потери оффлайн-дохода: не перезаписываем время активного помещения,
+        // пока открыта модалка с невостребованной наградой.
+        if (state.currentVenue === 'cafe') {
+          if (pendingOfflineCoins === 0) {
+            state.lastSavedTime = now;
+          }
+        } else if (state.currentVenue === 'bakery' && state.bakery) {
+          if (pendingBakeryOfflineCoins === 0) {
+            state.bakery.lastSavedTime = now;
+          }
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (e) {
@@ -1607,35 +1613,65 @@
       }
     }
 
+    // Расчёт офлайн-производительности пекарни с учётом узкого места (Bottleneck)
+    function calculateBakeryOfflineStats(elapsedSec) {
+      const cappedSec = Math.min(14400, Math.max(0, elapsedSec));
+      const avgBakeTime = getAverageBakeryBakeTime();
+      const waiterSpeed = getBakeryWaiterSpeed();
+      const deliverySec = 300 / waiterSpeed;
+      const bakerCount = 1 + ((state.bakery?.upgrades?.baker_helper || 0) > 0 ? 1 : 0);
+
+      // Производительность пекарей (параллельная выпечка в печи)
+      const bakeRate = bakerCount / avgBakeTime; // заказов в секунду
+
+      // Производительность официанта (один официант последовательно доставляет заказы)
+      const deliveryRate = 1 / deliverySec;      // заказов в секунду
+
+      // Итоговая пропускная способность ограничена самым медленным звеном (Bottleneck)
+      const effectiveRate = Math.min(bakeRate, deliveryRate);
+      const effectiveCycleSec = 1 / effectiveRate; // Math.max(avgBakeTime / bakerCount, deliverySec)
+
+      const estimatedOrders = Math.floor(cappedSec / effectiveCycleSec);
+      const avgPrice = getAverageBakeryRecipePrice();
+      const earned = Math.floor(estimatedOrders * avgPrice * 0.75);
+
+      return {
+        cappedSec,
+        avgBakeTime,
+        waiterSpeed,
+        deliverySec,
+        bakerCount,
+        bakeRate,
+        deliveryRate,
+        effectiveRate,
+        effectiveCycleSec,
+        estimatedOrders,
+        avgPrice,
+        earned,
+        bottleneck: bakeRate < deliveryRate ? 'bakers' : 'waiter'
+      };
+    }
+
     function checkBakeryOfflineEarnings() {
       if (!state.bakery || !state.bakery.unlocked) return;
       const now = Date.now();
       const lastTime = state.bakery.lastSavedTime || now;
       const elapsedSec = Math.floor((now - lastTime) / 1000);
       if (elapsedSec > 20) {
-        const cappedSec = Math.min(14400, elapsedSec);
-        const avgBakeTime = getAverageBakeryBakeTime();
-        const waiterSpeed = getBakeryWaiterSpeed();
-        const deliverySec = 300 / waiterSpeed;
-        const cycleSec = avgBakeTime + deliverySec + 1.5;
-        const bakerCount = 1 + ((state.bakery.upgrades?.baker_helper || 0) > 0 ? 1 : 0);
-        const estimatedOrders = Math.floor((cappedSec / cycleSec) * bakerCount);
-        const avgPrice = getAverageBakeryRecipePrice();
-        const earned = Math.floor(estimatedOrders * avgPrice * 0.75);
-
-        if (earned > 5) {
-          pendingBakeryOfflineCoins = earned;
+        const stats = calculateBakeryOfflineStats(elapsedSec);
+        if (stats.earned > 5) {
+          pendingBakeryOfflineCoins = stats.earned;
           const modalText = document.querySelector('#welcome-modal .modal-text');
           const modalTitle = document.querySelector('#welcome-modal .modal-title');
           const modalIcon = document.querySelector('#welcome-modal .modal-icon');
           if (modalTitle) modalTitle.innerText = 'С возвращением в Пекарню! 🥐';
           if (modalIcon) modalIcon.innerText = '👨‍🍳';
           if (modalText) {
-            const bakersText = bakerCount > 1 ? 'пекари Коржик и Пушок' : 'пекарь Коржик и официант Пончик';
-            const ordersStr = formatOrdersCount(estimatedOrders);
+            const bakersText = stats.bakerCount > 1 ? 'пекари Коржик и Пушок' : 'пекарь Коржик и официант Пончик';
+            const ordersStr = formatOrdersCount(stats.estimatedOrders);
             modalText.innerText = `Пока вас не было, ${bakersText} выпекли ~${ordersStr} и заработали:`;
           }
-          document.getElementById('offline-earned-val').innerText = `+${earned.toLocaleString('ru-RU')} 🪙 (Пекарня)`;
+          document.getElementById('offline-earned-val').innerText = `+${stats.earned.toLocaleString('ru-RU')} 🪙 (Пекарня)`;
           document.getElementById('welcome-modal').style.display = 'flex';
         }
       }
@@ -1647,19 +1683,20 @@
         return;
       }
       playSound('coin');
+      const now = Date.now();
       if (pendingOfflineCoins > 0) {
         const earned = pendingOfflineCoins;
         pendingOfflineCoins = 0;
         state.coins += earned;
         state.totalEarned += earned;
-        state.lastSavedTime = Date.now();
+        state.lastSavedTime = now;
       }
       if (pendingBakeryOfflineCoins > 0) {
         const earned = pendingBakeryOfflineCoins;
         pendingBakeryOfflineCoins = 0;
         state.bakery.coins += earned;
         state.bakery.totalEarned += earned;
-        state.bakery.lastSavedTime = Date.now();
+        state.bakery.lastSavedTime = now;
       }
       updateUI();
       saveGame();
@@ -2257,10 +2294,20 @@
       }
       initAudio();
 
-      if (state.currentVenue === 'cafe') {
-        state.lastSavedTime = Date.now();
-      } else if (state.currentVenue === 'bakery' && state.bakery) {
-        state.bakery.lastSavedTime = Date.now();
+      // Если в текущем помещении осталась невостребованная награда оффлайн-дохода,
+      // закрываем её с зачислением перед переключением
+      if (pendingOfflineCoins > 0 || pendingBakeryOfflineCoins > 0) {
+        claimOfflineEarnings();
+      }
+
+      const prevVenue = state.currentVenue;
+      const now = Date.now();
+
+      // Закрываем интервал активности покидаемого заведения
+      if (prevVenue === 'cafe') {
+        state.lastSavedTime = now;
+      } else if (prevVenue === 'bakery' && state.bakery) {
+        state.bakery.lastSavedTime = now;
       }
 
       state.currentVenue = venue;
@@ -2269,9 +2316,17 @@
       if (venue === 'bakery') {
         checkBakeryOfflineEarnings();
         updateBakeryPositions();
+        // Если оффлайн-доход не был начислен (интервал меньше порога), закрываем интервал
+        if (pendingBakeryOfflineCoins === 0 && state.bakery) {
+          state.bakery.lastSavedTime = now;
+        }
       } else {
         checkCafeOfflineEarnings();
         updateStationPositions();
+        // Если оффлайн-доход не был начислен (интервал меньше порога), закрываем интервал
+        if (pendingOfflineCoins === 0) {
+          state.lastSavedTime = now;
+        }
       }
 
       showToast(venue === 'bakery' ? 'Добро пожаловать в Пекарню! 🥐' : 'С возвращением в Кафе! ☕');
@@ -5021,7 +5076,10 @@
         resetSimulationState,
         setCafeSeed,
         checkOfflineEarnings,
+        checkCafeOfflineEarnings,
         claimOfflineEarnings,
+        getPendingOfflineCoins: () => pendingOfflineCoins,
+        getPendingBakeryOfflineCoins: () => pendingBakeryOfflineCoins,
         formatOrdersCount,
         pluralize,
         QUESTS,
@@ -5041,6 +5099,7 @@
         getBakeryUnlockedRecipes,
         getAverageBakeryBakeTime,
         getAverageBakeryRecipePrice,
+        calculateBakeryOfflineStats,
         getBakeryTables: () => bakeryTables,
         getReadyOrders: () => readyOrders,
         getWaiterCat: () => waiterCat,
