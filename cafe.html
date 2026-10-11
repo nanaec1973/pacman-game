@@ -331,9 +331,9 @@
     .featured-list {
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 6px;
       margin-bottom: 12px;
-      max-height: 250px;
+      max-height: 340px;
       overflow-y: auto;
       text-align: left;
     }
@@ -341,7 +341,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 10px;
+      padding: 6px 9px;
       border-radius: 12px;
       background: #fffaf4;
       border: 1.5px solid #ecdac6;
@@ -356,19 +356,42 @@
       display: flex;
       align-items: center;
       gap: 9px;
+      flex: 1;
+      min-width: 0;
     }
     .featured-dish-icon {
       font-size: 24px;
+      flex-shrink: 0;
+    }
+    .featured-dish-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
     }
     .featured-dish-name {
       font-size: 12.5px;
       font-weight: 800;
       color: var(--wood-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .featured-dish-price {
       font-size: 10.5px;
       color: #795548;
       margin-top: 1px;
+    }
+    .featured-dish-perk {
+      font-size: 10px;
+      color: #2e7d32;
+      font-weight: 700;
+      margin-top: 2px;
+      background: #e8f5e9;
+      padding: 1px 6px;
+      border-radius: 6px;
+      display: inline-block;
+      width: fit-content;
     }
     .featured-select-btn {
       padding: 5px 11px;
@@ -750,6 +773,8 @@
       border: 3px solid #ecdac6;
       width: 100%;
       max-width: 340px;
+      max-height: 90vh;
+      overflow-y: auto;
       padding: 22px 18px;
       text-align: center;
       box-shadow: 0 12px 30px rgba(0,0,0,0.25);
@@ -819,6 +844,29 @@
       color: var(--wood-dark);
       box-shadow: none;
       margin-top: 8px;
+    }
+
+    /* Компактная подгонка модалки Блюда дня для идеального обзора всех 4 блюд */
+    #featured-modal .modal-card {
+      padding: 16px 14px 14px;
+      max-width: 350px;
+    }
+    #featured-modal .modal-icon {
+      font-size: 34px;
+      margin-bottom: 2px;
+    }
+    #featured-modal .modal-title {
+      font-size: 17px;
+      margin-bottom: 3px;
+    }
+    #featured-modal .modal-text {
+      font-size: 11.5px;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    #featured-modal .featured-list {
+      max-height: 400px;
+      margin-bottom: 8px;
     }
 
     /* Всплывающие уведомления (Toast) */
@@ -992,10 +1040,66 @@
 
     // --- 2. Каталог меню и блюд ---
     const DISHES = [
-      { id: 'coffee', name: 'Ароматный Кофе', icon: '☕', basePrice: 10, cookTime: 3.0, reqMenuLevel: 1 },
-      { id: 'sandwich', name: 'Мяу-Сэндвич', icon: '🥪', basePrice: 25, cookTime: 3.8, reqMenuLevel: 2 },
-      { id: 'fish', name: 'Рыбка-Гриль', icon: '🐟', basePrice: 55, cookTime: 4.6, reqMenuLevel: 3 },
-      { id: 'cake', name: 'Сливочный Тортик', icon: '🍰', basePrice: 120, cookTime: 5.5, reqMenuLevel: 4 }
+      {
+        id: 'coffee',
+        name: 'Ароматный Кофе',
+        icon: '☕',
+        basePrice: 10,
+        cookTime: 3.0,
+        reqMenuLevel: 1,
+        featuredPerk: {
+          cookTimeMult: 0.70,     // кофе: быстрее готовится (-30% времени готовки)
+          flatBonus: 0,
+          payoutMult: 1.0,
+          gourmetVipMult: 3.0,
+          desc: '⚡ -30% время готовки блюда дня'
+        }
+      },
+      {
+        id: 'sandwich',
+        name: 'Мяу-Сэндвич',
+        icon: '🥪',
+        basePrice: 25,
+        cookTime: 3.8,
+        reqMenuLevel: 2,
+        featuredPerk: {
+          cookTimeMult: 1.0,
+          flatBonus: 6,           // сэндвич: дополнительная фиксированная оплата +6 🪙
+          payoutMult: 1.0,
+          gourmetVipMult: 3.0,
+          desc: '💰 +6 🪙 фиксированная надбавка к каждому заказу'
+        }
+      },
+      {
+        id: 'fish',
+        name: 'Рыбка-Гриль',
+        icon: '🐟',
+        basePrice: 55,
+        cookTime: 4.6,
+        reqMenuLevel: 3,
+        featuredPerk: {
+          cookTimeMult: 1.0,
+          flatBonus: 0,
+          payoutMult: 1.0,
+          gourmetVipMult: 4.5,    // рыбка: повышенная выплата заказов гурмана x4.5 вместо x3.0
+          desc: '👑 Кот-гурман платит x4.5 вместо x3.0'
+        }
+      },
+      {
+        id: 'cake',
+        name: 'Сливочный Тортик',
+        icon: '🍰',
+        basePrice: 120,
+        cookTime: 5.5,
+        reqMenuLevel: 4,
+        featuredPerk: {
+          cookTimeMult: 1.20,     // тортик: более долгое приготовление (+20% времени готовки)
+          flatBonus: 0,
+          payoutMult: 1.25,       // тортик: повышенная обычная оплата (+50% вместо +20%)
+          gourmetVipMult: 3.0,
+          desc: '🍰 +50% монет вместо +20% (готовка +20%)'
+        }
+      }
     ];
 
     // --- 3. Каталог улучшений ---
@@ -1364,25 +1468,43 @@
       return found || available[0];
     }
 
+    function getDishCookTime(dish, isFeatured = false) {
+      if (!dish) return 3.0;
+      const mult = (isFeatured && dish.featuredPerk?.cookTimeMult) ? dish.featuredPerk.cookTimeMult : 1.0;
+      return dish.cookTime * mult;
+    }
+
     function setFeaturedDish(dishId) {
       const available = getAvailableDishes();
       const found = available.find(d => d.id === dishId);
       if (!found) return;
       state.featuredDish = found.id;
       playSound('upgrade');
-      showToast(`Фирменное блюдо: ${found.name}! (+20% 🪙, частые заказы) ⭐`, 3000);
+      showToast(`Фирменное блюдо: ${found.name}! (${found.featuredPerk.desc}) ⭐`, 3500);
       updateUI();
       saveGame();
       renderFeaturedModal();
     }
 
-    function calculateDishPayout(dish, isVIP = false) {
+    function calculateDishPayout(dish, isVIP = false, targetFeaturedId = state.featuredDish) {
       if (!dish) return 0;
+      const isFeatured = (dish.id === targetFeaturedId);
+      const perk = dish.featuredPerk || { cookTimeMult: 1.0, flatBonus: 0, payoutMult: 1.0, gourmetVipMult: 3.0 };
+
       const sauceMult = getProfitMultiplier();
       const decorMult = (state.verandaDecor || 0) >= 1 ? 1.10 : 1.0;
-      const featuredMult = (dish.id === state.featuredDish) ? 1.20 : 1.0;
-      const vipMult = isVIP ? 3 : 1;
-      return Math.floor(dish.basePrice * sauceMult * decorMult * featuredMult * vipMult);
+      const featuredMult = isFeatured ? 1.20 : 1.0;
+      const perkExtraMult = isFeatured ? (perk.payoutMult || 1.0) : 1.0;
+      const flat = isFeatured ? (perk.flatBonus || 0) : 0;
+
+      let vipMult = 1.0;
+      if (isVIP) {
+        vipMult = (isFeatured && perk.gourmetVipMult) ? perk.gourmetVipMult : 3.0;
+      }
+
+      const subtotal = Math.floor(dish.basePrice * sauceMult * decorMult * featuredMult * perkExtraMult * vipMult);
+      const flatTotal = isVIP ? Math.floor(flat * vipMult) : flat;
+      return subtotal + flatTotal;
     }
 
     function chooseCustomerDish() {
@@ -1409,7 +1531,8 @@
       let expectedPrice = 0;
       for (let i = 0; i < list.length; i++) {
         const prob = weights[i] / totalWeight;
-        const payout = calculateDishPayout(list[i], false);
+        // Офлайн не включает бонус гурмана (isVIP = false)
+        const payout = calculateDishPayout(list[i], false, featuredId);
         expectedPrice += prob * payout;
       }
       return expectedPrice;
@@ -1424,7 +1547,8 @@
       let expectedTime = 0;
       for (let i = 0; i < list.length; i++) {
         const prob = weights[i] / totalWeight;
-        expectedTime += prob * list[i].cookTime;
+        const isFeat = (list[i].id === featuredId);
+        expectedTime += prob * getDishCookTime(list[i], isFeat);
       }
       return expectedTime;
     }
@@ -1810,6 +1934,7 @@
         state: 'walking_to_seat', // 'walking_to_seat', 'waiting_vip_accept', 'waiting_order', 'eating', 'leaving'
         isVIP: !!isVIP,
         isVipAccepted: false,
+        isFeaturedOrder: (chosenDish.id === state.featuredDish),
         vipAcceptTimer: 20, // 20 секунд на принятие заказа
         totalVipAcceptTimer: 20,
         vipTimer: 0,
@@ -1830,7 +1955,7 @@
         state.gourmetEventsCount = (state.gourmetEventsCount || 0) + 1;
         saveGame();
         if (isFirstTime) {
-          showToast('👑 В кафе пришёл кот-гурман! Нажми на золотое облачко, чтобы принять VIP-заказ (x3 🪙)!', 4000);
+          showToast('👑 В кафе пришёл кот-гурман! Нажми на золотое облачко, чтобы принять VIP-заказ!', 4000);
         }
       }
 
@@ -1842,10 +1967,9 @@
       initAudio();
       cat.isVipAccepted = true;
       cat.state = 'waiting_order';
-      // Фактическая формула таймера приготовления:
-      // cookTimeEst = cat.dish.cookTime * getCookTimeMultiplier();
-      // totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
-      const cookTimeEst = cat.dish.cookTime * getCookTimeMultiplier();
+      // Фиксируем статус фирменного блюда на момент подтверждения заказа
+      cat.isFeaturedOrder = (cat.dish.id === state.featuredDish);
+      const cookTimeEst = getDishCookTime(cat.dish, cat.isFeaturedOrder) * getCookTimeMultiplier();
       cat.totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
       cat.vipTimer = cat.totalVipTimer;
 
@@ -1979,7 +2103,9 @@
           c.heartAnim += dt * 4;
           if (c.eatTimer <= 0) {
             // Закончил кушать -> оплата и уход
-            const earnedCoins = calculateDishPayout(c.dish, c.isVIP);
+            // Выплата фиксируется по статусу заказа на момент его оформления
+            const isFeatured = !!c.isFeaturedOrder;
+            const earnedCoins = calculateDishPayout(c.dish, c.isVIP, isFeatured ? c.dish.id : null);
             state.coins += earnedCoins;
             state.totalEarned += earnedCoins;
             state.ordersServed++;
@@ -1988,8 +2114,14 @@
             }
 
             playSound(c.isVIP ? 'upgrade' : 'coin');
-            const isFeatured = (c.dish.id === state.featuredDish);
-            const extraTag = c.isVIP ? ' (VIP x3!)' : (isFeatured ? ' (⭐ +20%)' : '');
+            let extraTag = '';
+            if (c.isVIP) {
+              extraTag = (isFeatured && c.dish.id === 'fish') ? ' (VIP x4.5!)' : ' (VIP x3!)';
+            } else if (isFeatured) {
+              if (c.dish.id === 'cake') extraTag = ' (⭐ +50%)';
+              else if (c.dish.id === 'sandwich') extraTag = ' (⭐ +6 🪙)';
+              else extraTag = ' (⭐ +20%)';
+            }
             addVisualParticle(c.x, c.y - 35, `+${earnedCoins} 🪙${extraTag}`, c.isVIP ? '#ffd700' : (isFeatured ? '#ff9800' : '#ffb300'), 'text');
             addVisualParticle(c.x, c.y - 20, c.isVIP ? '💛' : '❤️', c.isVIP ? '#ffd700' : '#e91e63', 'heart');
 
@@ -2035,8 +2167,9 @@
             station.isCooking = true;
             station.dish = waitingCustomer.dish;
             station.targetCustomer = waitingCustomer;
+            station.isFeaturedOrder = !!waitingCustomer.isFeaturedOrder;
             station.progress = 0;
-            station.totalTime = Math.max(0.6, station.dish.cookTime * speedMult);
+            station.totalTime = Math.max(0.6, getDishCookTime(station.dish, station.isFeaturedOrder) * speedMult);
           }
         } else {
           // Процесс приготовления блюда
@@ -2604,7 +2737,7 @@
           ctx.fillText('✨', cx - 18 + Math.sin(globalGameTime * 6) * 3, cy - 10);
         }
 
-        const isFeatured = (c.dish && c.dish.id === state.featuredDish);
+        const isFeatured = !!c.isFeaturedOrder;
         // Облачко заказа над посетителем (Thought Bubble 💭 крупно!)
         if (c.state === 'waiting_vip_accept') {
           // Золотое облачко ожидания принятия VIP заказа с обратным отсчетом 20с
@@ -2806,7 +2939,10 @@
       const curFeatured = getFeaturedDish();
       const featStatEl = document.getElementById('featured-stat-name');
       if (featStatEl) {
-        featStatEl.innerText = `${curFeatured.icon} ${curFeatured.name} (+20%)`;
+        let bonusTag = '+20%';
+        if (curFeatured.id === 'cake') bonusTag = '+50%';
+        else if (curFeatured.id === 'sandwich') bonusTag = '+20% +6 🪙';
+        featStatEl.innerText = `${curFeatured.icon} ${curFeatured.name} (${bonusTag})`;
       }
 
       // Обновление текущей цели развития
@@ -2819,12 +2955,15 @@
       let affordableCount = 0;
 
       // Карточка "Блюдо дня" вверху магазина
+      let badgeTag = '+20% 🪙';
+      if (curFeatured.id === 'cake') badgeTag = '+50% 🪙';
+      else if (curFeatured.id === 'sandwich') badgeTag = '+20% +6 🪙';
       const featuredDishHtml = `
         <div class="featured-shop-card" onclick="openFeaturedModal()">
           <div class="featured-shop-info">
-            <div class="featured-shop-badge">⭐ Фирменное блюдо дня (+20% 🪙)</div>
+            <div class="featured-shop-badge">⭐ Фирменное блюдо дня (${badgeTag})</div>
             <div class="featured-shop-name">${curFeatured.icon} ${curFeatured.name}</div>
-            <div class="featured-shop-desc">Заказывается в 3 раза чаще остальных блюд</div>
+            <div class="featured-shop-desc">${curFeatured.featuredPerk.desc} • Заказывается в 3 раза чаще</div>
           </div>
           <button class="featured-shop-btn" onclick="event.stopPropagation(); openFeaturedModal()">Выбрать ⭐</button>
         </div>
@@ -3020,14 +3159,30 @@
 
       listEl.innerHTML = available.map(dish => {
         const isSelected = dish.id === curFeatured.id;
-        const payout = calculateDishPayout(dish, false);
+        // Будущая выплата после выбора этого блюда фирменным (не меняет state)
+        const futurePayout = calculateDishPayout(dish, false, dish.id);
+        // Фактическое время приготовления с текущей плитой, если это блюдо выбрано фирменным
+        const cookTimeSec = getDishCookTime(dish, true) * getCookTimeMultiplier();
+        const cookTimeStr = cookTimeSec.toFixed(1) + 'с';
+
+        // Метка бонуса
+        let bonusLabel = '+20% бонус';
+        if (dish.id === 'cake') {
+          bonusLabel = '+50% бонус';
+        } else if (dish.id === 'sandwich') {
+          bonusLabel = '+20% и +6 🪙';
+        }
+
         return `
           <div class="featured-dish-item ${isSelected ? 'selected' : ''}">
             <div class="featured-dish-left">
               <span class="featured-dish-icon">${dish.icon}</span>
-              <div>
+              <div class="featured-dish-info">
                 <div class="featured-dish-name">${dish.name} ${isSelected ? '⭐' : ''}</div>
-                <div class="featured-dish-price">Выплата: <b>${payout} 🪙</b> (+20% бонус)</div>
+                <div class="featured-dish-price">
+                  Выплата: <b>${futurePayout} 🪙</b> (${bonusLabel}) • ⚡ <b>${cookTimeStr}</b>
+                </div>
+                <div class="featured-dish-perk">${dish.featuredPerk.desc}</div>
               </div>
             </div>
             <button class="featured-select-btn ${isSelected ? 'current' : 'active'}" 
@@ -3107,6 +3262,7 @@
         toggleShopCollapse,
         isShopCollapsed: () => isShopCollapsed,
         getCookTimeMultiplier,
+        getDishCookTime,
         checkOfflineEarnings,
         claimOfflineEarnings,
         formatOrdersCount,
