@@ -142,6 +142,166 @@
       font-size: 16px;
     }
 
+    /* --- КОМПАКТНАЯ ПАНЕЛЬ ТЕКУЩЕЙ ЦЕЛИ РАЗВИТИЯ --- */
+    #quest-card {
+      background: #ffffff;
+      border-bottom: 2px solid #ecdac6;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      z-index: 8;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      flex-shrink: 0;
+    }
+
+    .quest-content {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .quest-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .quest-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .quest-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--wood-dark);
+    }
+
+    .quest-progress-count {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .quest-progress-bar-bg {
+      width: 100%;
+      height: 5px;
+      background: #ede0d4;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .quest-progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff9800, #4caf50);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .quest-claim-btn {
+      background: #e0d0c1;
+      color: #795548;
+      border: none;
+      border-radius: 10px;
+      padding: 6px 11px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: not-allowed;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .quest-claim-btn.ready {
+      background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+      color: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(46, 125, 50, 0.35);
+      animation: pulseBtn 1.2s infinite alternate;
+    }
+
+    @keyframes pulseBtn {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+
+    /* --- РАСШИРЕНИЕ КАФЕ: ВЕРАНДА --- */
+    .expansion-card {
+      background: linear-gradient(135deg, #fffaf4 0%, #fef5ea 100%);
+      border: 1.5px dashed #ffb74d;
+      border-radius: 14px;
+      padding: 9px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 2px;
+    }
+
+    .expansion-card.unlocked {
+      border: 2px solid #ff9800;
+      background: #ffffff;
+      box-shadow: 0 3px 10px rgba(255, 152, 0, 0.15);
+    }
+
+    .expansion-header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .expansion-reqs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .req-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 8px;
+      background: #f0e2d3;
+      color: #6d4c41;
+    }
+
+    .req-pill.ok {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .expansion-done-banner {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border: 1.5px solid #81c784;
+      border-radius: 14px;
+      padding: 9px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #1b5e20;
+      text-align: center;
+      line-height: 1.35;
+      margin-bottom: 4px;
+    }
+
+    .upgrade-delta {
+      font-size: 10px;
+      font-weight: 700;
+      color: #2e7d32;
+      background: #e8f5e9;
+      padding: 1px 6px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
     /* --- ИГРОВОЕ ПОЛЕ (ХОЛСТ КАФЕ) --- */
     #cafe-viewport {
       flex: 1;
@@ -493,7 +653,7 @@
     /* Всплывающие уведомления (Toast) */
     #toast-msg {
       position: absolute;
-      top: calc(var(--safe-top) + 65px);
+      top: calc(var(--safe-top) + 145px);
       left: 50%;
       transform: translateX(-50%) translateY(-20px);
       background: rgba(62, 39, 35, 0.92);
@@ -540,6 +700,25 @@
       </div>
     </header>
 
+    <!-- Компактная карточка текущей цели -->
+    <div id="quest-card">
+      <div class="quest-content">
+        <span class="quest-icon" id="quest-icon">🎯</span>
+        <div class="quest-details">
+          <div class="quest-title-row">
+            <span class="quest-title" id="quest-title">Обслужить 5 гостей</span>
+            <span class="quest-progress-count" id="quest-progress-count">0 / 5</span>
+          </div>
+          <div class="quest-progress-bar-bg">
+            <div class="quest-progress-bar-fill" id="quest-progress-bar-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+      <button class="quest-claim-btn" id="quest-claim-btn" onclick="claimQuestReward()" disabled>
+        <span id="quest-reward-val">+60 🪙</span>
+      </button>
+    </div>
+
     <!-- Игровая сцена с анимацией котиков -->
     <main id="cafe-viewport" onclick="handleStageClick(event)">
       <canvas id="cafe-canvas"></canvas>
@@ -582,6 +761,17 @@
         <p class="modal-text">Прогресс игры автоматически сохраняется в памяти браузера.</p>
         <button class="modal-btn secondary" onclick="resetSaveData()">СБРОСИТЬ ПРОГРЕСС 🗑️</button>
         <button class="modal-btn" style="margin-top: 10px;" onclick="closeSettingsModal()">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+
+    <!-- Модалка открытия нового блюда -->
+    <div class="modal-overlay" id="dish-modal">
+      <div class="modal-card">
+        <div class="modal-icon" id="dish-modal-icon">🥐</div>
+        <h3 class="modal-title" id="dish-modal-title">Новое блюдо в меню!</h3>
+        <p class="modal-text" id="dish-modal-desc">Гости кафе теперь с удовольствием заказывают Мяу-Круассан!</p>
+        <div class="modal-reward" id="dish-modal-stats" style="font-size: 14px; margin: 10px 0; padding: 6px 12px; background: #fff8e1; border-radius: 12px; color: #b78103; font-weight: 800;">30 🪙 | 3.4 сек</div>
+        <button class="modal-btn" onclick="closeDishModal()">ОТЛИЧНО 🐾</button>
       </div>
     </div>
 
@@ -682,7 +872,10 @@
         seats: 1,
         menu: 1,
         helper: 0
-      }
+      },
+      claimedQuests: [],
+      expansion: 0,
+      seenHints: {}
     };
 
     // --- 5. Локальный PRNG для декоративных частиц (не засоряет системный RNG) ---
@@ -832,6 +1025,9 @@
                 state.upgrades.speed = 10;
               }
             }
+            state.claimedQuests = Array.isArray(parsed.claimedQuests) ? parsed.claimedQuests : [];
+            state.expansion = typeof parsed.expansion === 'number' ? parsed.expansion : 0;
+            state.seenHints = parsed.seenHints || {};
           }
         }
       } catch (e) {
@@ -955,7 +1151,8 @@
 
     function getMaxCustomerSeats() {
       const seatsLvl = state.upgrades.seats || 1;
-      return 1 + seatsLvl; // Ур 1: 2 места, Ур 2: 3 места, Ур 3: 4 места, Ур 4: 5 мест
+      const expansionBonus = (state.expansion || 0) >= 1 ? 1 : 0;
+      return 1 + seatsLvl + expansionBonus; // Ур 1: 2 места (3 с верандой), Ур 2: 3 (4), Ур 3: 4 (5), Ур 4: 5 (6)
     }
 
     function getAvailableDishes() {
@@ -967,6 +1164,152 @@
       const list = getAvailableDishes();
       const sum = list.reduce((acc, d) => acc + d.basePrice, 0);
       return (sum / list.length) * getProfitMultiplier();
+    }
+
+    // --- 8.1. Каталог последовательных целей развития (Quests) ---
+    const QUESTS = [
+      {
+        id: 'orders_5',
+        title: 'Обслужить 5 гостей',
+        icon: '🐾',
+        reward: 60,
+        getProgress: () => ({ current: Math.min(5, state.ordersServed), target: 5 }),
+        isCompleted: () => state.ordersServed >= 5
+      },
+      {
+        id: 'stove_2',
+        title: 'Улучшить плиту (Ур. 2)',
+        icon: '⚡',
+        reward: 80,
+        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.upgrades.speed || 1) - 1)), target: 1 }),
+        isCompleted: () => (state.upgrades.speed || 1) >= 2
+      },
+      {
+        id: 'dish_2',
+        title: 'Открыть второе блюдо',
+        icon: '🥐',
+        reward: 120,
+        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.upgrades.menu || 1) - 1)), target: 1 }),
+        isCompleted: () => (state.upgrades.menu || 1) >= 2
+      },
+      {
+        id: 'helper',
+        title: 'Нанять помощника Мурзика',
+        icon: '🐱',
+        reward: 250,
+        getProgress: () => ({ current: (state.upgrades.helper || 0) >= 1 ? 1 : 0, target: 1 }),
+        isCompleted: () => (state.upgrades.helper || 0) >= 1
+      },
+      {
+        id: 'expand',
+        title: 'Расширить кафе (Веранда)',
+        icon: '🌿',
+        reward: 500,
+        getProgress: () => ({ current: (state.expansion || 0) >= 1 ? 1 : 0, target: 1 }),
+        isCompleted: () => (state.expansion || 0) >= 1
+      }
+    ];
+
+    function getCurrentQuest() {
+      const claimed = state.claimedQuests || [];
+      return QUESTS.find(q => !claimed.includes(q.id)) || null;
+    }
+
+    function claimQuestReward() {
+      initAudio();
+      const q = getCurrentQuest();
+      if (!q || !q.isCompleted()) return;
+      if (!Array.isArray(state.claimedQuests)) state.claimedQuests = [];
+      if (state.claimedQuests.includes(q.id)) return;
+
+      state.claimedQuests.push(q.id);
+      state.coins += q.reward;
+      state.totalEarned += q.reward;
+      playSound('coin');
+      addVisualParticle(canvasWidth / 2, 70, `+${q.reward} 🪙`, '#ffb300', 'text');
+      showToast(`Награда за цель получена: +${q.reward} 🪙! 🎉`);
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      updateUI();
+      saveGame();
+    }
+
+    function updateQuestsUI() {
+      const q = getCurrentQuest();
+      const card = document.getElementById('quest-card');
+      if (!card) return;
+
+      if (!q) {
+        document.getElementById('quest-icon').innerText = '🏆';
+        document.getElementById('quest-title').innerText = 'Все цели этапа выполнены!';
+        document.getElementById('quest-progress-count').innerText = '5 / 5';
+        document.getElementById('quest-progress-bar-fill').style.width = '100%';
+        const btn = document.getElementById('quest-claim-btn');
+        btn.disabled = true;
+        btn.classList.remove('ready');
+        btn.innerHTML = 'Готово ✨';
+        return;
+      }
+
+      const prog = q.getProgress();
+      const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
+      const isDone = q.isCompleted();
+
+      document.getElementById('quest-icon').innerText = q.icon;
+      document.getElementById('quest-title').innerText = q.title;
+      document.getElementById('quest-progress-count').innerText = `${prog.current} / ${prog.target}`;
+      document.getElementById('quest-progress-bar-fill').style.width = `${pct}%`;
+
+      const btn = document.getElementById('quest-claim-btn');
+      if (isDone) {
+        btn.disabled = false;
+        btn.classList.add('ready');
+        btn.innerHTML = `ЗАБРАТЬ +${q.reward} 🪙`;
+      } else {
+        btn.disabled = true;
+        btn.classList.remove('ready');
+        btn.innerHTML = `+${q.reward} 🪙`;
+      }
+    }
+
+    // --- 8.2. Первое расширение кафе (Уютная Веранда) ---
+    function buyExpansion() {
+      initAudio();
+      if ((state.expansion || 0) >= 1) return;
+      const canUnlock = state.ordersServed >= 40 && (state.upgrades.menu || 1) >= 2;
+      if (!canUnlock) {
+        showToast('Условия не выполнены: нужно 40 заказов и 2-е блюдо! 🔒');
+        return;
+      }
+      const cost = 750;
+      if (state.coins >= cost) {
+        state.coins -= cost;
+        state.expansion = 1;
+        playSound('upgrade');
+        showToast('🎉 Кафе успешно расширено! Уютная Веранда открыта (+1 место)! 🌿', 3500);
+        addVisualParticle(canvasWidth / 2, getCounterY(), '🏡 Веранда! +1 место', '#2e7d32', 'text');
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        updateUI();
+        saveGame();
+      } else {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        showToast('Недостаточно монет для расширения (цена 750 🪙)!');
+      }
+    }
+
+    function showDishUnlockModal(dish) {
+      const modal = document.getElementById('dish-modal');
+      if (!modal) return;
+      document.getElementById('dish-modal-icon').innerText = dish.icon;
+      document.getElementById('dish-modal-title').innerText = `Открыто блюдо: ${dish.name}! 🎉`;
+      document.getElementById('dish-modal-desc').innerText = `Посетители теперь с удовольствием заказывают ${dish.name}!`;
+      document.getElementById('dish-modal-stats').innerText = `Цена заказа: ${dish.basePrice} 🪙 | Время готовки: ${dish.cookTime}с`;
+      modal.style.display = 'flex';
+      playSound('upgrade');
+    }
+
+    function closeDishModal() {
+      const modal = document.getElementById('dish-modal');
+      if (modal) modal.style.display = 'none';
     }
 
     function buyUpgrade(id) {
@@ -986,6 +1329,13 @@
 
         if (id === 'helper') {
           updateStationPositions();
+        }
+
+        if (id === 'menu') {
+          const newDish = DISHES[currentLvl];
+          if (newDish) {
+            showDishUnlockModal(newDish);
+          }
         }
 
         showToast(`Улучшено: ${upg.name}! 🎉`);
@@ -1080,7 +1430,9 @@
       { id: 'calico', fur: '#ffe0b2', ear: '#e65100', stripe: '#5d4037', eye: '#388e3c' }
     ];
 
-    function spawnCustomer() {
+    let gourmetSpawnTimer = 90 + cafeRandom() * 60; // Спавн раз в 90-150 секунд активной игры
+
+    function spawnCustomer(isVIP = false) {
       const maxSeats = getMaxCustomerSeats();
       const currentWaitingCount = customers.filter(c => c.state !== 'leaving').length;
       if (currentWaitingCount >= maxSeats) return;
@@ -1102,7 +1454,9 @@
       const seatPos = getSeatPosition(freeSeatIndex);
       const availableDishes = getAvailableDishes();
       const chosenDish = availableDishes[Math.floor(cafeRandom() * availableDishes.length)];
-      const breed = CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
+      const breed = isVIP 
+        ? { id: 'royal', fur: '#fff9c4', ear: '#ffd54f', stripe: '#fbc02d', eye: '#6a1b9a' }
+        : CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
       const walkLaneY = Math.min(canvasHeight - 30, seatPos.y + 40);
 
       const customer = {
@@ -1112,16 +1466,41 @@
         y: walkLaneY,
         targetX: seatPos.x,
         targetY: seatPos.y,
-        state: 'walking_to_seat', // 'walking_to_seat', 'waiting_order', 'eating', 'leaving'
+        state: 'walking_to_seat', // 'walking_to_seat', 'waiting_vip_accept', 'waiting_order', 'eating', 'leaving'
+        isVIP: !!isVIP,
+        isVipAccepted: false,
+        vipTimer: 0,
+        totalVipTimer: 0,
         breed,
         dish: chosenDish,
         eatTimer: 0,
-        eatTotalTime: 1.4,
+        eatTotalTime: 1.5,
         walkAnim: 0,
         heartAnim: 0
       };
 
       customers.push(customer);
+
+      if (isVIP && !state.seenHints.gourmet) {
+        state.seenHints.gourmet = true;
+        showToast('👑 В кафе пришёл кот-гурман! Нажми на золотое облачко, чтобы принять VIP-заказ (x3 🪙)!', 3500);
+      }
+    }
+
+    function acceptVipOrder(cat) {
+      if (!cat || !cat.isVIP || cat.isVipAccepted) return;
+      initAudio();
+      cat.isVipAccepted = true;
+      cat.state = 'waiting_order';
+      // Срок готовки с запасом, гарантированно достижим при текущей скорости готовки
+      const cookTimeEst = cat.dish.cookTime * getCookTimeMultiplier();
+      cat.totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
+      cat.vipTimer = cat.totalVipTimer;
+
+      playSound('coin');
+      addVisualParticle(cat.x, cat.y - 35, '👑 VIP Заказ принят!', '#ffd700', 'text');
+      showToast(`Принят заказ от гурмана! Успейте приготовить ${cat.dish.name}! ⏳`);
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     }
 
     function addVisualParticle(x, y, text, color, type = 'text') {
@@ -1154,11 +1533,21 @@
     }
 
     function updateSimulation(dt) {
-      // Спавн посетителей
+      // Спавн обычных посетителей
       nextCustomerSpawnTimer -= dt;
       if (nextCustomerSpawnTimer <= 0) {
-        spawnCustomer();
+        spawnCustomer(false);
         nextCustomerSpawnTimer = 1.2 + cafeRandom() * 1.5;
+      }
+
+      // Спавн кота-гурмана раз в 90-150 секунд активной игры (одновременно не более одного)
+      gourmetSpawnTimer -= dt;
+      if (gourmetSpawnTimer <= 0) {
+        gourmetSpawnTimer = 90 + cafeRandom() * 60;
+        const hasVipNow = customers.some(c => c.isVIP);
+        if (!hasVipNow) {
+          spawnCustomer(true);
+        }
       }
 
       // Обновление посетителей
@@ -1173,25 +1562,52 @@
           if (dist < 3) {
             c.x = c.targetX;
             c.y = c.targetY;
-            c.state = 'waiting_order';
+            if (c.isVIP && !c.isVipAccepted) {
+              c.state = 'waiting_vip_accept';
+            } else {
+              c.state = 'waiting_order';
+            }
           } else {
             c.x += (dx / dist) * 75 * dt;
             c.y += (dy / dist) * 75 * dt;
+          }
+        } else if (c.state === 'waiting_order') {
+          // Обработка таймера особого заказа гурмана
+          if (c.isVIP && c.isVipAccepted) {
+            c.vipTimer -= dt;
+            if (c.vipTimer <= 0) {
+              // Время вышло: гурман разочарован и уходит, монеты не списываются
+              c.state = 'leaving';
+              c.targetX = canvasWidth + 50;
+              c.targetY = Math.min(canvasHeight - 30, c.y + 35);
+              addVisualParticle(c.x, c.y - 30, '😿 Время вышло...', '#78909c', 'text');
+              showToast('Кот-гурман ушёл, не дождавшись блюда ⏳');
+              // Освобождаем станцию готовки, если она готовила для него
+              cookingStations.forEach(st => {
+                if (st.targetCustomer === c) {
+                  st.isCooking = false;
+                  st.dish = null;
+                  st.targetCustomer = null;
+                  st.progress = 0;
+                }
+              });
+            }
           }
         } else if (c.state === 'eating') {
           c.eatTimer -= dt;
           c.heartAnim += dt * 4;
           if (c.eatTimer <= 0) {
-            // Закончил кушать -> оплата и уход
+            // Закончил кушать -> оплата и уход (тройная оплата для гурмана!)
             const profitMult = getProfitMultiplier();
-            const earnedCoins = Math.floor(c.dish.basePrice * profitMult);
+            const vipMult = c.isVIP ? 3 : 1;
+            const earnedCoins = Math.floor(c.dish.basePrice * profitMult * vipMult);
             state.coins += earnedCoins;
             state.totalEarned += earnedCoins;
             state.ordersServed++;
 
-            playSound('coin');
-            addVisualParticle(c.x, c.y - 35, `+${earnedCoins} 🪙`, '#ffb300', 'text');
-            addVisualParticle(c.x, c.y - 20, '❤️', '#e91e63', 'heart');
+            playSound(c.isVIP ? 'upgrade' : 'coin');
+            addVisualParticle(c.x, c.y - 35, `+${earnedCoins} 🪙${c.isVIP ? ' (VIP x3!)' : ''}`, c.isVIP ? '#ffd700' : '#ffb300', 'text');
+            addVisualParticle(c.x, c.y - 20, c.isVIP ? '💛' : '❤️', c.isVIP ? '#ffd700' : '#e91e63', 'heart');
 
             updateUI();
             saveGame();
@@ -1222,8 +1638,12 @@
 
         if (!station.isCooking) {
           // Ищем посетителя, ожидающего заказ, которого еще никто не готовит
+          // ПРИОРИТЕТ: сначала проверяем VIP-посетителя с принятым заказом!
           const waitingCustomer = customers.find(c => 
-            c.state === 'waiting_order' && 
+            c.isVIP && c.isVipAccepted && c.state === 'waiting_order' && 
+            !cookingStations.some(s => s.targetCustomer === c)
+          ) || customers.find(c => 
+            !c.isVIP && c.state === 'waiting_order' && 
             !cookingStations.some(s => s.targetCustomer === c)
           );
 
@@ -1274,7 +1694,7 @@
       }
     }
 
-    // Тап по игровому полю (ускорение готовки шефа или ласка котика)
+    // Тап по игровому полю (принятие VIP заказа, ускорение готовки шефа или ласка котика)
     function handleStageClick(e) {
       initAudio();
       const rect = canvas.getBoundingClientRect();
@@ -1283,7 +1703,17 @@
       const clickX = (e.clientX - rect.left) * scaleX;
       const clickY = (e.clientY - rect.top) * scaleY;
 
-      // Проверяем клик по котикам-посетителям (ласка)
+      // 1. Проверяем клик по VIP котику или его золотому облачку для принятия заказа
+      const vipCatToAccept = customers.find(c => 
+        c.isVIP && !c.isVipAccepted && 
+        (Math.hypot(c.x - clickX, c.y - clickY) < 42 || Math.hypot(c.x - clickX, (c.y - 45) - clickY) < 38)
+      );
+      if (vipCatToAccept) {
+        acceptVipOrder(vipCatToAccept);
+        return;
+      }
+
+      // 2. Проверяем клик по котикам-посетителям (ласка)
       const clickedCat = customers.find(c => Math.hypot(c.x - clickX, c.y - clickY) < 30);
       if (clickedCat) {
         playSound('purr');
@@ -1292,7 +1722,7 @@
         return;
       }
 
-      // Клик по кухне шефа -> мгновенное ускорение готовки
+      // 3. Клик по кухне шефа -> мгновенное ускорение готовки
       const chefStation = cookingStations[0];
       if (chefStation.isCooking) {
         chefStation.progress = Math.min(0.98, chefStation.progress + 0.22);
@@ -1356,16 +1786,26 @@
       // Декоративный навес кафе (Awning 🎪)
       const awningHeight = 22;
       const stripeWidth = 26;
+      const isExpanded = (state.expansion || 0) >= 1;
       for (let x = 0; x < canvasWidth; x += stripeWidth) {
-        ctx.fillStyle = (Math.floor(x / stripeWidth) % 2 === 0) ? '#ff7043' : '#fff3e0';
+        ctx.fillStyle = (Math.floor(x / stripeWidth) % 2 === 0) 
+          ? (isExpanded ? '#e65100' : '#ff7043') 
+          : (isExpanded ? '#f1f8e9' : '#fff3e0');
         ctx.beginPath();
         ctx.rect(x, 0, stripeWidth, awningHeight);
         ctx.arc(x + stripeWidth / 2, awningHeight, stripeWidth / 2, 0, Math.PI, false);
         ctx.fill();
       }
 
+      // Гирлянда листьев и цветов при расширении кафе (Веранда)
+      if (isExpanded) {
+        ctx.font = '13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌿 🌸 🌿 🌸 🌿 🌸 🌿 🌸 🌿', canvasWidth / 2, awningHeight + 12);
+      }
+
       // Деревянный теплый пол
-      ctx.fillStyle = '#d7ccc8';
+      ctx.fillStyle = isExpanded ? '#cfd8dc' : '#d7ccc8';
       ctx.fillRect(0, wallH, canvasWidth, canvasHeight - wallH);
       ctx.strokeStyle = '#bcaaa4';
       ctx.lineWidth = 1;
@@ -1377,11 +1817,19 @@
       }
 
       // Коврик под стульями посетителей
-      drawCozyRug(canvasWidth * 0.5, counterY + 52, canvasWidth * 0.86, 44);
+      drawCozyRug(canvasWidth * 0.5, counterY + 52, canvasWidth * 0.88, 44);
 
       // Декоративные картины с рыбкой и кофейной чашкой на стене
-      drawPictureFrame(45, Math.round(wallH * 0.45), '🐟');
-      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.45), '☕');
+      drawPictureFrame(45, Math.round(wallH * 0.45), isExpanded ? '🌿' : '🐟');
+      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.45), isExpanded ? '✨' : '☕');
+
+      // Растение в горшочке на веранде при расширении
+      if (isExpanded) {
+        ctx.font = '22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🪴', 24, counterY - 14);
+      }
 
       // Мисочка с водой/кормом и клубок ниток на полу (убирают пустоту пола)
       ctx.font = '22px sans-serif';
@@ -1748,14 +2196,27 @@
         ctx.moveTo(cx + 8, cy + 4); ctx.lineTo(cx + 16, cy + 5);
         ctx.stroke();
 
+        // Корона и блеск для кота-гурмана
+        if (c.isVIP) {
+          ctx.font = '16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('👑', cx, cy - 20);
+          ctx.font = '11px sans-serif';
+          ctx.fillText('✨', cx - 18 + Math.sin(globalGameTime * 6) * 3, cy - 10);
+        }
+
         // Облачко заказа над посетителем (Thought Bubble 💭 крупно!)
-        if (c.state === 'waiting_order') {
-          drawThoughtBubble(cx, cy - 36, c.dish.icon);
+        if (c.state === 'waiting_vip_accept') {
+          // Золотое облачко ожидания принятия VIP заказа
+          drawThoughtBubble(cx, cy - 36, c.dish.icon, true, false, 0, 1);
+        } else if (c.state === 'waiting_order') {
+          // Обычное облачко или VIP с таймером
+          drawThoughtBubble(cx, cy - 36, c.dish.icon, c.isVIP, c.isVIP && c.isVipAccepted, c.vipTimer, c.totalVipTimer);
         } else if (c.state === 'eating') {
-          // Сердечко восторга от еды
+          // Сердечко восторга от еды (золотое у гурмана)
           ctx.font = '22px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('❤️', cx, cy - 36);
+          ctx.fillText(c.isVIP ? '💛' : '❤️', cx, cy - 36);
           // Блюдо на стойке перед котиком (крупно 22px!)
           ctx.fillText(c.dish.icon, cx, counterY - 4);
         }
@@ -1764,12 +2225,12 @@
       });
     }
 
-    function drawThoughtBubble(x, y, icon) {
+    function drawThoughtBubble(x, y, icon, isVIP = false, showTimer = false, vipTimer = 0, totalVipTimer = 1) {
       ctx.save();
       // Хвостик облачка
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#bcaaa4';
-      ctx.lineWidth = 1.4;
+      ctx.fillStyle = isVIP ? '#fffde7' : '#ffffff';
+      ctx.strokeStyle = isVIP ? '#fbc02d' : '#bcaaa4';
+      ctx.lineWidth = isVIP ? 2 : 1.4;
 
       ctx.beginPath();
       ctx.arc(x - 5, y + 14, 3.5, 0, Math.PI * 2);
@@ -1777,17 +2238,77 @@
       ctx.fill();
       ctx.stroke();
 
-      // Круглое крупное облачко (увеличено для отличной читаемости на мобильных!)
+      // Круглое крупное облачко
       ctx.beginPath();
-      ctx.arc(x, y - 8, 21, 0, Math.PI * 2);
+      ctx.arc(x, y - 8, 22, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+
+      // Золотое сияние для VIP
+      if (isVIP) {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
 
       // Иконка желаемого блюда (крупно 24px)
       ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(icon, x, y - 8);
+
+      // Плашка "ТАП! 👑" до принятия особого заказа
+      if (isVIP && !showTimer) {
+        ctx.fillStyle = '#fbc02d';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x - 26, y + 15, 52, 14, 7);
+        } else {
+          ctx.rect(x - 26, y + 15, 52, 14);
+        }
+        ctx.fill();
+        ctx.fillStyle = '#3e2723';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillText('ТАП! 👑', x, y + 22);
+      }
+
+      // Видимый таймер приготовления над облачком
+      if (isVIP && showTimer) {
+        const barW = 46;
+        const barH = 5;
+        const bx = x - barW / 2;
+        const by = y - 36;
+        const progress = Math.max(0, Math.min(1, vipTimer / (totalVipTimer || 1)));
+
+        // Фон таймера
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 3);
+        } else {
+          ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
+        }
+        ctx.fill();
+
+        // Заполнение полосы таймера (зеленый -> оранжевый -> красный)
+        let barColor = '#4caf50';
+        if (progress < 0.3) barColor = '#f44336';
+        else if (progress < 0.6) barColor = '#ff9800';
+
+        ctx.fillStyle = barColor;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx, by, barW * progress, barH, 2);
+        } else {
+          ctx.rect(bx, by, barW * progress, barH);
+        }
+        ctx.fill();
+
+        // Текст секунд
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillText(`⏳ ${Math.ceil(vipTimer)}с`, x, by - 5);
+      }
 
       ctx.restore();
     }
@@ -1832,13 +2353,61 @@
       document.getElementById('coins-display').innerText = Math.floor(state.coins).toLocaleString('ru-RU');
       document.getElementById('orders-display').innerText = formatOrdersCount(state.ordersServed);
 
+      // Заголовок кафе с учетом расширения (Веранда)
+      const titleEl = document.querySelector('.cafe-title');
+      if (titleEl) {
+        titleEl.innerText = (state.expansion || 0) >= 1 ? 'Кошачье Кафе & Веранда 🌿' : 'Кошачье Кафе: Снек-Бар';
+      }
+
+      // Обновление текущей цели развития
+      updateQuestsUI();
+
       // 2. Рендер списка улучшений и подсчет доступных покупок
       const listEl = document.getElementById('upgrades-list');
       if (!listEl) return;
 
       let affordableCount = 0;
 
-      listEl.innerHTML = UPGRADES.map(upg => {
+      // Карточка первого расширения кафе (Уютная Веранда)
+      let expansionHtml = '';
+      if ((state.expansion || 0) === 0) {
+        const canUnlock = state.ordersServed >= 40 && (state.upgrades.menu || 1) >= 2;
+        const canAffordExp = state.coins >= 750 && canUnlock;
+        const ordersReq = `${Math.min(40, state.ordersServed)}/40 ${state.ordersServed >= 40 ? '✅' : '🔒'}`;
+        const menuReq = `${(state.upgrades.menu || 1) >= 2 ? 'Мяу-Круассан ✅' : 'Второе блюдо 🔒'}`;
+
+        if (canAffordExp) affordableCount++;
+
+        expansionHtml = `
+          <div class="expansion-card ${canUnlock ? 'unlocked' : ''}">
+            <div class="expansion-header">
+              <span style="font-size: 22px;">🌿</span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 13px; font-weight: 800; color: #3e2723;">Расширение: Уютная Веранда</div>
+                <div style="font-size: 11px; color: #5d4037;">+1 постоянное место для гостей кафе</div>
+              </div>
+              <button class="upgrade-btn ${canAffordExp ? 'can-afford' : ''}" 
+                      onclick="buyExpansion()" 
+                      ${!canAffordExp ? 'disabled' : ''} 
+                      style="min-width: 86px;">
+                ${canUnlock ? '<span class="upgrade-cost-text">750 🪙</span>' : '🔒 Закрыто'}
+              </button>
+            </div>
+            <div class="expansion-reqs">
+              <span class="req-pill ${state.ordersServed >= 40 ? 'ok' : ''}">📋 ${ordersReq}</span>
+              <span class="req-pill ${(state.upgrades.menu || 1) >= 2 ? 'ok' : ''}">🥐 ${menuReq}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        expansionHtml = `
+          <div class="expansion-done-banner">
+            🌿 Уютная Веранда открыта! (+1 место для гостей). Следующие этапы расширения появятся в новых обновлениях! ✨
+          </div>
+        `;
+      }
+
+      const cardsHtml = UPGRADES.map(upg => {
         const currentLvl = getUpgradeLevel(upg.id);
         const isMax = currentLvl >= upg.maxLevel;
         const cost = getUpgradeCost(upg);
@@ -1867,6 +2436,43 @@
           }
         }
 
+        // Понятный эффект следующего улучшения (до / после)
+        let deltaHtml = '';
+        if (upg.id === 'speed') {
+          if (!isMax) {
+            const nextLvl = currentLvl + 1;
+            const currentPct = Math.round(getCookTimeMultiplier() * 100);
+            const nextPct = Math.round(Math.max(0.25, Math.pow(0.85, nextLvl - 1)) * 100);
+            deltaHtml = `<div class="upgrade-delta">⚡ Время готовки: ${currentPct}% → ${nextPct}%</div>`;
+          } else {
+            deltaHtml = `<div class="upgrade-delta">⚡ Макс. скорость: x4 готовка!</div>`;
+          }
+        } else if (upg.id === 'profit') {
+          if (!isMax) {
+            const curBonus = Math.round((getProfitMultiplier() - 1) * 100);
+            const nextBonus = curBonus + 30;
+            deltaHtml = `<div class="upgrade-delta">💰 Доход: +${curBonus}% → +${nextBonus}%</div>`;
+          } else {
+            deltaHtml = `<div class="upgrade-delta">💰 Максимальный доход!</div>`;
+          }
+        } else if (upg.id === 'seats') {
+          if (!isMax) {
+            const curSeats = getMaxCustomerSeats();
+            deltaHtml = `<div class="upgrade-delta">🪑 Мест в зале: ${curSeats} → ${curSeats + 1}</div>`;
+          } else {
+            deltaHtml = `<div class="upgrade-delta">🪑 Все столы установлены!</div>`;
+          }
+        } else if (upg.id === 'menu') {
+          if (!isMax) {
+            const nextDish = DISHES[currentLvl];
+            deltaHtml = `<div class="upgrade-delta">📖 След. блюдо: ${nextDish ? `${nextDish.icon} ${nextDish.name} (${nextDish.basePrice} 🪙)` : 'Все открыты'}</div>`;
+          } else {
+            deltaHtml = `<div class="upgrade-delta">📖 Всё меню открыто!</div>`;
+          }
+        } else if (upg.id === 'helper') {
+          deltaHtml = `<div class="upgrade-delta">🐾 Второй повар готовит второй заказ</div>`;
+        }
+
         return `
           <div class="upgrade-card ${canAfford ? 'can-afford' : ''} ${isMax ? 'maxed' : ''}">
             <div class="upgrade-info">
@@ -1874,6 +2480,7 @@
               <div class="upgrade-texts">
                 <div class="upgrade-name">${upg.name}</div>
                 <div class="upgrade-desc">${upg.desc}</div>
+                ${deltaHtml}
                 <div class="upgrade-level">${levelLabel}</div>
               </div>
             </div>
@@ -1883,6 +2490,8 @@
           </div>
         `;
       }).join('');
+
+      listEl.innerHTML = expansionHtml + cardsHtml;
 
       // Обновление бэйджа доступных улучшений
       const badgeEl = document.getElementById('shop-badge');
@@ -1905,7 +2514,7 @@
       if (toastTimeout) clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
         toastEl.classList.remove('show');
-      }, 2000);
+      }, 2400);
     }
 
     // --- 13. Инициализация игры ---
@@ -1929,6 +2538,13 @@
         getUpgradeLevel,
         getUpgradeCost,
         spawnCustomer,
+        spawnGourmetCat: () => spawnCustomer(true),
+        acceptVipOrder,
+        buyExpansion,
+        getCurrentQuest,
+        claimQuestReward,
+        showDishUnlockModal,
+        closeDishModal,
         getCustomers: () => customers,
         getCookingStations: () => cookingStations,
         saveGame,
@@ -1943,6 +2559,7 @@
         claimOfflineEarnings,
         formatOrdersCount,
         pluralize,
+        QUESTS,
         DISHES,
         UPGRADES
       };
