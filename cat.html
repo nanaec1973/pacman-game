@@ -1744,11 +1744,11 @@
         <p style="font-size:15px; color:#fff; margin-bottom:14px;">Ты построил башню: <b id="tower-result-height" style="color:#ffb86c;">0 🧶</b> и заработал <b id="tower-result-gained" style="color:#f1fa8c;">+0 🐟</b></p>
         <button class="card-btn" style="padding:12px 30px; font-size:16px; background:#f1fa8c; color:#111;" onclick="startTowerGame()">СТРОИТЬ СНОВА 🧶</button>
       </div>
-      <div id="tower-area" onclick="dropTowerYarn(event)">
+      <div id="tower-area" onpointerdown="dropTowerYarn(event)" onclick="dropTowerYarn(event)">
         <div id="tower-combo-badge" style="position: absolute; top: 8px; left: 10px; font-size: 13px; font-weight: 800; color: #50fa7b; z-index: 10;">COMBO x1 ⚡</div>
         <div id="tower-height-badge" style="position: absolute; top: 8px; right: 10px; font-size: 13px; font-weight: 800; color: #ffb86c; z-index: 10;">Высота: 0 🧶</div>
         <canvas id="tower-canvas" width="340" height="300" style="display: block; margin: 0 auto;"></canvas>
-        <button id="tower-drop-btn" class="card-btn" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 80%; padding: 10px; font-size: 14px; background: #ff79c6; color: #fff; z-index: 20;" onclick="dropTowerYarn(event)">СБРОСИТЬ КЛУБОК! 🧶</button>
+        <button id="tower-drop-btn" class="card-btn" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 80%; padding: 10px; font-size: 14px; background: #ff79c6; color: #fff; z-index: 20;" onpointerdown="dropTowerYarn(event)" onclick="dropTowerYarn(event)">СБРОСИТЬ КЛУБОК! 🧶</button>
       </div>
     </div>
   </div>
@@ -5877,10 +5877,26 @@
     let towerGameInterval = null;
     let towerAnimFrame = null;
     let towerTime = 0;
+    let swingPhase = 0;
+    let cameraY = 0;
+    let targetCameraY = 0;
     let lastTowerFrameTime = GameEnv.perfNow();
     let towerBlocks = [];
     let fallingYarn = null;
+    let missedYarns = [];
+    let towerParticles = [];
+    let towerPointerHandled = false;
+    let towerLastPointerTime = 0;
+    let towerParticleSeed = 0x6d2b79f5;
     const yarnColors = ['#ff79c6', '#8be9fd', '#50fa7b', '#f1fa8c', '#bd93f9', '#ffb86c', '#ff5555'];
+
+    // Локальный генератор случайности для декоративных эффектов, не расходующий общий RNG игры
+    function towerParticleRandom() {
+      let t = (towerParticleSeed += 0x6D2B79F5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
 
     function startTowerGame() {
       initAudio();
@@ -5896,8 +5912,15 @@
       towerLives = 3;
       towerGameTime = 30;
       towerTime = 0;
+      swingPhase = 0;
+      cameraY = 0;
+      targetCameraY = 0;
       lastTowerFrameTime = GameEnv.perfNow();
       fallingYarn = null;
+      missedYarns = [];
+      towerParticles = [];
+      towerPointerHandled = false;
+      towerLastPointerTime = 0;
 
       towerBlocks = [
         { x: 170, y: 265, r: 24, color: '#ff9f43' }
@@ -5919,15 +5942,26 @@
     }
 
     function dropTowerYarn(e) {
-      if (e && e.stopPropagation) e.stopPropagation();
+      if (e) {
+        if (e.stopPropagation) e.stopPropagation();
+        // Исключаем повторный сброс от синтетического click после pointerdown (в т.ч. при долгом удержании)
+        if (e.type === 'click' && (towerPointerHandled || (GameEnv.perfNow() - towerLastPointerTime < 1500))) {
+          towerPointerHandled = false;
+          return;
+        }
+        if (e.type === 'pointerdown') {
+          towerPointerHandled = true;
+          towerLastPointerTime = GameEnv.perfNow();
+          if (e.preventDefault && e.cancelable) e.preventDefault();
+        }
+      }
       if (!towerGameActive || fallingYarn) return;
       initAudio();
 
-      const swingSpeed = Math.min(3.2, 2.5 + towerHeight * 0.03);
-      const swingX = 170 + Math.sin(towerTime * swingSpeed) * 105;
+      const swingX = 170 + Math.sin(swingPhase) * 105;
       fallingYarn = {
         x: swingX,
-        y: 45,
+        y: 45 - cameraY,
         r: 20,
         vy: 240.0, // px per sec
         color: yarnColors[towerHeight % yarnColors.length]
@@ -5935,46 +5969,74 @@
       playSound('squeak');
     }
 
+    function spawnTowerLandingParticles(x, y, color, isPerfect) {
+      const count = isPerfect ? 8 : 4;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (towerParticleRandom() * 0.5);
+        const speed = isPerfect ? (50 + towerParticleRandom() * 60) : (30 + towerParticleRandom() * 40);
+        towerParticles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 15,
+          r: isPerfect ? (2 + towerParticleRandom() * 2) : (1.5 + towerParticleRandom() * 1.5),
+          color: isPerfect ? '#f1fa8c' : color,
+          life: 0.25,
+          maxLife: 0.25
+        });
+      }
+    }
+
     function runTowerPhysics(currentTime) {
-      if (!towerGameActive) return;
+      if (!towerGameActive && missedYarns.length === 0 && towerParticles.length === 0 && !towerBlocks.some(b => b.landTimer > 0)) {
+        if (towerAnimFrame) {
+          GameEnv.cancelAnimationFrame(towerAnimFrame);
+          towerAnimFrame = null;
+        }
+        return;
+      }
+
       const now = currentTime || GameEnv.perfNow();
       const dt = Math.min(0.1, (now - lastTowerFrameTime) / 1000);
       lastTowerFrameTime = now;
 
       towerTime += dt * 1.8;
 
-      tCtx.clearRect(0, 0, towerCanvas.width, towerCanvas.height);
-
-      // Фон платформы башни
-      tCtx.fillStyle = '#6272a4';
-      tCtx.fillRect(100, 285, 140, 15);
-      tCtx.fillStyle = '#f1fa8c';
-      tCtx.fillRect(100, 283, 140, 3);
-
+      // Непрерывная фаза раскачивания: исключает любые скачки при изменении скорости
       const swingSpeed = Math.min(3.2, 2.5 + towerHeight * 0.03);
-      const swingX = 170 + Math.sin(towerTime * swingSpeed) * 105;
+      swingPhase = (swingPhase + swingSpeed * dt * 1.8) % (Math.PI * 2);
+
+      const swingX = 170 + Math.sin(swingPhase) * 105;
       const swingY = 45;
 
-      // Веревка крана
-      tCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      tCtx.lineWidth = 2;
-      tCtx.beginPath();
-      tCtx.moveTo(170, 0);
-      tCtx.lineTo(swingX, swingY);
-      tCtx.stroke();
+      // Плавное слежение камеры за вершиной башни (сохраняет ~135px свободного места для сброса)
+      const topBlock = towerBlocks[towerBlocks.length - 1];
+      const targetTopScreenY = 180;
+      if (topBlock && topBlock.y < targetTopScreenY) {
+        targetCameraY = targetTopScreenY - topBlock.y;
+      } else {
+        targetCameraY = 0;
+      }
+      cameraY += (targetCameraY - cameraY) * Math.min(1.0, dt * 5.0);
 
       // Физика падающего клубка
-      if (fallingYarn) {
+      if (fallingYarn && towerGameActive) {
         fallingYarn.y += fallingYarn.vy * dt;
         fallingYarn.vy += 600 * dt; // gravity
 
-        const topBlock = towerBlocks[towerBlocks.length - 1];
         if (fallingYarn.y + fallingYarn.r >= topBlock.y - topBlock.r + 6) {
           const dx = Math.abs(fallingYarn.x - topBlock.x);
           if (dx <= 38) {
             // Попадание на вершину башни
             fallingYarn.y = topBlock.y - (topBlock.r + fallingYarn.r - 8);
+            fallingYarn.landTimer = 0.22;
             towerBlocks.push(fallingYarn);
+
+            const landedX = fallingYarn.x;
+            const landedY = fallingYarn.y;
+            const landedColor = fallingYarn.color;
+
+            // Сброс fallingYarn происходит сразу - управление не задерживается!
             fallingYarn = null;
             towerHeight++;
 
@@ -5985,79 +6047,189 @@
               playSound('purr');
               document.getElementById('tower-combo-badge').innerText = `✨ ИДЕАЛЬНО! x${towerCombo}`;
               document.getElementById('tower-combo-badge').style.color = '#f1fa8c';
+              spawnTowerLandingParticles(landedX, landedY, landedColor, true);
             } else {
               towerCombo = 1;
               playSound('tick');
               document.getElementById('tower-combo-badge').innerText = `COMBO x1 ⚡`;
               document.getElementById('tower-combo-badge').style.color = '#50fa7b';
+              spawnTowerLandingParticles(landedX, landedY, landedColor, false);
             }
 
             towerGameScore += pts;
             document.getElementById('game-score').innerText = towerGameScore;
             document.getElementById('tower-height-badge').innerText = `Высота: ${towerHeight} 🧶`;
-
-            if (towerBlocks.length > 5) {
-              towerBlocks.forEach(b => b.y += 24);
-            }
           } else {
-            // Промах
+            // Промах: клубок не исчезает мгновенно, а физически падает мимо башни
             towerLives--;
             playSound('hit');
             if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+
+            const missDir = (fallingYarn.x < topBlock.x) ? -1 : 1;
+            missedYarns.push({
+              x: fallingYarn.x,
+              y: fallingYarn.y,
+              vx: missDir * 70,
+              vy: Math.max(140, fallingYarn.vy * 0.7),
+              r: fallingYarn.r,
+              color: fallingYarn.color,
+              rot: 0,
+              vrot: missDir * 5
+            });
+
+            // Сброс fallingYarn сразу - управление не блокируется!
             fallingYarn = null;
 
             if (towerLives <= 0) {
               endTowerGame();
-              return;
             }
           }
         }
       }
 
-      // Отрисовка всех клубков башни
-      towerBlocks.forEach((b) => {
-        drawTowerYarnBall(tCtx, b.x, b.y, b.r, b.color);
-      });
-
-      // Отрисовка висящего на кране клубка
-      if (!fallingYarn) {
-        drawTowerYarnBall(tCtx, swingX, swingY, 20, yarnColors[towerHeight % yarnColors.length]);
-      } else {
-        drawTowerYarnBall(tCtx, fallingYarn.x, fallingYarn.y, fallingYarn.r, fallingYarn.color);
+      // Физика промахнувшихся клубков (падение мимо экрана)
+      for (let i = missedYarns.length - 1; i >= 0; i--) {
+        const m = missedYarns[i];
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        m.vy += 650 * dt;
+        m.rot += m.vrot * dt;
+        if (m.y + cameraY > 350) {
+          missedYarns.splice(i, 1);
+        }
       }
 
-      // Отрисовка жизней
+      // Обновление таймеров приземления (сквош-анимация)
+      for (let i = 0; i < towerBlocks.length; i++) {
+        const b = towerBlocks[i];
+        if (b.landTimer && b.landTimer > 0) {
+          b.landTimer -= dt;
+          if (b.landTimer < 0) b.landTimer = 0;
+        }
+      }
+
+      // Обновление частиц
+      for (let i = towerParticles.length - 1; i >= 0; i--) {
+        const p = towerParticles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) {
+          towerParticles.splice(i, 1);
+        }
+      }
+
+      // --- ОТРИСОВКА ---
+      tCtx.clearRect(0, 0, towerCanvas.width, towerCanvas.height);
+
+      // Веревка крана (в экранных координатах)
+      tCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      tCtx.lineWidth = 2;
+      tCtx.beginPath();
+      tCtx.moveTo(170, 0);
+      tCtx.lineTo(swingX, swingY);
+      tCtx.stroke();
+
+      // Подвешенный клубок (в экранных координатах)
+      if (!fallingYarn && towerGameActive) {
+        drawTowerYarnBall(tCtx, swingX, swingY, 20, yarnColors[towerHeight % yarnColors.length], 0, 0);
+      }
+
+      // Фон платформы башни (в координатах мира с учетом камеры)
+      tCtx.fillStyle = '#6272a4';
+      tCtx.fillRect(100, 285 + cameraY, 140, 15);
+      tCtx.fillStyle = '#f1fa8c';
+      tCtx.fillRect(100, 283 + cameraY, 140, 3);
+
+      // Отрисовка всех клубков башни
+      for (let i = 0; i < towerBlocks.length; i++) {
+        const b = towerBlocks[i];
+        const screenY = b.y + cameraY;
+        if (screenY > 340) continue; // отсечение невидимых клубков внизу
+        const squish = (b.landTimer && b.landTimer > 0)
+          ? Math.sin((1.0 - (b.landTimer / 0.22)) * Math.PI) * (b.landTimer / 0.22) * 0.35
+          : 0;
+        drawTowerYarnBall(tCtx, b.x, screenY, b.r, b.color, squish, 0);
+      }
+
+      // Отрисовка падающего клубка
+      if (fallingYarn) {
+        drawTowerYarnBall(tCtx, fallingYarn.x, fallingYarn.y + cameraY, fallingYarn.r, fallingYarn.color, 0, 0);
+      }
+
+      // Отрисовка промахнувшихся клубков
+      for (let i = 0; i < missedYarns.length; i++) {
+        const m = missedYarns[i];
+        drawTowerYarnBall(tCtx, m.x, m.y + cameraY, m.r, m.color, 0, m.rot);
+      }
+
+      // Отрисовка частиц приземления
+      for (let i = 0; i < towerParticles.length; i++) {
+        const p = towerParticles[i];
+        const alpha = Math.max(0, p.life / p.maxLife);
+        tCtx.save();
+        if (typeof tCtx.globalAlpha !== 'undefined') tCtx.globalAlpha = alpha;
+        tCtx.fillStyle = p.color;
+        tCtx.beginPath();
+        tCtx.arc(p.x, p.y + cameraY, p.r, 0, Math.PI * 2);
+        tCtx.fill();
+        tCtx.restore();
+      }
+
+      // Отрисовка жизней (в экранных координатах)
       tCtx.fillStyle = '#ff5555';
       tCtx.font = 'bold 13px sans-serif';
-      tCtx.fillText(`❤️ Жизни: ${towerLives}`, 20, 25);
+      tCtx.fillText(`❤️ Жизни: ${Math.max(0, towerLives)}`, 20, 25);
 
       towerAnimFrame = GameEnv.requestAnimationFrame(runTowerPhysics);
     }
 
-    function drawTowerYarnBall(ctx, x, y, r, color) {
+    function drawTowerYarnBall(ctx, x, y, r, color, squish, rot) {
       ctx.save();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
+      if (ctx.translate) {
+        ctx.translate(x, y);
+        if (rot && ctx.rotate) ctx.rotate(rot);
+        if (squish && ctx.scale) {
+          ctx.scale(1 + squish * 0.35, 1 - squish * 0.35);
+        }
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
 
-      // Текстура ниток клубка
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(x, y, r * 0.7, -0.5, Math.PI * 0.8);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x - 2, y + 2, r * 0.5, Math.PI * 0.5, Math.PI * 1.8);
-      ctx.stroke();
+        // Текстура ниток клубка
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.7, -0.5, Math.PI * 0.8);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-2, 2, r * 0.5, Math.PI * 0.5, Math.PI * 1.8);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 0.7, -0.5, Math.PI * 0.8);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x - 2, y + 2, r * 0.5, Math.PI * 0.5, Math.PI * 1.8);
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
     function endTowerGame() {
       if (!towerGameActive) return;
       towerGameActive = false;
-      if (towerGameInterval) GameEnv.clearInterval(towerGameInterval);
-      if (towerAnimFrame) GameEnv.cancelAnimationFrame(towerAnimFrame);
+      if (towerGameInterval) { GameEnv.clearInterval(towerGameInterval); towerGameInterval = null; }
+      fallingYarn = null;
+      towerPointerHandled = false;
       playSound('victory');
 
       const talentGameMult = 1 + ((state.talents && state.talents.hunter_games) || 0) * 0.15;
