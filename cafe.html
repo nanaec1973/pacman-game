@@ -156,42 +156,73 @@
       display: block;
     }
 
-    /* Подсказка ускорения тапом */
+    /* Подсказка ускорения тапом (внизу игрового поля, не перекрывает повара!) */
     #tap-hint {
       position: absolute;
-      top: 10px;
+      bottom: 8px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(109, 76, 65, 0.85);
+      background: rgba(84, 53, 44, 0.88);
       color: #fff;
-      padding: 5px 12px;
+      padding: 5px 14px;
       border-radius: 16px;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.2px;
       pointer-events: none;
       transition: opacity 0.3s;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+      white-space: nowrap;
+      z-index: 5;
     }
 
-    /* --- ПАНЕЛЬ УЛУЧШЕНИЙ (МАГАЗИН) --- */
+    /* --- ПАНЕЛЬ УЛУЧШЕНИЙ (МАГАЗИН: СВОРАЧИВАЕМАЯ) --- */
     #upgrades-sheet {
       background: #ffffff;
       border-top: 3px solid #ecdac6;
       border-radius: 20px 20px 0 0;
-      padding: 12px 14px calc(var(--safe-bottom) + 12px);
+      padding: 10px 14px calc(var(--safe-bottom) + 10px);
       box-shadow: 0 -6px 20px rgba(0,0,0,0.08);
       display: flex;
       flex-direction: column;
-      max-height: 44%;
       z-index: 10;
+      flex-shrink: 0;
+      transition: max-height 0.3s cubic-bezier(0.25, 1, 0.5, 1), padding 0.25s ease;
+      position: relative;
+    }
+
+    #upgrades-sheet.expanded {
+      max-height: 48%;
+    }
+
+    #upgrades-sheet.collapsed {
+      max-height: 52px;
+      padding-bottom: calc(var(--safe-bottom) + 6px);
+    }
+
+    #upgrades-sheet.collapsed .upgrades-scroll {
+      display: none;
     }
 
     .upgrades-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      user-select: none;
+      padding: 2px 0;
+    }
+
+    .sheet-drag-pill {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: #e0cbba;
     }
 
     .upgrades-title {
@@ -200,7 +231,40 @@
       color: var(--wood-dark);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+    }
+
+    .shop-badge {
+      background: #ff9800;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 10px;
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+    .shop-badge.zero {
+      display: none;
+    }
+
+    .sheet-toggle-btn {
+      background: #f5e8d9;
+      border: 1.5px solid #dfc7b0;
+      border-radius: 9px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--wood-dark);
+      cursor: pointer;
+      transition: transform 0.1s, background 0.15s;
+    }
+    .sheet-toggle-btn:active {
+      transform: scale(0.9);
+      background: #ebd6c0;
     }
 
     .upgrades-scroll {
@@ -481,12 +545,17 @@
       <div id="tap-hint">⚡ Тапай по кухне, чтобы ускорить готовку!</div>
     </main>
 
-    <!-- Нижняя панель улучшений -->
-    <section id="upgrades-sheet">
-      <div class="upgrades-header">
+    <!-- Нижняя панель улучшений (сворачиваемая) -->
+    <section id="upgrades-sheet" class="expanded">
+      <div class="upgrades-header" onclick="toggleShopCollapse()">
+        <span class="sheet-drag-pill"></span>
         <div class="upgrades-title">
           <span>🛠️ Улучшения кафе</span>
+          <span id="shop-badge" class="shop-badge zero">0</span>
         </div>
+        <button class="sheet-toggle-btn" id="sheet-toggle-btn" aria-label="Свернуть магазин">
+          <span id="sheet-toggle-icon">▼</span>
+        </button>
       </div>
       <div class="upgrades-scroll" id="upgrades-list">
         <!-- Генерируется скриптом -->
@@ -727,6 +796,9 @@
             state.lastSavedTime = parsed.lastSavedTime || Date.now();
             if (parsed.upgrades) {
               state.upgrades = Object.assign(state.upgrades, parsed.upgrades);
+              if (typeof state.upgrades.helper !== 'number') {
+                state.upgrades.helper = 0;
+              }
             }
           }
         }
@@ -786,9 +858,19 @@
     }
 
     // --- 8. Вычисления улучшений (Upgrades Math) ---
+    function getUpgradeLevel(upgId) {
+      if (typeof state.upgrades[upgId] === 'number') {
+        return state.upgrades[upgId];
+      }
+      return upgId === 'helper' ? 0 : 1;
+    }
+
     function getUpgradeCost(upg) {
-      const currentLvl = state.upgrades[upg.id] || 1;
+      const currentLvl = getUpgradeLevel(upg.id);
       if (currentLvl >= upg.maxLevel) return Infinity;
+      if (upg.id === 'helper') {
+        return upg.baseCost; // 500 монет найма
+      }
       return Math.floor(upg.baseCost * Math.pow(upg.costMult, currentLvl - 1));
     }
 
@@ -825,12 +907,19 @@
       const upg = UPGRADES.find(u => u.id === id);
       if (!upg) return;
 
+      const currentLvl = getUpgradeLevel(id);
+      if (currentLvl >= upg.maxLevel) return;
+
       const cost = getUpgradeCost(upg);
       if (state.coins >= cost) {
         state.coins -= cost;
-        state.upgrades[id] = (state.upgrades[id] || 0) + 1;
+        state.upgrades[id] = currentLvl + 1;
         playSound('upgrade');
         if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+        if (id === 'helper') {
+          updateStationPositions();
+        }
 
         showToast(`Улучшено: ${upg.name}! 🎉`);
         updateUI();
@@ -874,6 +963,22 @@
       }
     ];
 
+    function updateStationPositions() {
+      const hasHelper = (state.upgrades.helper || 0) > 0;
+      const kitchenY = Math.min(135, Math.max(90, canvasHeight * 0.28));
+      if (hasHelper) {
+        cookingStations[0].x = Math.round(canvasWidth * 0.32);
+        cookingStations[0].y = kitchenY;
+        cookingStations[1].x = Math.round(canvasWidth * 0.68);
+        cookingStations[1].y = kitchenY;
+      } else {
+        cookingStations[0].x = Math.round(canvasWidth * 0.50);
+        cookingStations[0].y = kitchenY;
+        cookingStations[1].x = Math.round(canvasWidth * 0.72);
+        cookingStations[1].y = kitchenY;
+      }
+    }
+
     // Посетители
     let customers = [];
     let customerIdCounter = 1;
@@ -882,15 +987,21 @@
     // Всплывающие частицы и текст (+25 🪙, сердечки, пар)
     let visualParticles = [];
 
+    // Динамическая высота барной стойки
+    function getCounterY() {
+      return Math.min(195, Math.max(145, canvasHeight * 0.44));
+    }
+
     // Места у барной стойки
     function getSeatPosition(index) {
       const maxSeats = getMaxCustomerSeats();
-      const startX = 65;
-      const endX = 315;
+      const startX = Math.max(48, canvasWidth * 0.13);
+      const endX = Math.min(canvasWidth - 48, canvasWidth * 0.87);
       const step = (endX - startX) / Math.max(1, maxSeats - 1);
+      const counterY = getCounterY();
       return {
-        x: startX + index * step,
-        y: 220
+        x: Math.round(startX + index * step),
+        y: Math.round(counterY + 48)
       };
     }
 
@@ -925,12 +1036,13 @@
       const availableDishes = getAvailableDishes();
       const chosenDish = availableDishes[Math.floor(cafeRandom() * availableDishes.length)];
       const breed = CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
+      const walkLaneY = Math.min(canvasHeight - 30, seatPos.y + 40);
 
       const customer = {
         id: customerIdCounter++,
         seatIndex: freeSeatIndex,
-        x: -40,
-        y: 290,
+        x: -45,
+        y: walkLaneY,
         targetX: seatPos.x,
         targetY: seatPos.y,
         state: 'walking_to_seat', // 'walking_to_seat', 'waiting_order', 'eating', 'leaving'
@@ -1019,7 +1131,7 @@
 
             c.state = 'leaving';
             c.targetX = canvasWidth + 50;
-            c.targetY = 290;
+            c.targetY = Math.min(canvasHeight - 30, c.y + 35);
           }
         } else if (c.state === 'leaving') {
           const dx = c.targetX - c.x;
@@ -1131,6 +1243,7 @@
       canvas.width = canvasWidth * window.devicePixelRatio;
       canvas.height = canvasHeight * window.devicePixelRatio;
       ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      updateStationPositions();
     }
     window.addEventListener('resize', resizeCanvas);
 
@@ -1153,10 +1266,25 @@
       drawParticles();
     }
 
+    function drawCozyRug(cx, cy, w, h) {
+      ctx.save();
+      ctx.fillStyle = '#eddcd2';
+      ctx.strokeStyle = '#ddbea9';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, Math.round(w / 2), Math.round(h / 2), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     function drawCafeEnvironment() {
+      const counterY = getCounterY();
+      const wallH = counterY - 25;
+
       // Стена кафе (пастельно-кремовая с деревянной планкой)
       ctx.fillStyle = '#fff6ea';
-      ctx.fillRect(0, 0, canvasWidth, 140);
+      ctx.fillRect(0, 0, canvasWidth, wallH);
 
       // Декоративный навес кафе (Awning 🎪)
       const awningHeight = 22;
@@ -1171,19 +1299,29 @@
 
       // Деревянный теплый пол
       ctx.fillStyle = '#d7ccc8';
-      ctx.fillRect(0, 140, canvasWidth, canvasHeight - 140);
+      ctx.fillRect(0, wallH, canvasWidth, canvasHeight - wallH);
       ctx.strokeStyle = '#bcaaa4';
       ctx.lineWidth = 1;
-      for (let y = 140; y < canvasHeight; y += 28) {
+      for (let y = wallH; y < canvasHeight; y += 26) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(canvasWidth, y);
         ctx.stroke();
       }
 
-      // Декоративные картины с рыбкой и растением на стене
-      drawPictureFrame(45, 55, '🐟');
-      drawPlantPot(canvasWidth - 45, 125);
+      // Коврик под стульями посетителей
+      drawCozyRug(canvasWidth * 0.5, counterY + 52, canvasWidth * 0.86, 44);
+
+      // Декоративные картины с рыбкой и кофейной чашкой на стене
+      drawPictureFrame(45, Math.round(wallH * 0.45), '🐟');
+      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.45), '☕');
+
+      // Мисочка с водой/кормом и клубок ниток на полу (убирают пустоту пола)
+      ctx.font = '22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🥣', 32, canvasHeight - 16);
+      ctx.fillText('🧶', canvasWidth - 32, canvasHeight - 16);
     }
 
     function drawPictureFrame(x, y, icon) {
@@ -1196,27 +1334,6 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(icon, x, y);
-      ctx.restore();
-    }
-
-    function drawPlantPot(x, y) {
-      ctx.save();
-      // Горшок
-      ctx.fillStyle = '#b08968';
-      ctx.beginPath();
-      ctx.moveTo(x - 8, y);
-      ctx.lineTo(x + 8, y);
-      ctx.lineTo(x + 6, y + 14);
-      ctx.lineTo(x - 6, y + 14);
-      ctx.closePath();
-      ctx.fill();
-      // Листики
-      ctx.fillStyle = '#66bb6a';
-      ctx.beginPath();
-      ctx.arc(x - 4, y - 4, 6, 0, Math.PI * 2);
-      ctx.arc(x + 4, y - 5, 7, 0, Math.PI * 2);
-      ctx.arc(x, y - 8, 6, 0, Math.PI * 2);
-      ctx.fill();
       ctx.restore();
     }
 
@@ -1240,80 +1357,96 @@
       const bob = Math.sin(globalGameTime * 5) * 2;
       const cy = y + bob;
 
-      // Тело котика-повара (Рыжий пушистик)
+      // Тело котика-повара (увеличено для отличной видимости!)
       ctx.fillStyle = '#ff9800';
       ctx.beginPath();
-      ctx.ellipse(x, cy, 18, 16, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, cy, 24, 21, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Белый фартучек
+      // Белый фартучек шефа
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(x, cy + 4, 11, 9, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, cy + 5, 15, 12, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#e65100';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.2;
       ctx.stroke();
 
       // Ушки
       ctx.fillStyle = '#ff9800';
       ctx.beginPath();
-      ctx.moveTo(x - 14, cy - 8);
-      ctx.lineTo(x - 6, cy - 20);
-      ctx.lineTo(x - 1, cy - 10);
+      ctx.moveTo(x - 18, cy - 10);
+      ctx.lineTo(x - 8, cy - 26);
+      ctx.lineTo(x - 1, cy - 12);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(x + 14, cy - 8);
-      ctx.lineTo(x + 6, cy - 20);
-      ctx.lineTo(x + 1, cy - 10);
+      ctx.moveTo(x + 18, cy - 10);
+      ctx.lineTo(x + 8, cy - 26);
+      ctx.lineTo(x + 1, cy - 12);
       ctx.fill();
 
       // Розовые серединки ушек
       ctx.fillStyle = '#ffab91';
       ctx.beginPath();
-      ctx.moveTo(x - 12, cy - 9);
-      ctx.lineTo(x - 6, cy - 17);
-      ctx.lineTo(x - 2, cy - 10);
+      ctx.moveTo(x - 16, cy - 11);
+      ctx.lineTo(x - 8, cy - 22);
+      ctx.lineTo(x - 3, cy - 12);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(x + 12, cy - 9);
-      ctx.lineTo(x + 6, cy - 17);
-      ctx.lineTo(x + 2, cy - 10);
+      ctx.moveTo(x + 16, cy - 11);
+      ctx.lineTo(x + 8, cy - 22);
+      ctx.lineTo(x + 3, cy - 12);
       ctx.fill();
 
-      // Мордочка и глазки
+      // Глазки с бликами
       ctx.fillStyle = '#3e2723';
       ctx.beginPath();
-      ctx.arc(x - 6, cy - 3, 2.2, 0, Math.PI * 2);
-      ctx.arc(x + 6, cy - 3, 2.2, 0, Math.PI * 2);
+      ctx.arc(x - 8, cy - 4, 2.8, 0, Math.PI * 2);
+      ctx.arc(x + 8, cy - 4, 2.8, 0, Math.PI * 2);
       ctx.fill();
-      // Розовый носик
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x - 9, cy - 5, 1.0, 0, Math.PI * 2);
+      ctx.arc(x + 7, cy - 5, 1.0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Розовый носик и щечки
       ctx.fillStyle = '#ff7043';
       ctx.beginPath();
-      ctx.arc(x, cy, 1.8, 0, Math.PI * 2);
+      ctx.arc(x, cy, 2.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Колпак шеф-повара (Toque Blanche 👨‍🍳)
+      // Усики
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, cy); ctx.lineTo(x - 22, cy - 2);
+      ctx.moveTo(x - 10, cy + 3); ctx.lineTo(x - 20, cy + 4);
+      ctx.moveTo(x + 10, cy); ctx.lineTo(x + 22, cy - 2);
+      ctx.moveTo(x + 10, cy + 3); ctx.lineTo(x + 20, cy + 4);
+      ctx.stroke();
+
+      // Колпак шеф-повара (Toque Blanche 👨‍🍳 - хорошо заметный!)
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#d7ccc8';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.rect(x - 12, cy - 18, 24, 7);
+      ctx.rect(x - 15, cy - 22, 30, 9);
       ctx.fill();
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(x - 7, cy - 23, 7, 0, Math.PI * 2);
-      ctx.arc(x, cy - 27, 8.5, 0, Math.PI * 2);
-      ctx.arc(x + 7, cy - 23, 7, 0, Math.PI * 2);
+      ctx.arc(x - 9, cy - 28, 9, 0, Math.PI * 2);
+      ctx.arc(x, cy - 32, 11, 0, Math.PI * 2);
+      ctx.arc(x + 9, cy - 28, 9, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Лопатка / половник при готовке
+      // Лопатка / сковорода при готовке
       if (isCooking) {
-        ctx.font = '14px sans-serif';
+        ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
         const spatulaSway = Math.sin(globalGameTime * 12) * 4;
-        ctx.fillText('🍳', x + 16, cy + spatulaSway);
+        ctx.fillText('🍳', x + 20, cy + spatulaSway);
       }
 
       ctx.restore();
@@ -1324,41 +1457,68 @@
       const bob = Math.sin(globalGameTime * 6 + 1) * 2;
       const cy = y + bob;
 
-      // Маленький белый котик-помощник
+      // Белый котик-помощник (увеличен)
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(x, cy, 15, 13, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, cy, 20, 17, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       // Розовая косынка поваренка
       ctx.fillStyle = '#ff80ab';
       ctx.beginPath();
-      ctx.ellipse(x, cy - 8, 12, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, cy - 10, 15, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Ушки
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.moveTo(x - 12, cy - 6);
-      ctx.lineTo(x - 5, cy - 16);
-      ctx.lineTo(x - 1, cy - 8);
+      ctx.moveTo(x - 15, cy - 8);
+      ctx.lineTo(x - 6, cy - 21);
+      ctx.lineTo(x - 1, cy - 10);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(x + 12, cy - 6);
-      ctx.lineTo(x + 5, cy - 16);
-      ctx.lineTo(x + 1, cy - 8);
+      ctx.moveTo(x + 15, cy - 8);
+      ctx.lineTo(x + 6, cy - 21);
+      ctx.lineTo(x + 1, cy - 10);
+      ctx.fill();
+
+      // Розовые серединки ушек
+      ctx.fillStyle = '#f8bbd0';
+      ctx.beginPath();
+      ctx.moveTo(x - 13, cy - 9);
+      ctx.lineTo(x - 6, cy - 18);
+      ctx.lineTo(x - 3, cy - 10);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 13, cy - 9);
+      ctx.lineTo(x + 6, cy - 18);
+      ctx.lineTo(x + 3, cy - 10);
       ctx.fill();
 
       // Глазки
       ctx.fillStyle = '#1e88e5';
       ctx.beginPath();
-      ctx.arc(x - 5, cy - 2, 2, 0, Math.PI * 2);
-      ctx.arc(x + 5, cy - 2, 2, 0, Math.PI * 2);
+      ctx.arc(x - 6, cy - 3, 2.5, 0, Math.PI * 2);
+      ctx.arc(x + 6, cy - 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x - 7, cy - 4, 0.9, 0, Math.PI * 2);
+      ctx.arc(x + 5, cy - 4, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Розовый носик
+      ctx.fillStyle = '#ff80ab';
+      ctx.beginPath();
+      ctx.arc(x, cy + 1, 1.8, 0, Math.PI * 2);
       ctx.fill();
 
       if (isCooking) {
-        ctx.font = '13px sans-serif';
-        ctx.fillText('🥄', x + 14, cy + Math.sin(globalGameTime * 10) * 3);
+        ctx.font = '18px sans-serif';
+        ctx.fillText('🥄', x + 18, cy + Math.sin(globalGameTime * 10) * 3);
       }
 
       ctx.restore();
@@ -1366,55 +1526,69 @@
 
     function drawCookingStation(station) {
       const sx = station.x;
-      const sy = station.y + 24;
+      const sy = station.y + 26;
 
-      // Плита / Кофемашина
+      // Плита / кухонный блок
       ctx.save();
       ctx.fillStyle = '#546e7a';
-      ctx.fillRect(sx - 20, sy - 12, 40, 20);
+      ctx.fillRect(sx - 24, sy - 14, 48, 24);
       ctx.fillStyle = '#37474f';
-      ctx.fillRect(sx - 18, sy - 10, 36, 16);
+      ctx.fillRect(sx - 22, sy - 12, 44, 20);
 
       // Конфорка
       ctx.fillStyle = station.isCooking ? '#ff5722' : '#78909c';
       ctx.beginPath();
-      ctx.arc(sx, sy - 2, 7, 0, Math.PI * 2);
+      ctx.arc(sx, sy - 2, 8, 0, Math.PI * 2);
       ctx.fill();
 
       // Прогресс приготовления над плитой
       if (station.isCooking && station.dish) {
-        const barW = 40;
-        const barH = 7;
+        const barW = 54;
+        const barH = 8;
         const bx = sx - barW / 2;
-        const by = sy - 44;
+        const by = sy - 52;
 
         // Фон шкалы
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 4);
+        } else {
+          ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
+        }
+        ctx.fill();
 
         // Заполнение шкалы
         ctx.fillStyle = '#4caf50';
-        ctx.fillRect(bx, by, barW * station.progress, barH);
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx, by, barW * station.progress, barH, 3);
+        } else {
+          ctx.rect(bx, by, barW * station.progress, barH);
+        }
+        ctx.fill();
 
-        // Иконка блюда
-        ctx.font = '16px sans-serif';
+        // Крупная иконка готовящегося блюда (22px)
+        ctx.font = '22px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(station.dish.icon, sx, by - 4);
+        ctx.fillText(station.dish.icon, sx, by - 6);
       }
       ctx.restore();
     }
 
     function drawCounterAndTables() {
-      // Барная деревянная стойка кафе
+      const counterY = getCounterY();
       ctx.save();
+
+      // Барная деревянная стойка кафе
       ctx.fillStyle = '#795548';
-      ctx.fillRect(30, 168, canvasWidth - 60, 20);
+      ctx.fillRect(18, counterY, canvasWidth - 36, 24);
 
       // Верхняя полированная доска стойки
       ctx.fillStyle = '#a1887f';
-      ctx.fillRect(25, 162, canvasWidth - 50, 7);
+      ctx.fillRect(14, counterY - 6, canvasWidth - 28, 8);
       ctx.fillStyle = '#d7ccc8';
-      ctx.fillRect(25, 162, canvasWidth - 50, 1.5);
+      ctx.fillRect(14, counterY - 6, canvasWidth - 28, 2);
 
       // Стульчики у стойки
       const maxSeats = getMaxCustomerSeats();
@@ -1422,14 +1596,15 @@
         const pos = getSeatPosition(i);
         ctx.fillStyle = '#8d6e63';
         ctx.beginPath();
-        ctx.ellipse(pos.x, 235, 12, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(pos.x, pos.y + 16, 15, 7, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillRect(pos.x - 2, 235, 4, 18);
+        ctx.fillRect(pos.x - 2.5, pos.y + 16, 5, 20);
       }
       ctx.restore();
     }
 
     function drawCustomers() {
+      const counterY = getCounterY();
       customers.forEach(c => {
         ctx.save();
         const walkBob = (c.state === 'walking_to_seat' || c.state === 'leaving') 
@@ -1440,54 +1615,82 @@
 
         // Хвостик котика
         ctx.strokeStyle = c.breed.fur;
-        ctx.lineWidth = 3.5;
+        ctx.lineWidth = 4.5;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(cx - 10, cy + 6);
-        ctx.quadraticCurveTo(cx - 16, cy, cx - 14, cy - 8 + Math.sin(globalGameTime * 5) * 3);
+        ctx.moveTo(cx - 12, cy + 7);
+        ctx.quadraticCurveTo(cx - 18, cy, cx - 16, cy - 9 + Math.sin(globalGameTime * 5) * 3);
         ctx.stroke();
 
-        // Тело котика
+        // Тело котика (увеличено!)
         ctx.fillStyle = c.breed.fur;
         ctx.beginPath();
-        ctx.ellipse(cx, cy, 16, 14, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, 22, 19, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Ушки
         ctx.beginPath();
-        ctx.moveTo(cx - 12, cy - 6);
-        ctx.lineTo(cx - 5, cy - 18);
-        ctx.lineTo(cx - 1, cy - 8);
+        ctx.moveTo(cx - 15, cy - 7);
+        ctx.lineTo(cx - 6, cy - 21);
+        ctx.lineTo(cx - 1, cy - 10);
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(cx + 12, cy - 6);
-        ctx.lineTo(cx + 5, cy - 18);
-        ctx.lineTo(cx + 1, cy - 8);
+        ctx.moveTo(cx + 15, cy - 7);
+        ctx.lineTo(cx + 6, cy - 21);
+        ctx.lineTo(cx + 1, cy - 10);
         ctx.fill();
 
-        // Глазки
+        // Розовые внутренние ушки
+        ctx.fillStyle = c.breed.ear;
+        ctx.beginPath();
+        ctx.moveTo(cx - 13, cy - 8);
+        ctx.lineTo(cx - 6, cy - 18);
+        ctx.lineTo(cx - 3, cy - 10);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 13, cy - 8);
+        ctx.lineTo(cx + 6, cy - 18);
+        ctx.lineTo(cx + 3, cy - 10);
+        ctx.fill();
+
+        // Глазки с бликами
         ctx.fillStyle = c.breed.eye;
         ctx.beginPath();
-        ctx.arc(cx - 5, cy - 2, 2.2, 0, Math.PI * 2);
-        ctx.arc(cx + 5, cy - 2, 2.2, 0, Math.PI * 2);
+        ctx.arc(cx - 6, cy - 3, 2.8, 0, Math.PI * 2);
+        ctx.arc(cx + 6, cy - 3, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx - 7, cy - 4, 1.0, 0, Math.PI * 2);
+        ctx.arc(cx + 5, cy - 4, 1.0, 0, Math.PI * 2);
         ctx.fill();
 
         // Носик
         ctx.fillStyle = c.breed.ear;
         ctx.beginPath();
-        ctx.arc(cx, cy + 1, 1.8, 0, Math.PI * 2);
+        ctx.arc(cx, cy + 1, 2.0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Облачко заказа над посетителем (Thought Bubble 💭)
+        // Усики
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx - 8, cy + 1); ctx.lineTo(cx - 18, cy);
+        ctx.moveTo(cx - 8, cy + 4); ctx.lineTo(cx - 16, cy + 5);
+        ctx.moveTo(cx + 8, cy + 1); ctx.lineTo(cx + 18, cy);
+        ctx.moveTo(cx + 8, cy + 4); ctx.lineTo(cx + 16, cy + 5);
+        ctx.stroke();
+
+        // Облачко заказа над посетителем (Thought Bubble 💭 крупно!)
         if (c.state === 'waiting_order') {
-          drawThoughtBubble(cx, cy - 28, c.dish.icon);
+          drawThoughtBubble(cx, cy - 36, c.dish.icon);
         } else if (c.state === 'eating') {
           // Сердечко восторга от еды
-          ctx.font = '16px sans-serif';
+          ctx.font = '22px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('❤️', cx, cy - 30);
-          // Блюдо на стойке перед котиком
-          ctx.fillText(c.dish.icon, cx, 162);
+          ctx.fillText('❤️', cx, cy - 36);
+          // Блюдо на стойке перед котиком (крупно 22px!)
+          ctx.fillText(c.dish.icon, cx, counterY - 4);
         }
 
         ctx.restore();
@@ -1499,25 +1702,25 @@
       // Хвостик облачка
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#bcaaa4';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.4;
 
       ctx.beginPath();
-      ctx.arc(x - 4, y + 10, 2.5, 0, Math.PI * 2);
-      ctx.arc(x - 2, y + 5, 3.5, 0, Math.PI * 2);
+      ctx.arc(x - 5, y + 14, 3.5, 0, Math.PI * 2);
+      ctx.arc(x - 2, y + 8, 4.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Круглое облачко
+      // Круглое крупное облачко (увеличено для отличной читаемости на мобильных!)
       ctx.beginPath();
-      ctx.arc(x, y - 6, 13, 0, Math.PI * 2);
+      ctx.arc(x, y - 8, 21, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Иконка желаемого блюда
-      ctx.font = '15px sans-serif';
+      // Иконка желаемого блюда (крупно 24px)
+      ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(icon, x, y - 6);
+      ctx.fillText(icon, x, y - 8);
 
       ctx.restore();
     }
@@ -1534,30 +1737,67 @@
       });
     }
 
-    // --- 12. Интерфейс пользователя (UI Updates) ---
+    // --- 12. Интерфейс пользователя (UI Updates & Сворачивание магазина) ---
+    let isShopCollapsed = false;
+    function toggleShopCollapse() {
+      isShopCollapsed = !isShopCollapsed;
+      const sheet = document.getElementById('upgrades-sheet');
+      const icon = document.getElementById('sheet-toggle-icon');
+      const btn = document.getElementById('sheet-toggle-btn');
+      if (!sheet) return;
+
+      if (isShopCollapsed) {
+        sheet.classList.remove('expanded');
+        sheet.classList.add('collapsed');
+        if (icon) icon.innerText = '▲';
+        if (btn) btn.setAttribute('aria-label', 'Развернуть магазин');
+      } else {
+        sheet.classList.remove('collapsed');
+        sheet.classList.add('expanded');
+        if (icon) icon.innerText = '▼';
+        if (btn) btn.setAttribute('aria-label', 'Свернуть магазин');
+      }
+      setTimeout(resizeCanvas, 60);
+    }
+
     function updateUI() {
       // 1. Монеты и счетчик заказов
       document.getElementById('coins-display').innerText = Math.floor(state.coins).toLocaleString('ru-RU');
       document.getElementById('orders-display').innerText = `${state.ordersServed} заказов`;
 
-      // 2. Рендер списка улучшений
+      // 2. Рендер списка улучшений и подсчет доступных покупок
       const listEl = document.getElementById('upgrades-list');
       if (!listEl) return;
 
+      let affordableCount = 0;
+
       listEl.innerHTML = UPGRADES.map(upg => {
-        const currentLvl = state.upgrades[upg.id] || 1;
+        const currentLvl = getUpgradeLevel(upg.id);
         const isMax = currentLvl >= upg.maxLevel;
         const cost = getUpgradeCost(upg);
         const canAfford = state.coins >= cost && !isMax;
 
-        let levelLabel = `Ур. ${currentLvl}`;
-        if (isMax) levelLabel += ' (МАКС)';
+        if (canAfford) affordableCount++;
 
+        let levelLabel = '';
         let btnContent = '';
-        if (isMax) {
-          btnContent = 'МАКС ✨';
+
+        if (upg.id === 'helper') {
+          if (currentLvl > 0) {
+            levelLabel = '<span style="color:#2e7d32; font-weight:800;">Нанят ✨</span>';
+            btnContent = 'Нанят ✨';
+          } else {
+            levelLabel = '<span style="color:#8d6e63; font-weight:700;">Не нанят</span>';
+            btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
+          }
         } else {
-          btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
+          levelLabel = `Ур. ${currentLvl}`;
+          if (isMax) {
+            levelLabel += ' (МАКС)';
+            btnContent = 'МАКС ✨';
+          } else {
+            btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
+          }
         }
 
         return `
@@ -1570,12 +1810,23 @@
                 <div class="upgrade-level">${levelLabel}</div>
               </div>
             </div>
-            <button class="upgrade-btn" onclick="buyUpgrade('${upg.id}')">
+            <button class="upgrade-btn" onclick="buyUpgrade('${upg.id}')" ${isMax ? 'disabled' : ''}>
               ${btnContent}
             </button>
           </div>
         `;
       }).join('');
+
+      // Обновление бэйджа доступных улучшений
+      const badgeEl = document.getElementById('shop-badge');
+      if (badgeEl) {
+        if (affordableCount > 0) {
+          badgeEl.innerText = `${affordableCount} 💡`;
+          badgeEl.classList.remove('zero');
+        } else {
+          badgeEl.classList.add('zero');
+        }
+      }
     }
 
     let toastTimeout = null;
@@ -1608,6 +1859,8 @@
         getState: () => state,
         setState: (s) => { state = s; updateUI(); },
         buyUpgrade,
+        getUpgradeLevel,
+        getUpgradeCost,
         spawnCustomer,
         getCustomers: () => customers,
         getCookingStations: () => cookingStations,
@@ -1616,6 +1869,8 @@
         addCoins: (n) => { state.coins += n; updateUI(); },
         updateSimulation,
         renderScene,
+        toggleShopCollapse,
+        isShopCollapsed: () => isShopCollapsed,
         DISHES,
         UPGRADES
       };
