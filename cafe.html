@@ -211,30 +211,155 @@
       font-size: 14px;
     }
 
-    /* --- КОМПАКТНАЯ ПАНЕЛЬ ТЕКУЩЕЙ ЦЕЛИ РАЗВИТИЯ --- */
+    /* --- КОМПАКТНАЯ КАРТОЧКА РАЗВИТИЯ И ЗВЁЗД ЗАВЕДЕНИЯ --- */
     #quest-card {
       background: #ffffff;
       border-bottom: 2px solid #ecdac6;
-      padding: 6px 14px;
+      padding: 6px 12px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
+      flex-direction: column;
+      gap: 5px;
       z-index: 8;
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       flex-shrink: 0;
+      transition: all 0.2s ease;
     }
 
+    .dev-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 7px;
+      width: 100%;
+    }
+
+    .dev-stars-badge {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%);
+      border: 1px solid #ffd54f;
+      border-radius: 9px;
+      padding: 3px 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #b78103;
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .dev-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+      cursor: pointer;
+    }
+
+    .dev-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--wood-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dev-next-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dev-reward-preview {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #2e7d32;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+
+    .dev-progress-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: #ede0d4;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .dev-progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff9800, #4caf50);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .dev-claim-btn {
+      background: #e0d0c1;
+      color: #795548;
+      border: none;
+      border-radius: 9px;
+      padding: 5px 9px;
+      font-size: 10.5px;
+      font-weight: 800;
+      cursor: not-allowed;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .dev-claim-btn.ready {
+      background: linear-gradient(135deg, #ffb300 0%, #f57c00 100%);
+      color: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 2px 7px rgba(245, 124, 0, 0.4);
+      animation: pulseBtn 1.2s infinite alternate;
+    }
+
+    .dev-drawer-toggle-btn {
+      background: #f5ece2;
+      border: 1px solid #dfcfc2;
+      border-radius: 8px;
+      padding: 4px 7px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #6d4c41;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      transition: background 0.15s;
+    }
+    .dev-drawer-toggle-btn:active {
+      transform: scale(0.96);
+    }
+
+    .quests-drawer {
+      border-top: 1px dashed #e6d5c5;
+      padding-top: 5px;
+      margin-top: 1px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* Внутреннее оформление квеста в выпадающей секции */
     .quest-content {
       display: flex;
       align-items: center;
-      gap: 9px;
-      flex: 1;
-      min-width: 0;
+      gap: 8px;
+      width: 100%;
     }
 
     .quest-icon {
-      font-size: 20px;
+      font-size: 17px;
       flex-shrink: 0;
     }
 
@@ -250,29 +375,29 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 800;
       color: var(--wood-dark);
     }
 
     .quest-progress-count {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 700;
       color: var(--text-muted);
     }
 
     .quest-progress-bar-bg {
       width: 100%;
-      height: 5px;
+      height: 4px;
       background: #ede0d4;
-      border-radius: 3px;
+      border-radius: 2px;
       overflow: hidden;
     }
 
     .quest-progress-bar-fill {
       height: 100%;
       background: linear-gradient(90deg, #ff9800, #4caf50);
-      border-radius: 3px;
+      border-radius: 2px;
       transition: width 0.3s ease;
     }
 
@@ -280,9 +405,9 @@
       background: #e0d0c1;
       color: #795548;
       border: none;
-      border-radius: 10px;
-      padding: 6px 11px;
-      font-size: 11px;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 10.5px;
       font-weight: 800;
       cursor: not-allowed;
       white-space: nowrap;
@@ -294,8 +419,118 @@
       background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
       color: #ffffff;
       cursor: pointer;
-      box-shadow: 0 3px 8px rgba(46, 125, 50, 0.35);
+      box-shadow: 0 2px 7px rgba(46, 125, 50, 0.35);
       animation: pulseBtn 1.2s infinite alternate;
+    }
+
+    /* --- ИНДИКАТОР АКТИВНОГО СОБЫТИЯ «КОМПАНИЯ КОТОВ» --- */
+    #bakery-event-active-bar {
+      background: linear-gradient(90deg, #fff8e1 0%, #ffecb3 100%);
+      border: 1.5px solid #ffd54f;
+      border-radius: 10px;
+      padding: 3px 10px;
+      margin: 2px 8px 0 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 2px 5px rgba(255, 193, 7, 0.2);
+      z-index: 7;
+      flex-shrink: 0;
+    }
+
+    .event-bar-info {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #b78103;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-bar-timer-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .event-bar-time {
+      font-size: 11px;
+      font-weight: 800;
+      color: #e65100;
+    }
+
+    .event-bar-progress-bg {
+      width: 50px;
+      height: 4px;
+      background: rgba(230, 81, 0, 0.15);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .event-bar-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4caf50, #ff9800);
+      border-radius: 2px;
+      transition: width 0.25s linear;
+    }
+
+    /* --- КАРТОЧКА СПЕЦИАЛИЗАЦИЙ ОФИЦИАНТА В МАГАЗИНЕ --- */
+    .waiter-spec-card {
+      background: linear-gradient(135deg, #fdfbf7 0%, #fff8e7 100%);
+      border: 1.5px solid #ebd8c8;
+      border-radius: 14px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    }
+
+    .waiter-spec-card.locked {
+      opacity: 0.85;
+      background: #faf6f0;
+      border-style: dashed;
+    }
+
+    .spec-btn {
+      padding: 7px 5px;
+      border-radius: 10px;
+      border: 1.5px solid #d7ccc8;
+      background: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      color: #6d4c41;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      line-height: 1.25;
+    }
+
+    .spec-btn small {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #8d6e63;
+      display: block;
+      margin-top: 1px;
+    }
+
+    .spec-btn.active {
+      border-color: #ff9800;
+      background: linear-gradient(135deg, #fff8e1 0%, #ffe0b2 100%);
+      color: #e65100;
+      box-shadow: 0 2px 6px rgba(255, 152, 0, 0.25);
+    }
+
+    .spec-btn.active small {
+      color: #d84315;
+    }
+
+    .spec-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
 
     .featured-pill {
@@ -1029,23 +1264,61 @@
       </div>
     </header>
 
-    <!-- Компактная карточка текущей цели -->
-    <div id="quest-card">
-      <div class="quest-content">
-        <span class="quest-icon" id="quest-icon">🎯</span>
-        <div class="quest-details">
-          <div class="quest-title-row">
-            <span class="quest-title" id="quest-title">Обслужить 5 гостей</span>
-            <span class="quest-progress-count" id="quest-progress-count">0 / 5</span>
+    <!-- Компактная карточка Развития заведения и квестов -->
+    <div id="quest-card" class="dev-card">
+      <div class="dev-main-row">
+        <div class="dev-stars-badge" id="dev-stars-badge" onclick="toggleQuestsDrawer()">
+          <span class="stars-icon" id="dev-stars-icon">⭐ 0/3</span>
+        </div>
+        <div class="dev-details" onclick="toggleQuestsDrawer()">
+          <div class="dev-title-row">
+            <span class="dev-next-title" id="dev-next-title">1-я звезда: Первые гости</span>
+            <span class="dev-reward-preview" id="dev-reward-preview">+150 🪙</span>
           </div>
-          <div class="quest-progress-bar-bg">
-            <div class="quest-progress-bar-fill" id="quest-progress-bar-fill" style="width: 0%;"></div>
+          <div class="dev-progress-bar-bg">
+            <div class="dev-progress-bar-fill" id="dev-progress-bar-fill" style="width: 0%;"></div>
           </div>
         </div>
+        <button class="dev-claim-btn" id="dev-claim-btn" onclick="claimVenueStar()" disabled>
+          Получить ⭐
+        </button>
+        <button class="dev-drawer-toggle-btn" id="dev-drawer-toggle" onclick="toggleQuestsDrawer()" title="Открыть/закрыть квесты">
+          🎯 <span id="dev-drawer-arrow">▾</span>
+        </button>
       </div>
-      <button class="quest-claim-btn" id="quest-claim-btn" onclick="claimQuestReward()" disabled>
-        <span id="quest-reward-val">+60 🪙</span>
-      </button>
+      <div class="quests-drawer" id="quests-drawer" style="display: none;">
+        <div id="quests-drawer-body">
+          <div class="quest-content">
+            <span class="quest-icon" id="quest-icon">🎯</span>
+            <div class="quest-details">
+              <div class="quest-title-row">
+                <span class="quest-title" id="quest-title">Обслужить 5 гостей</span>
+                <span class="quest-progress-count" id="quest-progress-count">0 / 5</span>
+              </div>
+              <div class="quest-progress-bar-bg">
+                <div class="quest-progress-bar-fill" id="quest-progress-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+          <button class="quest-claim-btn" id="quest-claim-btn" onclick="claimQuestReward()" disabled style="margin-top: 4px; width: 100%;">
+            <span id="quest-reward-val">+60 🪙</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Индикатор активного события «Компания котов» -->
+    <div id="bakery-event-active-bar" style="display: none;">
+      <div class="event-bar-info">
+        <span class="event-bar-icon">👥</span>
+        <span class="event-bar-title" id="event-bar-title">Компания котов: 0/3</span>
+      </div>
+      <div class="event-bar-timer-wrap">
+        <span class="event-bar-time" id="event-bar-time">⏳ 45с</span>
+        <div class="event-bar-progress-bg">
+          <div class="event-bar-progress-fill" id="event-bar-progress-fill" style="width: 100%;"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Игровая сцена с анимацией котиков -->
@@ -1125,6 +1398,50 @@
         <p class="modal-text">Поздравляем с открытием второго заведения! Шеф-пекарь Коржик уже растопил кирпичную печь, а шустрый официант Пончик готов разносить свежую выпечку гостям по столикам.</p>
         <div class="modal-reward" style="font-size: 14px; margin: 10px 0; padding: 6px 12px; background: #fff8e1; border-radius: 12px; color: #b78103; font-weight: 800;">Стартовый баланс: 60 🪙 пекарни</div>
         <button class="modal-btn" onclick="closeBakeryUnlockedModal()">ПЕРЕЙТИ В ПЕКАРНЮ 🐾</button>
+      </div>
+    </div>
+
+    <!-- Модалка предложения события "Компания котов" -->
+    <div class="modal-overlay" id="bakery-event-offer-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-icon">🐱👥</div>
+        <h3 class="modal-title">Компания котов!</h3>
+        <p class="modal-text">Компания из 3 котов хочет заказать свежую выпечку в пекарне!</p>
+        <div class="modal-reward" id="event-offer-stats" style="font-size: 13px; margin: 10px 0; padding: 8px 12px; background: #fff8e1; border-radius: 12px; color: #b78103; font-weight: 800; display: flex; flex-direction: column; gap: 4px;">
+          <div>👥 Количество гостей: <b>3 котика</b></div>
+          <div id="event-offer-deadline">⏳ Срок обслуживания: <b>45 сек</b></div>
+          <div id="event-offer-reward" style="color: #2e7d32;">🪙 Дополнительная награда: <b>+150 🪙</b></div>
+        </div>
+        <div style="font-size: 11px; color: #8d6e63; margin-bottom: 12px;" id="event-offer-timer-text">Предложение закроется через: 20с</div>
+        <div style="display: flex; gap: 8px; width: 100%;">
+          <button class="modal-btn secondary" style="flex: 1;" onclick="declineBakeryEvent()">ПОЗЖЕ</button>
+          <button class="modal-btn" style="flex: 1.4; background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);" onclick="acceptBakeryEvent()">ПРИНЯТЬ ✅</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка результата события "Компания котов" -->
+    <div class="modal-overlay" id="bakery-event-result-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-icon" id="event-result-icon">🎉</div>
+        <h3 class="modal-title" id="event-result-title">Компания довольна!</h3>
+        <p class="modal-text" id="event-result-desc">Все котики получили свежую выпечку вовремя!</p>
+        <div class="modal-reward" id="event-result-reward-pill" style="font-size: 14px; margin: 10px 0; padding: 6px 12px; background: #fff8e1; border-radius: 12px; color: #b78103; font-weight: 800;">+150 🪙</div>
+        <div class="modal-text" id="event-result-tip" style="font-size: 11px; color: #795548; margin-top: 4px; display: none;"></div>
+        <button class="modal-btn" onclick="closeBakeryEventResultModal()">ОТЛИЧНО 🐾</button>
+      </div>
+    </div>
+
+    <!-- Модалка предупреждения о переходе во время события компании -->
+    <div class="modal-overlay" id="switch-warning-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-icon">⚠️</div>
+        <h3 class="modal-title">Прервать событие компании?</h3>
+        <p class="modal-text">В пекарне прямо сейчас обслуживается «Компания котов»! Если перейти в кафе, испытание завершится без дополнительной награды. Обычная оплата за поданную выпечку сохранится.</p>
+        <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
+          <button class="modal-btn" style="flex: 1.2;" onclick="closeSwitchWarningModal()">ОСТАТЬСЯ В ПЕКАРНЕ</button>
+          <button class="modal-btn secondary" style="flex: 1;" onclick="confirmSwitchVenueDuringEvent()">ПЕРЕЙТИ В КАФЕ</button>
+        </div>
       </div>
     </div>
 
@@ -1346,6 +1663,89 @@
 
     const BAKERY_UNLOCK_COST = 2500;
 
+    // --- 3.3. Конфигурация звёзд заведений (0..3 звёзд) ---
+    const CAFE_STARS_CONFIG = [
+      {
+        star: 1,
+        title: '1-я звезда: Первые гости',
+        desc: '20 обслуженных гостей и открыто второе блюдо',
+        rewardCoins: 150,
+        check: () => state.ordersServed >= 20 && (state.upgrades.menu || 1) >= 2,
+        getProgress: () => ({
+          label: `Гости: ${Math.min(20, state.ordersServed)}/20 | 2-е блюдо: ${Math.min(1, (state.upgrades.menu || 1) >= 2 ? 1 : 0)}/1`,
+          pct: Math.round(((Math.min(20, state.ordersServed) / 20) * 0.5 + ((state.upgrades.menu || 1) >= 2 ? 0.5 : 0)) * 100)
+        })
+      },
+      {
+        star: 2,
+        title: '2-я звезда: Расширение зала',
+        desc: 'Нанят помощник и куплена веранда',
+        rewardCoins: 450,
+        check: () => (state.upgrades.helper || 0) >= 1 && (state.expansion || 0) >= 1,
+        getProgress: () => ({
+          label: `Помощник: ${(state.upgrades.helper || 0) >= 1 ? '1/1' : '0/1'} | Веранда: ${(state.expansion || 0) >= 1 ? '1/1' : '0/1'}`,
+          pct: Math.round((((state.upgrades.helper || 0) >= 1 ? 0.5 : 0) + ((state.expansion || 0) >= 1 ? 0.5 : 0)) * 100)
+        })
+      },
+      {
+        star: 3,
+        title: '3-я звезда: Любимое заведение',
+        desc: 'Куплен Цветочный уголок и обслужено 150 гостей',
+        rewardCoins: 1200,
+        check: () => (state.verandaDecor || 0) >= 1 && state.ordersServed >= 150,
+        getProgress: () => ({
+          label: `Цветы: ${(state.verandaDecor || 0) >= 1 ? '1/1' : '0/1'} | Гости: ${Math.min(150, state.ordersServed)}/150`,
+          pct: Math.round((((state.verandaDecor || 0) >= 1 ? 0.5 : 0) + (Math.min(150, state.ordersServed) / 150) * 0.5) * 100)
+        })
+      }
+    ];
+
+    const BAKERY_STARS_CONFIG = [
+      {
+        star: 1,
+        title: '1-я звезда: Горячая печь',
+        desc: '10 гостей и печь улучшена до ур. 2',
+        rewardCoins: 200,
+        rewardType: 'coins',
+        rewardDesc: '+200 🪙',
+        check: () => (state.bakery?.ordersServed || 0) >= 10 && (state.bakery?.upgrades?.oven || 1) >= 2,
+        getProgress: () => ({
+          label: `Гости: ${Math.min(10, state.bakery?.ordersServed || 0)}/10 | Печь ур. 2: ${Math.min(1, (state.bakery?.upgrades?.oven || 1) >= 2 ? 1 : 0)}/1`,
+          pct: Math.round(((Math.min(10, state.bakery?.ordersServed || 0) / 10) * 0.5 + ((state.bakery?.upgrades?.oven || 1) >= 2 ? 0.5 : 0)) * 100)
+        })
+      },
+      {
+        star: 2,
+        title: '2-я звезда: Компания друзей',
+        desc: 'Печенье, 30 гостей и 1 компания котов',
+        rewardType: 'specializations',
+        rewardDesc: 'Спец-ии 🐾',
+        check: () => (state.bakery?.upgrades?.recipes || 1) >= 2 && (state.bakery?.ordersServed || 0) >= 30 && (state.bakery?.eventsCompleted || 0) >= 1,
+        getProgress: () => ({
+          label: `Печенье: ${(state.bakery?.upgrades?.recipes || 1) >= 2 ? '1/1' : '0/1'} | Гости: ${Math.min(30, state.bakery?.ordersServed || 0)}/30 | Компания: ${Math.min(1, state.bakery?.eventsCompleted || 0)}/1`,
+          pct: Math.round((((state.bakery?.upgrades?.recipes || 1) >= 2 ? 0.33 : 0) + (Math.min(30, state.bakery?.ordersServed || 0) / 30) * 0.33 + (Math.min(1, state.bakery?.eventsCompleted || 0) >= 1 ? 0.34 : 0)) * 100)
+        })
+      },
+      {
+        star: 3,
+        title: '3-я звезда: Золотая пекарня',
+        desc: 'Пирог, второй пекарь и 3 компании котов',
+        rewardType: 'decor',
+        rewardDesc: 'Праздник ✨',
+        check: () => (state.bakery?.upgrades?.recipes || 1) >= 3 && (state.bakery?.upgrades?.baker_helper || 0) >= 1 && (state.bakery?.eventsCompleted || 0) >= 3,
+        getProgress: () => ({
+          label: `Пирог: ${(state.bakery?.upgrades?.recipes || 1) >= 3 ? '1/1' : '0/1'} | Пушок: ${(state.bakery?.upgrades?.baker_helper || 0) >= 1 ? '1/1' : '0/1'} | Компаний: ${Math.min(3, state.bakery?.eventsCompleted || 0)}/3`,
+          pct: Math.round((((state.bakery?.upgrades?.recipes || 1) >= 3 ? 0.33 : 0) + ((state.bakery?.upgrades?.baker_helper || 0) >= 1 ? 0.33 : 0) + (Math.min(3, state.bakery?.eventsCompleted || 0) / 3) * 0.34) * 100)
+        })
+      }
+    ];
+
+    let isQuestsDrawerOpen = false;
+    let bakeryEventOfferTimer = 10.0;
+    let isBakeryEventOfferOpen = false;
+    let pendingBakeryEventOffer = null;
+    let wasEventAbortedOnReload = false;
+
     // --- 4. Состояние игры (State) ---
     const STORAGE_KEY = 'cat_cafe_save_v1';
     let state = {
@@ -1356,6 +1756,8 @@
       ordersServed: 0,
       lastSavedTime: Date.now(),
       soundEnabled: true,
+      stars: 0,
+      claimedStars: {},
       upgrades: {
         speed: 1,
         profit: 1,
@@ -1377,6 +1779,12 @@
         totalEarned: 60,
         ordersServed: 0,
         lastSavedTime: Date.now(),
+        stars: 0,
+        claimedStars: {},
+        eventsCompleted: 0,
+        waiterSpec: null,
+        activeEvent: null,
+        lastEventEndedAt: 0,
         upgrades: {
           oven: 1,
           waiter_speed: 1,
@@ -1550,6 +1958,8 @@
               }
             }
             state.claimedQuests = Array.isArray(parsed.claimedQuests) ? parsed.claimedQuests : [];
+            state.stars = typeof parsed.stars === 'number' ? parsed.stars : 0;
+            state.claimedStars = (parsed.claimedStars && typeof parsed.claimedStars === 'object') ? parsed.claimedStars : {};
             state.expansion = typeof parsed.expansion === 'number' ? parsed.expansion : 0;
             state.verandaDecor = typeof parsed.verandaDecor === 'number' ? parsed.verandaDecor : 0;
             state.featuredDish = typeof parsed.featuredDish === 'string' ? parsed.featuredDish : 'coffee';
@@ -1568,6 +1978,12 @@
                 totalEarned: typeof parsed.bakery.totalEarned === 'number' ? parsed.bakery.totalEarned : 60,
                 ordersServed: typeof parsed.bakery.ordersServed === 'number' ? parsed.bakery.ordersServed : 0,
                 lastSavedTime: parsed.bakery.lastSavedTime || Date.now(),
+                stars: typeof parsed.bakery.stars === 'number' ? parsed.bakery.stars : 0,
+                claimedStars: (parsed.bakery.claimedStars && typeof parsed.bakery.claimedStars === 'object') ? parsed.bakery.claimedStars : {},
+                eventsCompleted: typeof parsed.bakery.eventsCompleted === 'number' ? parsed.bakery.eventsCompleted : 0,
+                waiterSpec: (parsed.bakery.waiterSpec === 'speed' || parsed.bakery.waiterSpec === 'hospitality') ? parsed.bakery.waiterSpec : null,
+                lastEventEndedAt: typeof parsed.bakery.lastEventEndedAt === 'number' ? parsed.bakery.lastEventEndedAt : 0,
+                activeEvent: null, // не восстанавливаем частично при перезагрузке
                 upgrades: Object.assign({
                   oven: 1,
                   waiter_speed: 1,
@@ -1578,6 +1994,9 @@
                 claimedQuests: Array.isArray(parsed.bakery.claimedQuests) ? parsed.bakery.claimedQuests : [],
                 seenHints: parsed.bakery.seenHints || {}
               };
+              if (parsed.bakery.activeEvent) {
+                wasEventAbortedOnReload = true;
+              }
             }
 
             if (parsed.currentVenue === 'bakery' && state.bakery.unlocked) {
@@ -2092,93 +2511,201 @@
       saveGame();
     }
 
+    function toggleQuestsDrawer(event) {
+      if (event) event.stopPropagation();
+      isQuestsDrawerOpen = !isQuestsDrawerOpen;
+      updateQuestsUI();
+    }
+
+    function claimVenueStar() {
+      initAudio();
+      if (state.currentVenue === 'cafe') {
+        const curStars = state.stars || 0;
+        if (curStars >= 3) return;
+        const cfg = CAFE_STARS_CONFIG[curStars];
+        if (!cfg || !cfg.check()) {
+          showToast('Условия для получения звезды ещё не выполнены!');
+          return;
+        }
+        state.stars = curStars + 1;
+        state.claimedStars = state.claimedStars || {};
+        state.claimedStars[state.stars] = true;
+        state.coins += cfg.rewardCoins;
+        state.totalEarned += cfg.rewardCoins;
+        playSound('upgrade');
+        addVisualParticle(canvasWidth / 2, 70, `⭐ ${state.stars}-я звезда! +${cfg.rewardCoins} 🪙`, '#ffb300', 'text');
+        showToast(`⭐ Кафе получило ${state.stars}-ю звезду! Награда: +${cfg.rewardCoins} 🪙! 🎉`, 3500);
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        updateUI();
+        saveGame();
+      } else {
+        const curStars = state.bakery?.stars || 0;
+        if (curStars >= 3) return;
+        const cfg = BAKERY_STARS_CONFIG[curStars];
+        if (!cfg || !cfg.check()) {
+          showToast('Условия для получения звезды ещё не выполнены!');
+          return;
+        }
+        state.bakery.stars = curStars + 1;
+        state.bakery.claimedStars = state.bakery.claimedStars || {};
+        state.bakery.claimedStars[state.bakery.stars] = true;
+        playSound('upgrade');
+
+        if (cfg.rewardType === 'coins') {
+          state.bakery.coins += cfg.rewardCoins;
+          state.bakery.totalEarned += cfg.rewardCoins;
+          addVisualParticle(canvasWidth / 2, 70, `⭐ 1-я звезда! +${cfg.rewardCoins} 🪙`, '#ffb300', 'text');
+          showToast(`⭐ Пекарня получила 1-ю звезду! Награда: +${cfg.rewardCoins} 🪙! 🎉`, 3500);
+        } else if (cfg.rewardType === 'specializations') {
+          if (!state.bakery.waiterSpec) state.bakery.waiterSpec = 'speed';
+          addVisualParticle(canvasWidth / 2, 70, `⭐ 2-я звезда! Спец-ии открыты!`, '#ffb300', 'text');
+          showToast(`⭐ Пекарня получила 2-ю звезду! Открыты специализации официанта! 🐾⚡`, 4000);
+        } else if (cfg.rewardType === 'decor') {
+          addVisualParticle(canvasWidth / 2, 70, `⭐ 3-я звезда! Праздничная пекарня!`, '#ffb300', 'text');
+          showToast(`⭐ Пекарня получила 3-ю звезду! Зал украшен праздничными гирляндами! ✨🎉`, 4000);
+        }
+
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        updateUI();
+        saveGame();
+      }
+    }
+
     function updateQuestsUI() {
       const card = document.getElementById('quest-card');
       if (!card) return;
 
-      if (state.currentVenue === 'bakery') {
-        const q = getCurrentBakeryQuest();
-        if (!q) {
-          const unlockedRecs = getBakeryUnlockedRecipes().length;
-          const guestsCount = state.bakery?.ordersServed || 0;
-          const tablesCount = getBakeryMaxTables();
-          card.innerHTML = `
-            <div class="achievements-card">
-              <div class="achievements-title">🏆 Зал славы пекарни: все цели достигнуты!</div>
-              <div class="achievements-stats">
-                <span class="ach-pill">🐾 Гостей: <b>${guestsCount}</b></span>
-                <span class="ach-pill">🥐 Рецепты: <b>${unlockedRecs}/3</b></span>
-                <span class="ach-pill">🪑 Столики: <b>${tablesCount}</b></span>
-              </div>
-            </div>
-          `;
-          return;
+      const starsIconEl = document.getElementById('dev-stars-icon');
+      const nextTitleEl = document.getElementById('dev-next-title');
+      const rewardPrevEl = document.getElementById('dev-reward-preview');
+      const progFillEl = document.getElementById('dev-progress-bar-fill');
+      const claimBtnEl = document.getElementById('dev-claim-btn');
+      const drawerEl = document.getElementById('quests-drawer');
+      const drawerArrowEl = document.getElementById('dev-drawer-arrow');
+      const drawerBodyEl = document.getElementById('quests-drawer-body');
+
+      if (!starsIconEl || !nextTitleEl || !claimBtnEl) return;
+
+      const isBakery = state.currentVenue === 'bakery';
+      const curStars = isBakery ? (state.bakery?.stars || 0) : (state.stars || 0);
+      const starsCfg = isBakery ? BAKERY_STARS_CONFIG : CAFE_STARS_CONFIG;
+
+      // 1. Отображение карточки Развития заведения
+      if (curStars < 3) {
+        const nextCfg = starsCfg[curStars];
+        const canClaim = nextCfg.check();
+        const prog = nextCfg.getProgress();
+
+        starsIconEl.innerText = `⭐ ${curStars}/3`;
+        nextTitleEl.innerText = `${curStars + 1}-я: ${prog.label}`;
+        rewardPrevEl.innerText = isBakery ? nextCfg.rewardDesc : `+${nextCfg.rewardCoins} 🪙`;
+        if (progFillEl) progFillEl.style.width = `${prog.pct}%`;
+
+        if (canClaim) {
+          claimBtnEl.disabled = false;
+          claimBtnEl.className = 'dev-claim-btn ready';
+          claimBtnEl.innerText = isBakery ? (nextCfg.rewardType === 'coins' ? `⭐ ЗАБРАТЬ +${nextCfg.rewardCoins} 🪙` : '⭐ ЗАБРАТЬ') : `⭐ ЗАБРАТЬ +${nextCfg.rewardCoins} 🪙`;
+        } else {
+          claimBtnEl.disabled = true;
+          claimBtnEl.className = 'dev-claim-btn';
+          claimBtnEl.innerText = `⭐ ${curStars + 1}-я звезда`;
         }
-
-        const prog = q.getProgress();
-        const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
-        const isDone = q.isCompleted();
-
-        card.innerHTML = `
-          <div class="quest-content">
-            <span class="quest-icon" id="quest-icon">${q.icon}</span>
-            <div class="quest-details">
-              <div class="quest-title-row">
-                <span class="quest-title" id="quest-title">${q.title}</span>
-                <span class="quest-progress-count" id="quest-progress-count">${prog.current} / ${prog.target}</span>
-              </div>
-              <div class="quest-progress-bar-bg">
-                <div class="quest-progress-bar-fill" id="quest-progress-bar-fill" style="width: ${pct}%;"></div>
-              </div>
-            </div>
-          </div>
-          <button class="quest-claim-btn ${isDone ? 'ready' : ''}" id="quest-claim-btn" onclick="claimQuestReward()" ${isDone ? '' : 'disabled'}>
-            <span id="quest-reward-val">${isDone ? ('ЗАБРАТЬ +' + q.reward + ' 🪙') : ('+' + q.reward + ' 🪙')}</span>
-          </button>
-        `;
-        return;
+      } else {
+        starsIconEl.innerText = '⭐⭐⭐ 3/3';
+        nextTitleEl.innerText = isBakery ? 'Пекарня достигла максимального уровня!' : 'Кафе достигло максимального уровня!';
+        rewardPrevEl.innerText = 'МАКС ✨';
+        if (progFillEl) progFillEl.style.width = '100%';
+        claimBtnEl.disabled = true;
+        claimBtnEl.className = 'dev-claim-btn';
+        claimBtnEl.innerText = '⭐⭐⭐ МАКС';
       }
 
-      const q = getCurrentQuest();
-      if (!q) {
-        const unlockedDishes = getAvailableDishes().length;
-        const totalDishes = DISHES.length;
-        const gourmetsCount = state.gourmetsServed || 0;
-        const guestsCount = state.ordersServed;
-        card.innerHTML = `
-          <div class="achievements-card">
-            <div class="achievements-title">🏆 Зал славы кафе: все цели достигнуты!</div>
-            <div class="achievements-stats">
-              <span class="ach-pill">🐾 Гостей: <b>${guestsCount}</b></span>
-              <span class="ach-pill">👑 Гурманов: <b>${gourmetsCount}</b></span>
-              <span class="ach-pill">🍽️ Блюда: <b>${unlockedDishes}/${totalDishes}</b></span>
-            </div>
-          </div>
-        `;
-        return;
+      // 2. Раскрывающийся блок существующих квестов
+      if (drawerEl && drawerArrowEl && drawerBodyEl) {
+        drawerEl.style.display = isQuestsDrawerOpen ? 'flex' : 'none';
+        drawerArrowEl.innerText = isQuestsDrawerOpen ? '▴' : '▾';
+
+        if (isQuestsDrawerOpen) {
+          if (isBakery) {
+            const q = getCurrentBakeryQuest();
+            if (!q) {
+              const unlockedRecs = getBakeryUnlockedRecipes().length;
+              const guestsCount = state.bakery?.ordersServed || 0;
+              const tablesCount = getBakeryMaxTables();
+              drawerBodyEl.innerHTML = `
+                <div class="achievements-card">
+                  <div class="achievements-title">🏆 Зал славы пекарни: все цели достигнуты!</div>
+                  <div class="achievements-stats">
+                    <span class="ach-pill">🐾 Гостей: <b>${guestsCount}</b></span>
+                    <span class="ach-pill">🥐 Рецепты: <b>${unlockedRecs}/3</b></span>
+                    <span class="ach-pill">🪑 Столики: <b>${tablesCount}</b></span>
+                  </div>
+                </div>
+              `;
+            } else {
+              const prog = q.getProgress();
+              const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
+              const isDone = q.isCompleted();
+              drawerBodyEl.innerHTML = `
+                <div class="quest-content">
+                  <span class="quest-icon">${q.icon}</span>
+                  <div class="quest-details">
+                    <div class="quest-title-row">
+                      <span class="quest-title">${q.title}</span>
+                      <span class="quest-progress-count">${prog.current} / ${prog.target}</span>
+                    </div>
+                    <div class="quest-progress-bar-bg">
+                      <div class="quest-progress-bar-fill" style="width: ${pct}%;"></div>
+                    </div>
+                  </div>
+                </div>
+                <button class="quest-claim-btn ${isDone ? 'ready' : ''}" onclick="claimQuestReward()" ${isDone ? '' : 'disabled'} style="margin-top: 4px; width: 100%;">
+                  <span>${isDone ? ('ЗАБРАТЬ +' + q.reward + ' 🪙') : ('+' + q.reward + ' 🪙')}</span>
+                </button>
+              `;
+            }
+          } else {
+            const q = getCurrentQuest();
+            if (!q) {
+              const unlockedDishes = getAvailableDishes().length;
+              const totalDishes = DISHES.length;
+              const gourmetsCount = state.gourmetsServed || 0;
+              const guestsCount = state.ordersServed;
+              drawerBodyEl.innerHTML = `
+                <div class="achievements-card">
+                  <div class="achievements-title">🏆 Зал славы кафе: все цели достигнуты!</div>
+                  <div class="achievements-stats">
+                    <span class="ach-pill">🐾 Гостей: <b>${guestsCount}</b></span>
+                    <span class="ach-pill">👑 Гурманов: <b>${gourmetsCount}</b></span>
+                    <span class="ach-pill">🍽️ Блюда: <b>${unlockedDishes}/${totalDishes}</b></span>
+                  </div>
+                </div>
+              `;
+            } else {
+              const prog = q.getProgress();
+              const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
+              const isDone = q.isCompleted();
+              drawerBodyEl.innerHTML = `
+                <div class="quest-content">
+                  <span class="quest-icon">${q.icon}</span>
+                  <div class="quest-details">
+                    <div class="quest-title-row">
+                      <span class="quest-title">${q.title}</span>
+                      <span class="quest-progress-count">${prog.current} / ${prog.target}</span>
+                    </div>
+                    <div class="quest-progress-bar-bg">
+                      <div class="quest-progress-bar-fill" style="width: ${pct}%;"></div>
+                    </div>
+                  </div>
+                </div>
+                <button class="quest-claim-btn ${isDone ? 'ready' : ''}" onclick="claimQuestReward()" ${isDone ? '' : 'disabled'} style="margin-top: 4px; width: 100%;">
+                  <span>${isDone ? ('ЗАБРАТЬ +' + q.reward + ' 🪙') : ('+' + q.reward + ' 🪙')}</span>
+                </button>
+              `;
+            }
+          }
+        }
       }
-
-      const prog = q.getProgress();
-      const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
-      const isDone = q.isCompleted();
-
-      card.innerHTML = `
-        <div class="quest-content">
-          <span class="quest-icon" id="quest-icon">${q.icon}</span>
-          <div class="quest-details">
-            <div class="quest-title-row">
-              <span class="quest-title" id="quest-title">${q.title}</span>
-              <span class="quest-progress-count" id="quest-progress-count">${prog.current} / ${prog.target}</span>
-            </div>
-            <div class="quest-progress-bar-bg">
-              <div class="quest-progress-bar-fill" id="quest-progress-bar-fill" style="width: ${pct}%;"></div>
-            </div>
-          </div>
-        </div>
-        <button class="quest-claim-btn ${isDone ? 'ready' : ''}" id="quest-claim-btn" onclick="claimQuestReward()" ${isDone ? '' : 'disabled'}>
-          <span id="quest-reward-val">${isDone ? ('ЗАБРАТЬ +' + q.reward + ' 🪙') : ('+' + q.reward + ' 🪙')}</span>
-        </button>
-      `;
     }
 
     // --- 8.2. Первое расширение кафе (Уютная Веранда) ---
@@ -2322,12 +2849,39 @@
       switchVenue('bakery');
     }
 
+    function showSwitchWarningModal() {
+      const modal = document.getElementById('switch-warning-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeSwitchWarningModal() {
+      const modal = document.getElementById('switch-warning-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function confirmSwitchVenueDuringEvent() {
+      closeSwitchWarningModal();
+      if (state.bakery?.activeEvent) {
+        finishBakeryEvent(false, 'switched');
+      }
+      executeVenueSwitch('cafe');
+    }
+
     function switchVenue(venue) {
       if (venue === state.currentVenue) return;
       if (venue === 'bakery' && !state.bakery?.unlocked) {
         showToast('🔒 Пекарня откроется после выполнения условий в магазине Кафе (150 гостей, Веранда, Цветочный уголок)!');
         return;
       }
+      // Предупреждение при уходе из пекарни во время активного события компании
+      if (state.currentVenue === 'bakery' && venue === 'cafe' && state.bakery?.activeEvent) {
+        showSwitchWarningModal();
+        return;
+      }
+      executeVenueSwitch(venue);
+    }
+
+    function executeVenueSwitch(venue) {
       initAudio();
 
       // Если в текущем помещении осталась невостребованная награда оффлайн-дохода,
@@ -2398,9 +2952,22 @@
       return Math.max(0.6, dish.bakeTime * ovenMult);
     }
 
+    function getBakeryOrderPayout(dish) {
+      if (!dish) return 0;
+      let price = dish.basePrice;
+      if (state.bakery?.waiterSpec === 'hospitality') {
+        price = Math.floor(price * 1.15); // +15% к обычной оплате заказов пекарни
+      }
+      return price;
+    }
+
     function getBakeryWaiterSpeed() {
       const lvl = getBakeryUpgradeLevel('waiter_speed');
-      return 100 * (1 + (lvl - 1) * 0.20);
+      let speed = 100 * (1 + (lvl - 1) * 0.20);
+      if (state.bakery?.waiterSpec === 'speed') {
+        speed = Math.round(speed * 1.25); // +25% к скорости движения официанта
+      }
+      return speed;
     }
 
     function getBakeryMaxTables() {
@@ -2423,8 +2990,185 @@
     function getAverageBakeryRecipePrice() {
       const recipes = getBakeryUnlockedRecipes();
       if (recipes.length === 0) return 15;
-      const sum = recipes.reduce((acc, r) => acc + r.basePrice, 0);
+      const sum = recipes.reduce((acc, r) => acc + getBakeryOrderPayout(r), 0);
       return sum / recipes.length;
+    }
+
+    // --- 8.6. Логика события «Компания котов» и Специализаций официанта ---
+    function calculateBakeryEventParams() {
+      const helperLvl = getBakeryUpgradeLevel('baker_helper');
+      const tablesCount = getBakeryMaxTables();
+
+      const avgBake = getAverageBakeryBakeTime();
+      const bakeCycles = helperLvl >= 1 ? 2 : 3;
+      const totalBakeTime = bakeCycles * avgBake;
+
+      const waiterSpeed = getBakeryWaiterSpeed();
+      const deliverySec = 300 / waiterSpeed;
+      const totalDeliveryTime = 3 * deliverySec;
+
+      const seatingTurnover = tablesCount >= 3 ? 1.5 : 4.0;
+      const nominalTime = totalBakeTime + totalDeliveryTime + seatingTurnover;
+
+      const deadlineSec = Math.round(nominalTime * 1.6 + 15);
+      const avgPrice = getAverageBakeryRecipePrice();
+      const rewardCoins = Math.round(avgPrice * 3 * 1.6);
+
+      return { deadlineSec, rewardCoins };
+    }
+
+    function showBakeryEventOffer() {
+      if (isBakeryEventOfferOpen || state.bakery?.activeEvent) return;
+      const hasCookies = (state.bakery?.upgrades?.recipes || 1) >= 2;
+      if (!hasCookies) return;
+
+      const params = calculateBakeryEventParams();
+      pendingBakeryEventOffer = {
+        deadlineSec: params.deadlineSec,
+        rewardCoins: params.rewardCoins,
+        timeoutSec: 20
+      };
+      isBakeryEventOfferOpen = true;
+
+      const modal = document.getElementById('bakery-event-offer-modal');
+      const deadlineEl = document.getElementById('event-offer-deadline');
+      const rewardEl = document.getElementById('event-offer-reward');
+      const timerEl = document.getElementById('event-offer-timer-text');
+
+      if (deadlineEl) deadlineEl.innerHTML = `⏳ Срок обслуживания: <b>${params.deadlineSec} сек</b>`;
+      if (rewardEl) rewardEl.innerHTML = `🪙 Дополнительная награда: <b>+${params.rewardCoins} 🪙</b>`;
+      if (timerEl) timerEl.innerText = 'Предложение закроется через: 20с';
+
+      if (modal) modal.style.display = 'flex';
+      playSound('bell');
+    }
+
+    function acceptBakeryEvent() {
+      initAudio();
+      if (!pendingBakeryEventOffer) return;
+      const modal = document.getElementById('bakery-event-offer-modal');
+      if (modal) modal.style.display = 'none';
+      isBakeryEventOfferOpen = false;
+
+      state.bakery.activeEvent = {
+        type: 'cat_group',
+        totalGuests: 3,
+        spawnedCount: 0,
+        seatedGuests: 0,
+        servedGuests: 0,
+        reservedSeats: 3,
+        deadlineSec: pendingBakeryEventOffer.deadlineSec,
+        totalTimeSec: pendingBakeryEventOffer.deadlineSec,
+        remainingSec: pendingBakeryEventOffer.deadlineSec,
+        rewardCoins: pendingBakeryEventOffer.rewardCoins,
+        state: 'waiting_first_seat',
+        startTime: null
+      };
+      pendingBakeryEventOffer = null;
+
+      playSound('upgrade');
+      showToast('Компания котов принята! Столики зарезервированы. 🐱✨', 3500);
+      updateUI();
+      saveGame();
+    }
+
+    function declineBakeryEvent() {
+      const modal = document.getElementById('bakery-event-offer-modal');
+      if (modal) modal.style.display = 'none';
+      isBakeryEventOfferOpen = false;
+      pendingBakeryEventOffer = null;
+
+      state.bakery.lastEventEndedAt = Date.now();
+      bakeryEventOfferTimer = 180 + Math.random() * 120;
+      showToast('Предложение компании котов отложено.');
+      saveGame();
+    }
+
+    function finishBakeryEvent(success, reason = '') {
+      if (!state.bakery?.activeEvent) return;
+      const ev = state.bakery.activeEvent;
+      state.bakery.activeEvent = null;
+      state.bakery.lastEventEndedAt = Date.now();
+      bakeryEventOfferTimer = 180 + Math.random() * 120;
+
+      if (success) {
+        const reward = ev.rewardCoins;
+        state.bakery.coins += reward;
+        state.bakery.totalEarned += reward;
+        state.bakery.eventsCompleted = (state.bakery.eventsCompleted || 0) + 1;
+        playSound('victory');
+        addVisualParticle(canvasWidth / 2, 70, `+${reward} 🪙 Доп. награда!`, '#ffb300', 'text');
+        showBakeryEventResultModal(true, reward);
+      } else {
+        playSound('meow');
+        showBakeryEventResultModal(false, 0, reason);
+      }
+
+      updateUI();
+      saveGame();
+    }
+
+    function showBakeryEventResultModal(success, reward, reason) {
+      const modal = document.getElementById('bakery-event-result-modal');
+      if (!modal) return;
+      const iconEl = document.getElementById('event-result-icon');
+      const titleEl = document.getElementById('event-result-title');
+      const descEl = document.getElementById('event-result-desc');
+      const rewardPillEl = document.getElementById('event-result-reward-pill');
+      const tipEl = document.getElementById('event-result-tip');
+
+      if (success) {
+        if (iconEl) iconEl.innerText = '🎉';
+        if (titleEl) titleEl.innerText = 'Компания котов довольна!';
+        if (descEl) descEl.innerText = 'Все 3 гостя компании получили свежую выпечку вовремя! Отличная командная работа пекарни.';
+        if (rewardPillEl) {
+          rewardPillEl.style.display = 'block';
+          rewardPillEl.innerText = `+${reward.toLocaleString('ru-RU')} 🪙 (Пекарня)`;
+        }
+        if (tipEl) tipEl.style.display = 'none';
+      } else {
+        if (iconEl) iconEl.innerText = '⏳';
+        if (titleEl) titleEl.innerText = 'Испытание не завершено';
+        if (descEl) {
+          if (reason === 'switched') {
+            descEl.innerText = 'Вы покинули пекарню во время обслуживания компании. Заработанные за поданные заказы монеты сохранены, но дополнительная награда не начислена.';
+          } else {
+            descEl.innerText = 'Время вышло до того, как все гости компании успели получить выпечку. Оплата за доставленные блюда осталась у вас, но дополнительный бонус не начислен.';
+          }
+        }
+        if (rewardPillEl) rewardPillEl.style.display = 'none';
+        if (tipEl) {
+          tipEl.style.display = 'block';
+          tipEl.innerText = '💡 Совет: нажимайте на готовую выпечку на витрине — официант доставит её первой! Также поможет прокачка печи и скорости официанта.';
+        }
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function closeBakeryEventResultModal() {
+      const modal = document.getElementById('bakery-event-result-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function selectWaiterSpec(spec) {
+      initAudio();
+      if ((state.bakery?.stars || 0) < 2) {
+        showToast('Специализации официанта откроются после 2-й звезды пекарни! ⭐⭐');
+        return;
+      }
+      if (state.bakery?.activeEvent) {
+        showToast('Нельзя менять специализацию во время события «Компания котов»! ⚠️');
+        return;
+      }
+      if (spec !== 'speed' && spec !== 'hospitality') return;
+      state.bakery.waiterSpec = spec;
+      playSound('upgrade');
+      const specName = spec === 'speed' ? '«Быстрые лапки» (+25% скорости)' : '«Гостеприимство» (+15% к оплате)';
+      showToast(`Официант переключён в режим ${specName}! 🐾`);
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('selection_change');
+      updateUI();
+      saveGame();
     }
 
     function buyBakeryUpgrade(id) {
@@ -2642,10 +3386,17 @@
       }
       if (freeTableIndices.length === 0) return false;
 
+      const isGroup = state.bakery?.activeEvent && ((state.bakery.activeEvent.spawnedCount || 0) < state.bakery.activeEvent.totalGuests);
+      if (isGroup) {
+        state.bakery.activeEvent.spawnedCount = (state.bakery.activeEvent.spawnedCount || 0) + 1;
+      }
+
       const targetTableIndex = freeTableIndices[Math.floor(cafeRandom() * freeTableIndices.length)];
       const targetTable = bakeryTables[targetTableIndex];
       const recipe = chooseBakeryRecipe();
-      const breed = CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
+      const breed = isGroup
+        ? { id: 'group_cat', fur: '#cfd8dc', ear: '#90a4ae', stripe: '#607d8b', eye: '#1976d2' }
+        : CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
 
       const cust = {
         id: bakeryCustomerIdCounter++,
@@ -2657,6 +3408,7 @@
         state: 'walking_to_table',
         dish: recipe,
         breed,
+        isGroupCustomer: !!isGroup,
         eatTimer: 0,
         eatTotalTime: 1.5,
         walkAnim: 0
@@ -3073,6 +3825,37 @@
 
     // --- 10.1. Симуляция Пекарни (Bakery Simulation Cycle) ---
     function updateBakerySimulation(dt) {
+      // 0. Таймер появления предложения «Компания котов» и автозакрытия модалки
+      if (state.bakery && (state.bakery.upgrades?.recipes || 1) >= 2 && !state.bakery.activeEvent && !isBakeryEventOfferOpen) {
+        bakeryEventOfferTimer -= dt;
+        if (bakeryEventOfferTimer <= 0) {
+          showBakeryEventOffer();
+        }
+      }
+
+      if (isBakeryEventOfferOpen && pendingBakeryEventOffer) {
+        pendingBakeryEventOffer.timeoutSec -= dt;
+        const offerTimerEl = document.getElementById('event-offer-timer-text');
+        if (offerTimerEl) {
+          offerTimerEl.innerText = `Предложение закроется через: ${Math.max(1, Math.ceil(pendingBakeryEventOffer.timeoutSec))}с`;
+        }
+        if (pendingBakeryEventOffer.timeoutSec <= 0) {
+          declineBakeryEvent();
+        }
+      }
+
+      // Обновление таймера активного события «Компания котов»
+      if (state.bakery?.activeEvent) {
+        const ev = state.bakery.activeEvent;
+        if (ev.state === 'running') {
+          ev.remainingSec -= dt;
+          if (ev.remainingSec <= 0) {
+            ev.remainingSec = 0;
+            finishBakeryEvent(false, 'timeout');
+          }
+        }
+      }
+
       // 1. Спавн посетителей пекарни к свободным столикам
       nextBakeryCustomerSpawnTimer -= dt;
       if (nextBakeryCustomerSpawnTimer <= 0) {
@@ -3093,6 +3876,12 @@
             c.x = c.targetX;
             c.y = c.targetY;
             c.state = 'waiting_order';
+            if (c.isGroupCustomer && state.bakery?.activeEvent && state.bakery.activeEvent.state === 'waiting_first_seat') {
+              state.bakery.activeEvent.state = 'running';
+              state.bakery.activeEvent.startTime = Date.now();
+              playSound('bell');
+              showToast('Компания котов расселась! Время пошло! ⏱️', 2500);
+            }
           } else {
             c.x += (dx / dist) * 80 * dt;
             c.y += (dy / dist) * 80 * dt;
@@ -3103,7 +3892,7 @@
           c.eatTimer -= dt;
           if (c.eatTimer <= 0) {
             // Завершил трапезу: оплата и уход
-            const earned = c.dish.basePrice;
+            const earned = getBakeryOrderPayout(c.dish);
             state.bakery.coins += earned;
             state.bakery.totalEarned += earned;
             state.bakery.ordersServed++;
@@ -3144,12 +3933,20 @@
         if (station.id === 'pushok' && !hasPushok) return;
 
         if (!station.isBaking) {
-          const waitingCust = bakeryCustomers.find(c =>
+          const waitingGroupCust = bakeryCustomers.find(c =>
+            c.isGroupCustomer &&
             c.state === 'waiting_order' &&
             !bakeryOvenStations.some(s => s.targetCustomer === c) &&
             !readyOrders.some(ro => ro.customerId === c.id) &&
             !(waiterCat.targetOrder && waiterCat.targetOrder.customerId === c.id)
           );
+          const waitingNormalCust = bakeryCustomers.find(c =>
+            c.state === 'waiting_order' &&
+            !bakeryOvenStations.some(s => s.targetCustomer === c) &&
+            !readyOrders.some(ro => ro.customerId === c.id) &&
+            !(waiterCat.targetOrder && waiterCat.targetOrder.customerId === c.id)
+          );
+          const waitingCust = waitingGroupCust || waitingNormalCust;
 
           if (waitingCust) {
             station.isBaking = true;
@@ -3176,6 +3973,7 @@
               tableIndex: cust.tableIndex,
               dish: station.dish,
               isPriority: false,
+              isGroupOrder: !!cust.isGroupCustomer,
               x: 0,
               y: 0
             };
@@ -3196,9 +3994,10 @@
 
       if (waiterCat.state === 'idle') {
         if (readyOrders.length > 0) {
-          // Приоритетная выпечка в первую очередь
+          // Приоритетная выпечка вручную -> затем заказы компании -> затем общая очередь
           const prioOrder = readyOrders.find(o => o.isPriority);
-          const order = prioOrder || readyOrders[0];
+          const groupOrder = readyOrders.find(o => o.isGroupOrder);
+          const order = prioOrder || groupOrder || readyOrders[0];
 
           waiterCat.targetOrder = order;
           waiterCat.targetTable = bakeryTables[order.tableIndex];
@@ -3250,6 +4049,12 @@
           if (cust) {
             cust.state = 'eating';
             cust.eatTimer = cust.eatTotalTime;
+            if (cust.isGroupCustomer && state.bakery?.activeEvent) {
+              state.bakery.activeEvent.servedGuests = (state.bakery.activeEvent.servedGuests || 0) + 1;
+              if (state.bakery.activeEvent.servedGuests >= state.bakery.activeEvent.totalGuests) {
+                finishBakeryEvent(true);
+              }
+            }
           }
           waiterCat.carryingDish = null;
           waiterCat.targetOrder = null;
@@ -3264,7 +4069,8 @@
         if (readyOrders.length > 0) {
           // Сразу идем к витрине за следующим заказом
           const prioOrder = readyOrders.find(o => o.isPriority);
-          const order = prioOrder || readyOrders[0];
+          const groupOrder = readyOrders.find(o => o.isGroupOrder);
+          const order = prioOrder || groupOrder || readyOrders[0];
 
           waiterCat.targetOrder = order;
           waiterCat.targetTable = bakeryTables[order.tableIndex];
@@ -3311,6 +4117,11 @@
       state.bakery.upgrades.tables = options.tablesLevel || 1;
       state.bakery.upgrades.recipes = options.recipesLevel || 1;
       state.bakery.upgrades.baker_helper = options.hasPushok ? 1 : 0;
+      state.bakery.stars = options.stars !== undefined ? options.stars : 0;
+      state.bakery.claimedStars = options.claimedStars || {};
+      state.bakery.eventsCompleted = options.eventsCompleted !== undefined ? options.eventsCompleted : 0;
+      state.bakery.waiterSpec = options.waiterSpec !== undefined ? options.waiterSpec : null;
+      state.bakery.activeEvent = options.activeEvent !== undefined ? options.activeEvent : null;
       state.bakery.claimedQuests = [];
       state.bakery.seenHints = {};
 
@@ -3501,6 +4312,17 @@
           ctx.font = '12px sans-serif';
           ctx.fillText('🌸 🌺 🌷 🌼 🌸 🌺 🌷 🌼 🌸', canvasWidth / 2, awningHeight + 23);
         }
+      }
+
+      // Звёзды кафе на козырьке
+      const cafeStars = state.stars || 0;
+      if (cafeStars > 0) {
+        ctx.save();
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff8f00';
+        ctx.fillText('⭐'.repeat(cafeStars), canvasWidth / 2, isExpanded ? (hasDecor ? awningHeight + 35 : awningHeight + 24) : awningHeight + 14);
+        ctx.restore();
       }
 
       // Деревянный теплый пол
@@ -4118,11 +4940,35 @@
       ctx.fill();
       ctx.stroke();
 
+      const bakeryStars = state.bakery?.stars || 0;
+      const starsStr = bakeryStars > 0 ? ` ${'⭐'.repeat(bakeryStars)}` : '';
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#6d4c41';
-      ctx.fillText('🥖 КОШАЧЬЯ ПЕКАРНЯ: СВЕЖАЯ ВЫПЕЧКА 🥐', canvasWidth / 2, signY + Math.round(signH / 2));
+      ctx.fillText(`🥖 КОШАЧЬЯ ПЕКАРНЯ${starsStr} 🥐`, canvasWidth / 2, signY + Math.round(signH / 2));
+
+      // Праздничные флажки и искры при 3-й звезде пекарни
+      if (bakeryStars >= 3) {
+        const flagColors = ['#e91e63', '#ffeb3b', '#2196f3', '#4caf50', '#ff9800'];
+        const flagW = 14;
+        for (let x = 6; x < canvasWidth - 6; x += flagW) {
+          const colIdx = Math.floor(x / flagW) % flagColors.length;
+          ctx.fillStyle = flagColors[colIdx];
+          ctx.beginPath();
+          ctx.moveTo(x, awningH);
+          ctx.lineTo(x + flagW, awningH);
+          ctx.lineTo(x + flagW / 2, awningH + 8);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.save();
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✨', 24 + Math.sin(globalGameTime * 2.5) * 4, 30);
+        ctx.fillText('✨', canvasWidth - 24 + Math.sin(globalGameTime * 3) * 4, 30);
+        ctx.restore();
+      }
 
       // Теплый терракотовый пол пекарни
       ctx.fillStyle = '#eddcd2';
@@ -4382,6 +5228,9 @@
           ctx.fillStyle = '#3e2723';
           ctx.font = 'bold 8px sans-serif';
           ctx.fillText('ПРИОРИТЕТ', ox, oy + 18);
+        } else if (o.isGroupOrder) {
+          ctx.font = '12px sans-serif';
+          ctx.fillText('👥', ox + 12, oy - 12);
         }
       });
 
@@ -4436,11 +5285,12 @@
           ctx.textBaseline = 'middle';
           ctx.fillText(t.servedDish.icon, tx, ty - 1);
         } else {
-          // Вазочка с цветочком
+          // Вазочка с цветочком (тюльпаны 🌷 при 3-й звезде)
+          const flower = (state.bakery?.stars || 0) >= 3 ? '🌷' : '🌼';
           ctx.font = '12px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🌼', tx, ty);
+          ctx.fillText(flower, tx, ty);
         }
 
         // Лапки сидящего котика на краю стола
@@ -4525,6 +5375,20 @@
         // Облачко заказа или сердечко
         if (c.state === 'waiting_order') {
           drawThoughtBubble(cx, cy - 30, c.dish.icon, false, false, 0, 1, 20, 20, false);
+          if (c.isGroupCustomer) {
+            ctx.save();
+            ctx.fillStyle = '#1565c0';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(cx - 24, cy - 49, 48, 12, 3);
+            else ctx.rect(cx - 24, cy - 49, 48, 12);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 8px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('👥 КОМПАНИЯ', cx, cy - 43);
+            ctx.restore();
+          }
         } else if (c.state === 'eating') {
           ctx.font = '22px sans-serif';
           ctx.textAlign = 'center';
@@ -4596,6 +5460,15 @@
       ctx.arc(wx, wy + 2, 1.8, 0, Math.PI * 2);
       ctx.fill();
 
+      // Бейдж специализации официанта
+      const spec = state.bakery?.waiterSpec;
+      if (spec) {
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(spec === 'speed' ? '⚡' : '💖', wx + 12, wy - 14);
+      }
+
       // Серебряный поднос с выпечкой в лапках, если несёт заказ
       if (waiterCat.carryingDish) {
         ctx.fillStyle = '#cfd8dc';
@@ -4658,15 +5531,51 @@
         }
       }
 
+      // 1.1. Обновление индикатора активного события компании котов
+      const evBar = document.getElementById('bakery-event-active-bar');
+      if (evBar) {
+        if (state.currentVenue === 'bakery' && state.bakery?.activeEvent) {
+          evBar.style.display = 'flex';
+          const ev = state.bakery.activeEvent;
+          const titleEl = document.getElementById('event-bar-title');
+          const timeEl = document.getElementById('event-bar-time');
+          const fillEl = document.getElementById('event-bar-progress-fill');
+          if (titleEl) {
+            titleEl.innerText = `Компания котов: ${ev.servedGuests || 0}/${ev.totalGuests || 3}`;
+          }
+          if (timeEl) {
+            if (ev.state === 'waiting_first_seat') {
+              timeEl.innerText = '⏳ Рассадка...';
+            } else {
+              timeEl.innerText = `⏳ ${Math.ceil(ev.remainingSec)}с`;
+            }
+          }
+          if (fillEl) {
+            if (ev.state === 'waiting_first_seat') {
+              fillEl.style.width = '100%';
+            } else {
+              const pct = Math.max(0, Math.min(100, (ev.remainingSec / ev.totalTimeSec) * 100));
+              fillEl.style.width = `${pct}%`;
+            }
+          }
+        } else {
+          evBar.style.display = 'none';
+        }
+      }
+
       if (state.currentVenue === 'bakery') {
         if (cafeBtn) cafeBtn.classList.remove('active');
         if (bakeryBtn) bakeryBtn.classList.add('active');
         if (tapHintEl) tapHintEl.innerText = 'Нажми на блюдо — официант подаст его первым';
         if (shopTitleEl) shopTitleEl.innerText = '🥐 Улучшения пекарни';
 
-        // Заголовок
+        // Заголовок со звёздами
         const titleEl = document.querySelector('.cafe-title');
-        if (titleEl) titleEl.innerText = 'Кошачья Пекарня: Свежая Выпечка 🥐';
+        if (titleEl) {
+          const bakeryStars = state.bakery?.stars || 0;
+          const starsStr = bakeryStars > 0 ? ` ${'⭐'.repeat(bakeryStars)}` : ' 🥐';
+          titleEl.innerText = `Кошачья Пекарня: Свежая Выпечка${starsStr}`;
+        }
 
         // Монеты и счетчик заказов
         document.getElementById('coins-display').innerText = Math.floor(state.bakery.coins).toLocaleString('ru-RU');
@@ -4779,7 +5688,41 @@
           `;
         }).join('');
 
-        listEl.innerHTML = bakeryCardsHtml;
+        // Карточка специализаций официанта (открывается после 2-й звезды пекарни)
+        let waiterSpecHtml = '';
+        const bakeryStars = state.bakery?.stars || 0;
+        if (bakeryStars < 2) {
+          waiterSpecHtml = `
+            <div class="waiter-spec-card locked">
+              <div class="spec-card-title">🐾 Специализация официанта 🔒</div>
+              <div class="spec-card-desc">Откроется после получения 2-й звезды пекарни ⭐⭐</div>
+            </div>
+          `;
+        } else {
+          const curSpec = state.bakery?.waiterSpec;
+          const isEventActive = !!state.bakery?.activeEvent;
+          waiterSpecHtml = `
+            <div class="waiter-spec-card">
+              <div class="spec-card-title">🐾 Специализация официанта</div>
+              <div class="spec-card-desc">Бесплатный выбор таланта Пончика (сохраняется):</div>
+              <div class="spec-buttons">
+                <button class="spec-btn ${curSpec === 'speed' ? 'active' : ''}" onclick="selectWaiterSpec('speed')" ${isEventActive ? 'disabled' : ''}>
+                  <span class="spec-icon">⚡</span>
+                  <span class="spec-name">Быстрые лапки</span>
+                  <span class="spec-bonus">+25% скорости</span>
+                </button>
+                <button class="spec-btn ${curSpec === 'hospitality' ? 'active' : ''}" onclick="selectWaiterSpec('hospitality')" ${isEventActive ? 'disabled' : ''}>
+                  <span class="spec-icon">💖</span>
+                  <span class="spec-name">Гостеприимство</span>
+                  <span class="spec-bonus">+15% к оплате</span>
+                </button>
+              </div>
+              ${isEventActive ? '<div class="spec-locked-hint">⚠️ Смена специализации заблокирована во время события компании</div>' : ''}
+            </div>
+          `;
+        }
+
+        listEl.innerHTML = waiterSpecHtml + bakeryCardsHtml;
 
         const badgeEl = document.getElementById('shop-badge');
         if (badgeEl) {
@@ -4805,17 +5748,22 @@
       if (venueLabel) venueLabel.innerText = '(Кафе)';
       document.getElementById('orders-display').innerText = formatOrdersCount(state.ordersServed);
 
-      // Заголовок кафе с учетом расширения и цветочного оформления
+      // Заголовок кафе с учетом звезд, расширения и цветочного оформления
       const titleEl = document.querySelector('.cafe-title');
       if (titleEl) {
+        const cafeStars = state.stars || 0;
+        const starsStr = cafeStars > 0 ? ` ${'⭐'.repeat(cafeStars)}` : '';
         if ((state.verandaDecor || 0) >= 1) {
-          titleEl.innerText = 'Кошачье Кафе: Цветочная Веранда 🌸';
+          titleEl.innerText = `Кошачье Кафе: Цветочная Веранда${starsStr} 🌸`;
         } else if ((state.expansion || 0) >= 1) {
-          titleEl.innerText = 'Кошачье Кафе & Веранда 🌿';
+          titleEl.innerText = `Кошачье Кафе & Веранда${starsStr} 🌿`;
         } else {
-          titleEl.innerText = 'Кошачье Кафе: Снек-Бар';
+          titleEl.innerText = `Кошачье Кафе: Снек-Бар${starsStr}`;
         }
       }
+
+      // Обновление текущей цели развития кафе
+      updateQuestsUI();
 
       // Блюдо дня в шапке
       const curFeatured = getFeaturedDish();
@@ -5140,6 +6088,10 @@
       updateUI();
       checkOfflineEarnings();
 
+      if (wasEventAbortedOnReload) {
+        showToast('Событие «Компания котов» было отменено из-за перезагрузки страницы.', 4000);
+      }
+
       // Автосохранение каждые 4 секунды
       setInterval(saveGame, 4000);
 
@@ -5234,7 +6186,25 @@
         BAKERY_RECIPES,
         BAKERY_UPGRADES,
         BAKERY_QUESTS,
-        BAKERY_UNLOCK_COST
+        BAKERY_UNLOCK_COST,
+        // --- Звёзды заведений и Событие «Компания котов» ---
+        CAFE_STARS_CONFIG,
+        BAKERY_STARS_CONFIG,
+        claimVenueStar,
+        toggleQuestsDrawer,
+        calculateBakeryEventParams,
+        showBakeryEventOffer,
+        acceptBakeryEvent,
+        declineBakeryEvent,
+        finishBakeryEvent,
+        selectWaiterSpec,
+        getBakeryOrderPayout,
+        getBakeryEventState: () => state.bakery?.activeEvent,
+        setBakeryEventTimer: (t) => { bakeryEventOfferTimer = t; },
+        showSwitchWarningModal,
+        closeSwitchWarningModal,
+        confirmSwitchVenueDuringEvent,
+        executeVenueSwitch
       };
     });
   </script>
