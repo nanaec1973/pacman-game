@@ -1406,6 +1406,7 @@
         <div class="modal-icon">⚙️</div>
         <h3 class="modal-title">Настройки Кафе</h3>
         <p class="modal-text">Прогресс игры автоматически сохраняется в памяти браузера.</p>
+        <button class="modal-btn" id="modal-sound-btn" onclick="toggleSound()" style="margin-bottom: 10px;">🔊 Звуковые эффекты: Вкл</button>
         <button class="modal-btn secondary" onclick="resetSaveData()">СБРОСИТЬ ПРОГРЕСС 🗑️</button>
         <button class="modal-btn" style="margin-top: 10px;" onclick="closeSettingsModal()">ЗАКРЫТЬ</button>
       </div>
@@ -1947,83 +1948,205 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     }
 
-    // --- 6. Web Audio API звуковой синтезатор ---
+    // --- 6. Web Audio API звуковой синтезатор & Разблокировка аудио в мобильных браузерах ---
     let audioCtx = null;
+    let isAudioUnlocked = false;
+
     function initAudio() {
       if (!audioCtx && typeof window !== 'undefined') {
         const AudioClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioClass) audioCtx = new AudioClass();
+        if (AudioClass) {
+          try {
+            audioCtx = new AudioClass();
+          } catch (e) {
+            console.warn('AudioContext init error:', e);
+          }
+        }
       }
       if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
+        audioCtx.resume().catch(() => {});
       }
+    }
+
+    function unlockAudio() {
+      if (typeof window === 'undefined') return;
+      initAudio();
+      if (!audioCtx) return;
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+
+      // Переключаем категорию сессии WebKit в режим playback для обхода физического переключателя беззвучного режима iOS
+      if (typeof navigator !== 'undefined' && navigator.audioSession) {
+        try {
+          navigator.audioSession.type = 'playback';
+        } catch (e) {}
+      }
+
+      if (!isAudioUnlocked) {
+        try {
+          // Неслышимый буфер Web Audio для снятия блокировки автовоспроизведения в WebKit
+          const buffer = audioCtx.createBuffer(1, 1, 22050);
+          const source = audioCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioCtx.destination);
+          source.start(0);
+
+          // Кратковременный неслышимый HTML5 Audio для принудительного включения аудиосессии в iOS Telegram WebApp
+          const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+          const dummyAudio = new Audio(silentWav);
+          dummyAudio.volume = 0.01;
+          const playPromise = dummyAudio.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {});
+          }
+
+          isAudioUnlocked = true;
+        } catch (e) {}
+      }
+    }
+
+    // Слушатели глобальных жестов пользователя для разблокировки звука
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const unlockEvents = ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'click', 'keydown'];
+      const onUserGesture = () => {
+        unlockAudio();
+      };
+      unlockEvents.forEach(evt => {
+        document.addEventListener(evt, onUserGesture, { passive: true, capture: true });
+      });
+
+      // Возобновление аудио при возврате в приложение из фона
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+          }
+        }
+      });
     }
 
     function playSound(type) {
       if (!state.soundEnabled) return;
-      initAudio();
+      unlockAudio();
       if (!audioCtx) return;
 
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+
       const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
 
       if (type === 'coin') {
         // Звон монет
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(987.77, now); // B5
         osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        gain.gain.setValueAtTime(0.30, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
         osc.start(now);
-        osc.stop(now + 0.25);
+        osc.stop(now + 0.28);
       } else if (type === 'bell') {
         // Дзынь колокольчика готовности блюда
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1567.98, now); // G6
-        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.setValueAtTime(0.32, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
         osc.start(now);
         osc.stop(now + 0.4);
       } else if (type === 'purr') {
-        // Довольное мурлыканье / мяу
+        // Довольное мурлыканье / ласка
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(440, now);
         osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
         osc.frequency.exponentialRampToValueAtTime(660, now + 0.22);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
         osc.start(now);
-        osc.stop(now + 0.25);
+        osc.stop(now + 0.26);
       } else if (type === 'upgrade') {
         // Победный аккорд улучшения
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.setValueAtTime(659.25, now + 0.07);
         osc.frequency.setValueAtTime(783.99, now + 0.14);
         osc.frequency.setValueAtTime(1046.50, now + 0.21);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
         osc.start(now);
-        osc.stop(now + 0.4);
+        osc.stop(now + 0.45);
       } else if (type === 'sizzle') {
         // Легкий клик ускорения готовки
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
         osc.type = 'square';
         osc.frequency.setValueAtTime(320, now);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
         osc.start(now);
-        osc.stop(now + 0.06);
+        osc.stop(now + 0.08);
+      } else if (type === 'meow') {
+        // Очаровательное мяуканье котика
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(860, now + 0.12);
+        osc.frequency.exponentialRampToValueAtTime(620, now + 0.28);
+        gain.gain.setValueAtTime(0.26, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+        osc.start(now);
+        osc.stop(now + 0.32);
+      } else if (type === 'victory') {
+        // Праздничный торжественный перезвон фанфар
+        const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        freqs.forEach((freq, idx) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = 'triangle';
+          o.frequency.setValueAtTime(freq, now + idx * 0.07);
+          g.gain.setValueAtTime(0.22, now + idx * 0.07);
+          g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.4);
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start(now + idx * 0.07);
+          o.stop(now + idx * 0.07 + 0.4);
+        });
       }
     }
 
     function toggleSound() {
+      unlockAudio();
       state.soundEnabled = !state.soundEnabled;
       const btn = document.getElementById('sound-btn');
       if (btn) btn.innerText = state.soundEnabled ? '🔊' : '🔇';
+      const modalBtn = document.getElementById('modal-sound-btn');
+      if (modalBtn) modalBtn.innerText = state.soundEnabled ? '🔊 Звуковые эффекты: Вкл' : '🔇 Звуковые эффекты: Выкл';
       showToast(state.soundEnabled ? 'Звук включён 🔊' : 'Звук выключен 🔇');
+      if (state.soundEnabled) {
+        playSound('coin');
+      }
       saveGame();
     }
 
@@ -5651,6 +5774,12 @@
     }
 
     function updateUI() {
+      // 0. Обновление кнопок звука
+      const soundBtn = document.getElementById('sound-btn');
+      if (soundBtn) soundBtn.innerText = state.soundEnabled ? '🔊' : '🔇';
+      const modalSoundBtn = document.getElementById('modal-sound-btn');
+      if (modalSoundBtn) modalSoundBtn.innerText = state.soundEnabled ? '🔊 Звуковые эффекты: Вкл' : '🔇 Звуковые эффекты: Выкл';
+
       // 1. Обновление переключателя заведений
       const cafeBtn = document.getElementById('venue-btn-cafe');
       const bakeryBtn = document.getElementById('venue-btn-bakery');
@@ -6345,7 +6474,14 @@
         executeVenueSwitch,
         // --- Telegram закрепление экрана и защита от свайпа ---
         initTelegramFixes,
-        setupTouchProtection
+        setupTouchProtection,
+        // --- Аудиосистема ---
+        initAudio,
+        unlockAudio,
+        playSound,
+        toggleSound,
+        isSoundEnabled: () => state.soundEnabled,
+        getAudioCtx: () => audioCtx
       };
     });
   </script>
