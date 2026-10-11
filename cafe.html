@@ -142,6 +142,46 @@
       font-size: 16px;
     }
 
+    /* --- ПЕРЕКЛЮЧАТЕЛЬ ЗАВЕДЕНИЙ (КАФЕ / ПЕКАРНЯ) --- */
+    .venue-switcher {
+      display: flex;
+      background: #ebd8c3;
+      border-radius: 12px;
+      padding: 2px;
+      gap: 3px;
+    }
+
+    .venue-tab-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border: none;
+      background: transparent;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .venue-tab-btn.active {
+      background: #ffffff;
+      color: var(--wood-dark);
+      box-shadow: 0 2px 6px rgba(109,76,65,0.12);
+    }
+
+    .venue-tab-btn.locked {
+      opacity: 0.8;
+    }
+
+    .venue-tab-icon {
+      font-size: 14px;
+    }
+
     /* --- КОМПАКТНАЯ ПАНЕЛЬ ТЕКУЩЕЙ ЦЕЛИ РАЗВИТИЯ --- */
     #quest-card {
       background: #ffffff;
@@ -483,6 +523,24 @@
       flex-direction: column;
       gap: 7px;
       margin-bottom: 2px;
+    }
+
+    /* --- РАЗБЛОКИРОВКА ПЕКАРНИ --- */
+    .bakery-unlock-card {
+      background: linear-gradient(135deg, #fffaf2 0%, #fff3e0 100%);
+      border: 2px dashed #ff9800;
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+
+    .bakery-unlock-card.unlocked-ready {
+      border: 2px solid #e65100;
+      background: #ffffff;
+      box-shadow: 0 4px 12px rgba(230, 81, 0, 0.15);
     }
 
     .upgrade-delta {
@@ -908,10 +966,21 @@
           <button class="icon-btn" onclick="openSettingsModal()" title="Настройки">⚙️</button>
         </div>
       </div>
+      <div class="venue-switcher">
+        <button id="venue-btn-cafe" class="venue-tab-btn active" onclick="switchVenue('cafe')" title="Кошачье кафе">
+          <span class="venue-tab-icon">☕</span>
+          <span class="venue-tab-name">Кафе</span>
+        </button>
+        <button id="venue-btn-bakery" class="venue-tab-btn locked" onclick="switchVenue('bakery')" title="Кошачья пекарня">
+          <span class="venue-tab-icon">🥐</span>
+          <span class="venue-tab-name" id="venue-tab-bakery-text">Пекарня 🔒</span>
+        </button>
+      </div>
       <div class="header-stats">
-        <div class="stat-pill coins-pill">
+        <div class="stat-pill coins-pill" id="coins-stat-pill">
           <span class="icon">🪙</span>
           <span id="coins-display">0</span>
+          <span id="coins-venue-label" style="font-size: 11px; font-weight: 700; color: #b78103; margin-left: -2px;">(Кафе)</span>
         </div>
         <div class="stat-pill">
           <span class="icon">📋</span>
@@ -1009,6 +1078,17 @@
           <!-- Генерируется скриптом -->
         </div>
         <button class="modal-btn secondary" onclick="closeFeaturedModal()">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+
+    <!-- Модалка открытия Пекарни -->
+    <div class="modal-overlay" id="bakery-unlocked-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-icon">🥐✨</div>
+        <h3 class="modal-title">«Кошачья пекарня» открыта!</h3>
+        <p class="modal-text">Поздравляем с открытием второго заведения! Шеф-пекарь Коржик уже растопил кирпичную печь, а шустрый официант Пончик готов разносить свежую выпечку гостям по столикам.</p>
+        <div class="modal-reward" style="font-size: 14px; margin: 10px 0; padding: 6px 12px; background: #fff8e1; border-radius: 12px; color: #b78103; font-weight: 800;">Стартовый баланс: 60 🪙 пекарни</div>
+        <button class="modal-btn" onclick="closeBakeryUnlockedModal()">ПЕРЕЙТИ В ПЕКАРНЮ 🐾</button>
       </div>
     </div>
 
@@ -1151,9 +1231,90 @@
       }
     ];
 
+    // --- 3.1. Каталог выпечки пекарни ---
+    const BAKERY_RECIPES = [
+      {
+        id: 'bun',
+        name: 'Мяу-Булочка',
+        icon: '🥐',
+        basePrice: 15,
+        bakeTime: 3.2,
+        reqRecipeLevel: 1
+      },
+      {
+        id: 'cookie',
+        name: 'Хрустящее Печенье',
+        icon: '🍪',
+        basePrice: 35,
+        bakeTime: 4.0,
+        reqRecipeLevel: 2
+      },
+      {
+        id: 'pie',
+        name: 'Ягодный Пирог',
+        icon: '🥧',
+        basePrice: 75,
+        bakeTime: 5.0,
+        reqRecipeLevel: 3
+      }
+    ];
+
+    // --- 3.2. Каталог улучшений пекарни ---
+    const BAKERY_UPGRADES = [
+      {
+        id: 'oven',
+        name: 'Кирпичная Печь 🧱🔥',
+        desc: 'Ускоряет выпечку на 15% за уровень (до 4х раз на 10 ур.)',
+        icon: '🧱',
+        baseCost: 40,
+        costMult: 1.55,
+        maxLevel: 10
+      },
+      {
+        id: 'waiter_speed',
+        name: 'Шустрый Официант 🐾⚡',
+        desc: 'Увеличивает скорость официанта Пончика на +20%',
+        icon: '⚡',
+        baseCost: 50,
+        costMult: 1.65,
+        maxLevel: 5
+      },
+      {
+        id: 'tables',
+        name: 'Обеденные Столики 🪑',
+        desc: 'Добавляет столики для гостей в пекарне (2 → 3 → 4)',
+        icon: '🪑',
+        baseCost: 120,
+        costMult: 2.2,
+        maxLevel: 3
+      },
+      {
+        id: 'recipes',
+        name: 'Рецепты Выпечки 📜',
+        desc: 'Открывает новое лакомство в меню пекарни',
+        icon: '📜',
+        baseCost: 180,
+        costMult: 2.8,
+        maxLevel: 3
+      },
+      {
+        id: 'baker_helper',
+        name: 'Второй Пекарь Пушок 👨‍🍳',
+        desc: 'Пушок выпекает второй заказ параллельно в печи!',
+        icon: '👨‍🍳',
+        baseCost: 450,
+        costMult: 1.0,
+        maxLevel: 1
+      }
+    ];
+
+    const BAKERY_UNLOCK_COST = 2500;
+
     // --- 4. Состояние игры (State) ---
     const STORAGE_KEY = 'cat_cafe_save_v1';
     let state = {
+      saveVersion: 2,
+      currentVenue: 'cafe',
       coins: 40,
       totalEarned: 40,
       ordersServed: 0,
@@ -1173,7 +1334,23 @@
       gourmetsServed: 0,
       gourmetEarned: 0,
       seenHints: {},
-      gourmetEventsCount: 0
+      gourmetEventsCount: 0,
+      bakery: {
+        unlocked: false,
+        coins: 60,
+        totalEarned: 60,
+        ordersServed: 0,
+        lastSavedTime: Date.now(),
+        upgrades: {
+          oven: 1,
+          waiter_speed: 1,
+          tables: 1,
+          recipes: 1,
+          baker_helper: 0
+        },
+        claimedQuests: [],
+        seenHints: {}
+      }
     };
 
     // --- 5. Локальный PRNG для декоративных частиц (не засоряет системный RNG) ---
@@ -1290,6 +1467,9 @@
         if (pendingOfflineCoins === 0) {
           state.lastSavedTime = Date.now();
         }
+        if (pendingBakeryOfflineCoins === 0 && state.bakery) {
+          state.bakery.lastSavedTime = Date.now();
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (e) {
         console.error('Ошибка сохранения игры:', e);
@@ -1302,6 +1482,7 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed.coins === 'number') {
+            state.saveVersion = 2;
             state.coins = parsed.coins;
             state.totalEarned = parsed.totalEarned || parsed.coins;
             state.ordersServed = parsed.ordersServed || 0;
@@ -1336,6 +1517,32 @@
             state.gourmetEventsCount = typeof parsed.gourmetEventsCount === 'number'
               ? parsed.gourmetEventsCount
               : ((parsed.seenHints && parsed.seenHints.gourmet) ? 1 : 0);
+
+            // Миграция и загрузка данных Пекарни
+            if (parsed.bakery && typeof parsed.bakery === 'object') {
+              state.bakery = {
+                unlocked: !!parsed.bakery.unlocked,
+                coins: typeof parsed.bakery.coins === 'number' ? parsed.bakery.coins : 60,
+                totalEarned: typeof parsed.bakery.totalEarned === 'number' ? parsed.bakery.totalEarned : 60,
+                ordersServed: typeof parsed.bakery.ordersServed === 'number' ? parsed.bakery.ordersServed : 0,
+                lastSavedTime: parsed.bakery.lastSavedTime || Date.now(),
+                upgrades: Object.assign({
+                  oven: 1,
+                  waiter_speed: 1,
+                  tables: 1,
+                  recipes: 1,
+                  baker_helper: 0
+                }, parsed.bakery.upgrades || {}),
+                claimedQuests: Array.isArray(parsed.bakery.claimedQuests) ? parsed.bakery.claimedQuests : [],
+                seenHints: parsed.bakery.seenHints || {}
+              };
+            }
+
+            if (parsed.currentVenue === 'bakery' && state.bakery.unlocked) {
+              state.currentVenue = 'bakery';
+            } else {
+              state.currentVenue = 'cafe';
+            }
           }
         }
       } catch (e) {
@@ -1344,7 +1551,17 @@
     }
 
     let pendingOfflineCoins = 0;
+    let pendingBakeryOfflineCoins = 0;
+
     function checkOfflineEarnings() {
+      if (state.currentVenue === 'bakery') {
+        checkBakeryOfflineEarnings();
+        return;
+      }
+      checkCafeOfflineEarnings();
+    }
+
+    function checkCafeOfflineEarnings() {
       const now = Date.now();
       const lastTime = state.lastSavedTime || now;
       const elapsedSec = Math.floor((now - lastTime) / 1000);
@@ -1375,29 +1592,75 @@
         if (earned > 5) {
           pendingOfflineCoins = earned;
           const modalText = document.querySelector('#welcome-modal .modal-text');
+          const modalTitle = document.querySelector('#welcome-modal .modal-title');
+          const modalIcon = document.querySelector('#welcome-modal .modal-icon');
+          if (modalTitle) modalTitle.innerText = 'С возвращением в Кафе!';
+          if (modalIcon) modalIcon.innerText = '🐱‍🍳';
           if (modalText) {
             const chefsText = hasHelper ? 'котики-повара (шеф и помощник)' : 'котик-повар';
             const ordersStr = formatOrdersCount(estimatedOrders);
             modalText.innerText = `Пока вас не было, ${chefsText} выполнили ~${ordersStr} и заработали:`;
           }
-          document.getElementById('offline-earned-val').innerText = `+${earned.toLocaleString('ru-RU')} 🪙`;
+          document.getElementById('offline-earned-val').innerText = `+${earned.toLocaleString('ru-RU')} 🪙 (Кафе)`;
+          document.getElementById('welcome-modal').style.display = 'flex';
+        }
+      }
+    }
+
+    function checkBakeryOfflineEarnings() {
+      if (!state.bakery || !state.bakery.unlocked) return;
+      const now = Date.now();
+      const lastTime = state.bakery.lastSavedTime || now;
+      const elapsedSec = Math.floor((now - lastTime) / 1000);
+      if (elapsedSec > 20) {
+        const cappedSec = Math.min(14400, elapsedSec);
+        const avgBakeTime = getAverageBakeryBakeTime();
+        const waiterSpeed = getBakeryWaiterSpeed();
+        const deliverySec = 300 / waiterSpeed;
+        const cycleSec = avgBakeTime + deliverySec + 1.5;
+        const bakerCount = 1 + ((state.bakery.upgrades?.baker_helper || 0) > 0 ? 1 : 0);
+        const estimatedOrders = Math.floor((cappedSec / cycleSec) * bakerCount);
+        const avgPrice = getAverageBakeryRecipePrice();
+        const earned = Math.floor(estimatedOrders * avgPrice * 0.75);
+
+        if (earned > 5) {
+          pendingBakeryOfflineCoins = earned;
+          const modalText = document.querySelector('#welcome-modal .modal-text');
+          const modalTitle = document.querySelector('#welcome-modal .modal-title');
+          const modalIcon = document.querySelector('#welcome-modal .modal-icon');
+          if (modalTitle) modalTitle.innerText = 'С возвращением в Пекарню! 🥐';
+          if (modalIcon) modalIcon.innerText = '👨‍🍳';
+          if (modalText) {
+            const bakersText = bakerCount > 1 ? 'пекари Коржик и Пушок' : 'пекарь Коржик и официант Пончик';
+            const ordersStr = formatOrdersCount(estimatedOrders);
+            modalText.innerText = `Пока вас не было, ${bakersText} выпекли ~${ordersStr} и заработали:`;
+          }
+          document.getElementById('offline-earned-val').innerText = `+${earned.toLocaleString('ru-RU')} 🪙 (Пекарня)`;
           document.getElementById('welcome-modal').style.display = 'flex';
         }
       }
     }
 
     function claimOfflineEarnings() {
-      if (pendingOfflineCoins <= 0) {
+      if (pendingOfflineCoins <= 0 && pendingBakeryOfflineCoins <= 0) {
         document.getElementById('welcome-modal').style.display = 'none';
         return;
       }
       playSound('coin');
-      const earned = pendingOfflineCoins;
-      // Сразу обнуляем, исключая повторное начисление при быстрых кликах
-      pendingOfflineCoins = 0;
-      state.coins += earned;
-      state.totalEarned += earned;
-      state.lastSavedTime = Date.now();
+      if (pendingOfflineCoins > 0) {
+        const earned = pendingOfflineCoins;
+        pendingOfflineCoins = 0;
+        state.coins += earned;
+        state.totalEarned += earned;
+        state.lastSavedTime = Date.now();
+      }
+      if (pendingBakeryOfflineCoins > 0) {
+        const earned = pendingBakeryOfflineCoins;
+        pendingBakeryOfflineCoins = 0;
+        state.bakery.coins += earned;
+        state.bakery.totalEarned += earned;
+        state.bakery.lastSavedTime = Date.now();
+      }
       updateUI();
       saveGame();
       document.getElementById('welcome-modal').style.display = 'none';
@@ -1646,12 +1909,99 @@
       }
     ];
 
+    // --- 8.1.1. Каталог последовательных целей пекарни (Bakery Quests) ---
+    const BAKERY_QUESTS = [
+      {
+        id: 'bakery_orders_5',
+        title: 'Обслужить 5 гостей в пекарне',
+        icon: '🥐',
+        reward: 80,
+        getProgress: () => ({ current: Math.min(5, state.bakery?.ordersServed || 0), target: 5 }),
+        isCompleted: () => (state.bakery?.ordersServed || 0) >= 5
+      },
+      {
+        id: 'bakery_oven_2',
+        title: 'Улучшить печь (Ур. 2)',
+        icon: '🧱',
+        reward: 100,
+        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.bakery?.upgrades?.oven || 1) - 1)), target: 1 }),
+        isCompleted: () => (state.bakery?.upgrades?.oven || 1) >= 2
+      },
+      {
+        id: 'bakery_cookie',
+        title: 'Открыть «Хрустящее Печенье»',
+        icon: '🍪',
+        reward: 150,
+        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.bakery?.upgrades?.recipes || 1) - 1)), target: 1 }),
+        isCompleted: () => (state.bakery?.upgrades?.recipes || 1) >= 2
+      },
+      {
+        id: 'bakery_tables_3',
+        title: 'Поставить 3 столика',
+        icon: '🪑',
+        reward: 200,
+        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.bakery?.upgrades?.tables || 1) - 1)), target: 1 }),
+        isCompleted: () => (state.bakery?.upgrades?.tables || 1) >= 2
+      },
+      {
+        id: 'bakery_helper',
+        title: 'Нанять второго пекаря Пушка',
+        icon: '👨‍🍳',
+        reward: 300,
+        getProgress: () => ({ current: (state.bakery?.upgrades?.baker_helper || 0) >= 1 ? 1 : 0, target: 1 }),
+        isCompleted: () => (state.bakery?.upgrades?.baker_helper || 0) >= 1
+      },
+      {
+        id: 'bakery_pie',
+        title: 'Открыть «Ягодный Пирог»',
+        icon: '🥧',
+        reward: 450,
+        getProgress: () => ({ current: (state.bakery?.upgrades?.recipes || 1) >= 3 ? 1 : 0, target: 1 }),
+        isCompleted: () => (state.bakery?.upgrades?.recipes || 1) >= 3
+      },
+      {
+        id: 'bakery_orders_100',
+        title: 'Обслужить 100 гостей в пекарне',
+        icon: '🏆',
+        reward: 600,
+        getProgress: () => ({ current: Math.min(100, state.bakery?.ordersServed || 0), target: 100 }),
+        isCompleted: () => (state.bakery?.ordersServed || 0) >= 100
+      }
+    ];
+
     function getCurrentQuest() {
       const claimed = state.claimedQuests || [];
       return QUESTS.find(q => !claimed.includes(q.id)) || null;
     }
 
+    function getCurrentBakeryQuest() {
+      const claimed = state.bakery?.claimedQuests || [];
+      return BAKERY_QUESTS.find(q => !claimed.includes(q.id)) || null;
+    }
+
+    function claimBakeryQuestReward() {
+      initAudio();
+      const q = getCurrentBakeryQuest();
+      if (!q || !q.isCompleted()) return;
+      if (!Array.isArray(state.bakery.claimedQuests)) state.bakery.claimedQuests = [];
+      if (state.bakery.claimedQuests.includes(q.id)) return;
+
+      state.bakery.claimedQuests.push(q.id);
+      state.bakery.coins += q.reward;
+      state.bakery.totalEarned += q.reward;
+      playSound('coin');
+      addVisualParticle(canvasWidth / 2, 70, `+${q.reward} 🪙`, '#ffb300', 'text');
+      showToast(`Награда за цель пекарни: +${q.reward} 🪙! 🎉`);
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      updateUI();
+      saveGame();
+    }
+
     function claimQuestReward() {
+      if (state.currentVenue === 'bakery') {
+        claimBakeryQuestReward();
+        return;
+      }
       initAudio();
       const q = getCurrentQuest();
       if (!q || !q.isCompleted()) return;
@@ -1670,10 +2020,53 @@
     }
 
     function updateQuestsUI() {
-      const q = getCurrentQuest();
       const card = document.getElementById('quest-card');
       if (!card) return;
 
+      if (state.currentVenue === 'bakery') {
+        const q = getCurrentBakeryQuest();
+        if (!q) {
+          const unlockedRecs = getBakeryUnlockedRecipes().length;
+          const guestsCount = state.bakery?.ordersServed || 0;
+          const tablesCount = getBakeryMaxTables();
+          card.innerHTML = `
+            <div class="achievements-card">
+              <div class="achievements-title">🏆 Зал славы пекарни: все цели достигнуты!</div>
+              <div class="achievements-stats">
+                <span class="ach-pill">🐾 Гостей: <b>${guestsCount}</b></span>
+                <span class="ach-pill">🥐 Рецепты: <b>${unlockedRecs}/3</b></span>
+                <span class="ach-pill">🪑 Столики: <b>${tablesCount}</b></span>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const prog = q.getProgress();
+        const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
+        const isDone = q.isCompleted();
+
+        card.innerHTML = `
+          <div class="quest-content">
+            <span class="quest-icon" id="quest-icon">${q.icon}</span>
+            <div class="quest-details">
+              <div class="quest-title-row">
+                <span class="quest-title" id="quest-title">${q.title}</span>
+                <span class="quest-progress-count" id="quest-progress-count">${prog.current} / ${prog.target}</span>
+              </div>
+              <div class="quest-progress-bar-bg">
+                <div class="quest-progress-bar-fill" id="quest-progress-bar-fill" style="width: ${pct}%;"></div>
+              </div>
+            </div>
+          </div>
+          <button class="quest-claim-btn ${isDone ? 'ready' : ''}" id="quest-claim-btn" onclick="claimQuestReward()" ${isDone ? '' : 'disabled'}>
+            <span id="quest-reward-val">${isDone ? ('ЗАБРАТЬ +' + q.reward + ' 🪙') : ('+' + q.reward + ' 🪙')}</span>
+          </button>
+        `;
+        return;
+      }
+
+      const q = getCurrentQuest();
       if (!q) {
         const unlockedDishes = getAvailableDishes().length;
         const totalDishes = DISHES.length;
@@ -1768,9 +2161,10 @@
       const modal = document.getElementById('dish-modal');
       if (!modal) return;
       document.getElementById('dish-modal-icon').innerText = dish.icon;
-      document.getElementById('dish-modal-title').innerText = `Открыто блюдо: ${dish.name}! 🎉`;
+      document.getElementById('dish-modal-title').innerText = `Открыто: ${dish.name}! 🎉`;
       document.getElementById('dish-modal-desc').innerText = `Посетители теперь с удовольствием заказывают ${dish.name}!`;
-      document.getElementById('dish-modal-stats').innerText = `Цена заказа: ${dish.basePrice} 🪙 | Время готовки: ${dish.cookTime}с`;
+      const timeSec = dish.bakeTime ? dish.bakeTime : dish.cookTime;
+      document.getElementById('dish-modal-stats').innerText = `Цена заказа: ${dish.basePrice} 🪙 | Время: ${timeSec}с`;
       modal.style.display = 'flex';
       playSound('upgrade');
     }
@@ -1812,6 +2206,168 @@
       } else {
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
         showToast('Недостаточно монет! 🪙');
+      }
+    }
+
+    // --- 8.4. Открытие и управление Пекарней (Cat Bakery) ---
+    function canUnlockBakery() {
+      return (state.expansion || 0) >= 1 && (state.verandaDecor || 0) >= 1 && state.ordersServed >= 150;
+    }
+
+    function buyBakery() {
+      initAudio();
+      if (state.bakery?.unlocked) {
+        switchVenue('bakery');
+        return;
+      }
+      if (!canUnlockBakery()) {
+        showToast('Условия открытия не выполнены! 🔒');
+        return;
+      }
+      if (state.coins >= BAKERY_UNLOCK_COST) {
+        state.coins -= BAKERY_UNLOCK_COST;
+        state.bakery.unlocked = true;
+        state.bakery.coins = 60;
+        state.bakery.totalEarned = 60;
+        state.bakery.lastSavedTime = Date.now();
+        playSound('upgrade');
+        showToast('🎉 «Кошачья пекарня» успешно открыта! 🥐✨', 3500);
+        addVisualParticle(canvasWidth / 2, getCounterY(), '🥐 Пекарня открыта!', '#e65100', 'text');
+        const modal = document.getElementById('bakery-unlocked-modal');
+        if (modal) modal.style.display = 'flex';
+        updateUI();
+        saveGame();
+      } else {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        showToast(`Недостаточно монет кафе (цена ${BAKERY_UNLOCK_COST.toLocaleString('ru-RU')} 🪙)!`);
+      }
+    }
+
+    function closeBakeryUnlockedModal() {
+      const modal = document.getElementById('bakery-unlocked-modal');
+      if (modal) modal.style.display = 'none';
+      switchVenue('bakery');
+    }
+
+    function switchVenue(venue) {
+      if (venue === state.currentVenue) return;
+      if (venue === 'bakery' && !state.bakery?.unlocked) {
+        showToast('🔒 Пекарня откроется после выполнения условий в магазине Кафе (150 гостей, Веранда, Цветочный уголок)!');
+        return;
+      }
+      initAudio();
+
+      if (state.currentVenue === 'cafe') {
+        state.lastSavedTime = Date.now();
+      } else if (state.currentVenue === 'bakery' && state.bakery) {
+        state.bakery.lastSavedTime = Date.now();
+      }
+
+      state.currentVenue = venue;
+      playSound('coin');
+
+      if (venue === 'bakery') {
+        checkBakeryOfflineEarnings();
+        updateBakeryPositions();
+      } else {
+        checkCafeOfflineEarnings();
+        updateStationPositions();
+      }
+
+      showToast(venue === 'bakery' ? 'Добро пожаловать в Пекарню! 🥐' : 'С возвращением в Кафе! ☕');
+      updateUI();
+      saveGame();
+    }
+
+    // --- 8.5. Вычисления улучшений Пекарни (Bakery Upgrades Math) ---
+    function getBakeryUpgradeLevel(upgId) {
+      if (state.bakery?.upgrades && typeof state.bakery.upgrades[upgId] === 'number') {
+        const upg = BAKERY_UPGRADES.find(u => u.id === upgId);
+        if (upg && state.bakery.upgrades[upgId] > upg.maxLevel) {
+          return upg.maxLevel;
+        }
+        return state.bakery.upgrades[upgId];
+      }
+      return upgId === 'baker_helper' ? 0 : 1;
+    }
+
+    function getBakeryUpgradeCost(upg) {
+      const currentLvl = getBakeryUpgradeLevel(upg.id);
+      if (currentLvl >= upg.maxLevel) return Infinity;
+      if (upg.id === 'baker_helper') {
+        return upg.baseCost; // 450 монет
+      }
+      return Math.floor(upg.baseCost * Math.pow(upg.costMult, currentLvl - 1));
+    }
+
+    function getEffectiveBakeTime(dish) {
+      if (!dish) return 1.0;
+      const ovenLvl = Math.min(10, getBakeryUpgradeLevel('oven'));
+      const ovenMult = Math.max(0.25, Math.pow(0.85, ovenLvl - 1));
+      return Math.max(0.6, dish.bakeTime * ovenMult);
+    }
+
+    function getBakeryWaiterSpeed() {
+      const lvl = getBakeryUpgradeLevel('waiter_speed');
+      return 100 * (1 + (lvl - 1) * 0.20);
+    }
+
+    function getBakeryMaxTables() {
+      const lvl = getBakeryUpgradeLevel('tables');
+      return Math.min(4, 1 + lvl); // 1: 2, 2: 3, 3: 4
+    }
+
+    function getBakeryUnlockedRecipes() {
+      const lvl = getBakeryUpgradeLevel('recipes');
+      return BAKERY_RECIPES.filter(r => r.reqRecipeLevel <= lvl);
+    }
+
+    function getAverageBakeryBakeTime() {
+      const recipes = getBakeryUnlockedRecipes();
+      if (recipes.length === 0) return 1.0;
+      const sum = recipes.reduce((acc, r) => acc + getEffectiveBakeTime(r), 0);
+      return sum / recipes.length;
+    }
+
+    function getAverageBakeryRecipePrice() {
+      const recipes = getBakeryUnlockedRecipes();
+      if (recipes.length === 0) return 15;
+      const sum = recipes.reduce((acc, r) => acc + r.basePrice, 0);
+      return sum / recipes.length;
+    }
+
+    function buyBakeryUpgrade(id) {
+      initAudio();
+      const upg = BAKERY_UPGRADES.find(u => u.id === id);
+      if (!upg) return;
+
+      const currentLvl = getBakeryUpgradeLevel(id);
+      if (currentLvl >= upg.maxLevel) return;
+
+      const cost = getBakeryUpgradeCost(upg);
+      if (state.bakery.coins >= cost) {
+        state.bakery.coins -= cost;
+        state.bakery.upgrades[id] = currentLvl + 1;
+        playSound('upgrade');
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+        if (id === 'baker_helper' || id === 'tables') {
+          updateBakeryPositions();
+        }
+
+        if (id === 'recipes') {
+          const newRecipe = BAKERY_RECIPES[currentLvl];
+          if (newRecipe) {
+            showDishUnlockModal(newRecipe);
+          }
+        }
+
+        showToast(`Улучшено: ${upg.name}! 🎉`);
+        updateUI();
+        saveGame();
+      } else {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        showToast('Недостаточно монет пекарни! 🪙');
       }
     }
 
@@ -1862,6 +2418,144 @@
         cookingStations[1].x = Math.round(canvasWidth * 0.72);
         cookingStations[1].y = kitchenY;
       }
+    }
+
+    // --- 9.1. Сущности симуляции Пекарни (Столики, Печь, Витрина, Официант) ---
+    const bakeryTables = [
+      { id: 0, x: 100, y: 220, customer: null, servedDish: null },
+      { id: 1, x: 260, y: 220, customer: null, servedDish: null },
+      { id: 2, x: 180, y: 220, customer: null, servedDish: null },
+      { id: 3, x: 260, y: 280, customer: null, servedDish: null }
+    ];
+
+    const bakeryOvenStations = [
+      { id: 'korzhik', name: 'Пекарь Коржик', x: 150, y: 80, dish: null, progress: 0, targetCustomer: null, isBaking: false, totalTime: 3.2 },
+      { id: 'pushok', name: 'Пекарь Пушок', x: 230, y: 80, dish: null, progress: 0, targetCustomer: null, isBaking: false, totalTime: 3.2 }
+    ];
+
+    let readyOrders = [];
+    let readyOrderIdCounter = 1;
+
+    let waiterCat = {
+      x: 190,
+      y: 140,
+      targetX: 190,
+      targetY: 140,
+      state: 'idle', // 'idle', 'walking_to_vitrine', 'carrying_to_table', 'returning_to_counter'
+      carryingDish: null,
+      targetOrder: null,
+      targetTable: null,
+      walkAnim: 0
+    };
+
+    let bakeryCustomers = [];
+    let bakeryCustomerIdCounter = 1;
+    let nextBakeryCustomerSpawnTimer = 0.5;
+
+    function getVitrineY() {
+      return Math.min(145, Math.max(115, canvasHeight * 0.35));
+    }
+
+    function updateVitrinePositions() {
+      const vy = getVitrineY();
+      const maxSlots = 5;
+      const startX = canvasWidth * 0.22;
+      const endX = canvasWidth * 0.78;
+      const step = (endX - startX) / Math.max(1, maxSlots - 1);
+      for (let i = 0; i < readyOrders.length; i++) {
+        readyOrders[i].x = Math.round(startX + (i % maxSlots) * step);
+        readyOrders[i].y = vy;
+      }
+    }
+
+    function updateBakeryPositions() {
+      const maxTables = getBakeryMaxTables();
+      const ovenY = Math.min(95, Math.max(70, canvasHeight * 0.22));
+      const hasHelper = (state.bakery?.upgrades?.baker_helper || 0) > 0;
+
+      if (hasHelper) {
+        bakeryOvenStations[0].x = Math.round(canvasWidth * 0.34);
+        bakeryOvenStations[0].y = ovenY;
+        bakeryOvenStations[1].x = Math.round(canvasWidth * 0.66);
+        bakeryOvenStations[1].y = ovenY;
+      } else {
+        bakeryOvenStations[0].x = Math.round(canvasWidth * 0.50);
+        bakeryOvenStations[0].y = ovenY;
+        bakeryOvenStations[1].x = Math.round(canvasWidth * 0.70);
+        bakeryOvenStations[1].y = ovenY;
+      }
+
+      const diningStartY = Math.min(210, Math.max(170, canvasHeight * 0.52));
+      const diningEndY = Math.min(canvasHeight - 45, diningStartY + 75);
+
+      if (maxTables === 2) {
+        bakeryTables[0].x = Math.round(canvasWidth * 0.28);
+        bakeryTables[0].y = diningStartY + 15;
+        bakeryTables[1].x = Math.round(canvasWidth * 0.72);
+        bakeryTables[1].y = diningStartY + 15;
+      } else if (maxTables === 3) {
+        bakeryTables[0].x = Math.round(canvasWidth * 0.20);
+        bakeryTables[0].y = diningStartY + 15;
+        bakeryTables[1].x = Math.round(canvasWidth * 0.50);
+        bakeryTables[1].y = diningStartY + 15;
+        bakeryTables[2].x = Math.round(canvasWidth * 0.80);
+        bakeryTables[2].y = diningStartY + 15;
+      } else {
+        bakeryTables[0].x = Math.round(canvasWidth * 0.28);
+        bakeryTables[0].y = diningStartY;
+        bakeryTables[1].x = Math.round(canvasWidth * 0.72);
+        bakeryTables[1].y = diningStartY;
+        bakeryTables[2].x = Math.round(canvasWidth * 0.28);
+        bakeryTables[2].y = diningEndY;
+        bakeryTables[3].x = Math.round(canvasWidth * 0.72);
+        bakeryTables[3].y = diningEndY;
+      }
+
+      updateVitrinePositions();
+    }
+
+    function chooseBakeryRecipe() {
+      const recipes = getBakeryUnlockedRecipes();
+      if (recipes.length === 1) return recipes[0];
+      const idx = Math.floor(cafeRandom() * recipes.length);
+      return recipes[idx];
+    }
+
+    function spawnBakeryCustomer() {
+      const maxTables = getBakeryMaxTables();
+      const freeTableIndices = [];
+      for (let i = 0; i < maxTables; i++) {
+        const table = bakeryTables[i];
+        const isOccupied = table.customer !== null || bakeryCustomers.some(c => c.tableIndex === i && c.state !== 'leaving');
+        if (!isOccupied) {
+          freeTableIndices.push(i);
+        }
+      }
+      if (freeTableIndices.length === 0) return false;
+
+      const targetTableIndex = freeTableIndices[Math.floor(cafeRandom() * freeTableIndices.length)];
+      const targetTable = bakeryTables[targetTableIndex];
+      const recipe = chooseBakeryRecipe();
+      const breed = CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
+
+      const cust = {
+        id: bakeryCustomerIdCounter++,
+        tableIndex: targetTableIndex,
+        x: -40,
+        y: targetTable.y + 10,
+        targetX: targetTable.x,
+        targetY: targetTable.y,
+        state: 'walking_to_table',
+        dish: recipe,
+        breed,
+        eatTimer: 0,
+        eatTotalTime: 1.5,
+        walkAnim: 0
+      };
+
+      bakeryCustomers.push(cust);
+      targetTable.customer = cust;
+      return true;
     }
 
     // Посетители
@@ -2013,8 +2707,13 @@
       lastFrameTime = now;
       globalGameTime += dt;
 
-      updateSimulation(dt);
-      renderScene();
+      if (state.currentVenue === 'bakery') {
+        updateBakerySimulation(dt);
+        renderBakeryScene();
+      } else {
+        updateSimulation(dt);
+        renderScene();
+      }
 
       requestAnimationFrame(gameLoop);
     }
@@ -2263,6 +2962,279 @@
       updateStationPositions();
     }
 
+    // --- 10.1. Симуляция Пекарни (Bakery Simulation Cycle) ---
+    function updateBakerySimulation(dt) {
+      // 1. Спавн посетителей пекарни к свободным столикам
+      nextBakeryCustomerSpawnTimer -= dt;
+      if (nextBakeryCustomerSpawnTimer <= 0) {
+        spawnBakeryCustomer();
+        nextBakeryCustomerSpawnTimer = 1.0 + cafeRandom() * 1.5;
+      }
+
+      // 2. Обновление посетителей пекарни
+      for (let i = bakeryCustomers.length - 1; i >= 0; i--) {
+        const c = bakeryCustomers[i];
+        c.walkAnim += dt * 8;
+
+        if (c.state === 'walking_to_table') {
+          const dx = c.targetX - c.x;
+          const dy = c.targetY - c.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 4) {
+            c.x = c.targetX;
+            c.y = c.targetY;
+            c.state = 'waiting_order';
+          } else {
+            c.x += (dx / dist) * 80 * dt;
+            c.y += (dy / dist) * 80 * dt;
+          }
+        } else if (c.state === 'waiting_order') {
+          // Ждёт приготовления и доставки официантом
+        } else if (c.state === 'eating') {
+          c.eatTimer -= dt;
+          if (c.eatTimer <= 0) {
+            // Завершил трапезу: оплата и уход
+            const earned = c.dish.basePrice;
+            state.bakery.coins += earned;
+            state.bakery.totalEarned += earned;
+            state.bakery.ordersServed++;
+            playSound('coin');
+
+            addVisualParticle(c.x, c.y - 35, `+${earned} 🪙`, '#ffb300', 'text');
+            addVisualParticle(c.x, c.y - 18, '❤️', '#e91e63', 'heart');
+
+            const tbl = bakeryTables[c.tableIndex];
+            if (tbl) {
+              tbl.customer = null;
+              tbl.servedDish = null;
+            }
+
+            c.state = 'leaving';
+            c.targetX = canvasWidth + 50;
+            c.targetY = c.y + 15;
+
+            updateUI();
+            saveGame();
+          }
+        } else if (c.state === 'leaving') {
+          const dx = c.targetX - c.x;
+          const dy = c.targetY - c.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 4 || c.x > canvasWidth + 35) {
+            bakeryCustomers.splice(i, 1);
+          } else {
+            c.x += (dx / dist) * 85 * dt;
+            c.y += (dy / dist) * 85 * dt;
+          }
+        }
+      }
+
+      // 3. Станции выпечки в кирпичной печи (Коржик и Пушок)
+      const hasPushok = (state.bakery?.upgrades?.baker_helper || 0) > 0;
+      bakeryOvenStations.forEach(station => {
+        if (station.id === 'pushok' && !hasPushok) return;
+
+        if (!station.isBaking) {
+          const waitingCust = bakeryCustomers.find(c =>
+            c.state === 'waiting_order' &&
+            !bakeryOvenStations.some(s => s.targetCustomer === c) &&
+            !readyOrders.some(ro => ro.customerId === c.id) &&
+            !(waiterCat.targetOrder && waiterCat.targetOrder.customerId === c.id)
+          );
+
+          if (waitingCust) {
+            station.isBaking = true;
+            station.dish = waitingCust.dish;
+            station.targetCustomer = waitingCust;
+            station.progress = 0;
+            station.totalTime = getEffectiveBakeTime(waitingCust.dish);
+          }
+        } else {
+          station.progress += dt / station.totalTime;
+          if (cafeRandom() < 0.12) {
+            addVisualParticle(station.x + (cafeRandom() - 0.5) * 16, station.y - 20, '♨️', '#ffffff', 'steam');
+          }
+
+          if (station.progress >= 1.0) {
+            station.progress = 1.0;
+            playSound('bell');
+            const cust = station.targetCustomer;
+            addVisualParticle(station.x, station.y - 30, `${station.dish.icon} Готово!`, '#4caf50', 'text');
+
+            const newOrder = {
+              id: readyOrderIdCounter++,
+              customerId: cust.id,
+              tableIndex: cust.tableIndex,
+              dish: station.dish,
+              isPriority: false,
+              x: 0,
+              y: 0
+            };
+            readyOrders.push(newOrder);
+            updateVitrinePositions();
+
+            station.isBaking = false;
+            station.dish = null;
+            station.targetCustomer = null;
+            station.progress = 0;
+          }
+        }
+      });
+
+      // 4. Логика котика-официанта Пончика
+      const waiterSpeed = getBakeryWaiterSpeed();
+      waiterCat.walkAnim += dt * 8;
+
+      if (waiterCat.state === 'idle') {
+        if (readyOrders.length > 0) {
+          // Приоритетная выпечка в первую очередь
+          const prioOrder = readyOrders.find(o => o.isPriority);
+          const order = prioOrder || readyOrders[0];
+
+          waiterCat.targetOrder = order;
+          waiterCat.targetTable = bakeryTables[order.tableIndex];
+          waiterCat.targetX = order.x;
+          waiterCat.targetY = order.y + 16;
+          waiterCat.state = 'walking_to_vitrine';
+        }
+      } else if (waiterCat.state === 'walking_to_vitrine') {
+        // Если игрок только что тапнул другой заказ и дал ему приоритет
+        const prioOrder = readyOrders.find(o => o.isPriority);
+        if (prioOrder && waiterCat.targetOrder !== prioOrder) {
+          waiterCat.targetOrder = prioOrder;
+          waiterCat.targetTable = bakeryTables[prioOrder.tableIndex];
+          waiterCat.targetX = prioOrder.x;
+          waiterCat.targetY = prioOrder.y + 16;
+        }
+
+        const dx = waiterCat.targetX - waiterCat.x;
+        const dy = waiterCat.targetY - waiterCat.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 5) {
+          // Забрал выпечку с витрины
+          const order = waiterCat.targetOrder;
+          const idx = readyOrders.indexOf(order);
+          if (idx !== -1) {
+            readyOrders.splice(idx, 1);
+            updateVitrinePositions();
+          }
+          if (order) {
+            waiterCat.carryingDish = order.dish;
+            waiterCat.targetX = waiterCat.targetTable.x;
+            waiterCat.targetY = waiterCat.targetTable.y - 20;
+            waiterCat.state = 'carrying_to_table';
+          } else {
+            waiterCat.state = 'idle';
+          }
+        } else {
+          waiterCat.x += (dx / dist) * waiterSpeed * dt;
+          waiterCat.y += (dy / dist) * waiterSpeed * dt;
+        }
+      } else if (waiterCat.state === 'carrying_to_table') {
+        const dx = waiterCat.targetX - waiterCat.x;
+        const dy = waiterCat.targetY - waiterCat.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 5) {
+          // Доставил на столик!
+          waiterCat.targetTable.servedDish = waiterCat.carryingDish;
+          const cust = bakeryCustomers.find(c => c.id === waiterCat.targetOrder?.customerId && c.state === 'waiting_order');
+          if (cust) {
+            cust.state = 'eating';
+            cust.eatTimer = cust.eatTotalTime;
+          }
+          waiterCat.carryingDish = null;
+          waiterCat.targetOrder = null;
+          waiterCat.state = 'returning_to_counter';
+          waiterCat.targetX = canvasWidth * 0.50;
+          waiterCat.targetY = getVitrineY() + 25;
+        } else {
+          waiterCat.x += (dx / dist) * waiterSpeed * dt;
+          waiterCat.y += (dy / dist) * waiterSpeed * dt;
+        }
+      } else if (waiterCat.state === 'returning_to_counter') {
+        if (readyOrders.length > 0) {
+          // Сразу идем к витрине за следующим заказом
+          const prioOrder = readyOrders.find(o => o.isPriority);
+          const order = prioOrder || readyOrders[0];
+
+          waiterCat.targetOrder = order;
+          waiterCat.targetTable = bakeryTables[order.tableIndex];
+          waiterCat.targetX = order.x;
+          waiterCat.targetY = order.y + 16;
+          waiterCat.state = 'walking_to_vitrine';
+        } else {
+          const dx = waiterCat.targetX - waiterCat.x;
+          const dy = waiterCat.targetY - waiterCat.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 4) {
+            waiterCat.x = waiterCat.targetX;
+            waiterCat.y = waiterCat.targetY;
+            waiterCat.state = 'idle';
+          } else {
+            waiterCat.x += (dx / dist) * waiterSpeed * dt;
+            waiterCat.y += (dy / dist) * waiterSpeed * dt;
+          }
+        }
+      }
+
+      // 5. Обновление частиц
+      for (let i = visualParticles.length - 1; i >= 0; i--) {
+        const p = visualParticles[i];
+        p.life -= dt;
+        p.y += p.vy * dt;
+        p.x += p.vx * dt;
+        if (p.life <= 0) {
+          visualParticles.splice(i, 1);
+        }
+      }
+    }
+
+    function resetBakerySimulationState(options = {}) {
+      if (!state.bakery) {
+        state.bakery = { unlocked: true, coins: 60, totalEarned: 60, ordersServed: 0, lastSavedTime: Date.now(), upgrades: { oven: 1, waiter_speed: 1, tables: 1, recipes: 1, baker_helper: 0 }, claimedQuests: [], seenHints: {} };
+      }
+      state.bakery.unlocked = true;
+      state.bakery.coins = options.coins !== undefined ? options.coins : 60;
+      state.bakery.totalEarned = state.bakery.coins;
+      state.bakery.ordersServed = options.ordersServed !== undefined ? options.ordersServed : 0;
+      state.bakery.upgrades.oven = options.ovenLevel || 1;
+      state.bakery.upgrades.waiter_speed = options.waiterSpeedLevel || 1;
+      state.bakery.upgrades.tables = options.tablesLevel || 1;
+      state.bakery.upgrades.recipes = options.recipesLevel || 1;
+      state.bakery.upgrades.baker_helper = options.hasPushok ? 1 : 0;
+      state.bakery.claimedQuests = [];
+      state.bakery.seenHints = {};
+
+      if (typeof options.seed === 'number') {
+        setCafeSeed(options.seed);
+      }
+
+      bakeryCustomers.length = 0;
+      bakeryCustomerIdCounter = 1;
+      nextBakeryCustomerSpawnTimer = 0.5;
+      readyOrders.length = 0;
+      readyOrderIdCounter = 1;
+
+      bakeryTables.forEach(t => {
+        t.customer = null;
+        t.servedDish = null;
+      });
+
+      bakeryOvenStations.forEach(st => {
+        st.isBaking = false;
+        st.dish = null;
+        st.targetCustomer = null;
+        st.progress = 0;
+      });
+
+      waiterCat.state = 'idle';
+      waiterCat.carryingDish = null;
+      waiterCat.targetOrder = null;
+      waiterCat.targetTable = null;
+
+      updateBakeryPositions();
+    }
+
     // Тап по игровому полю (принятие VIP заказа, ускорение готовки шефа или ласка котика)
     function handleStageClick(e) {
       initAudio();
@@ -2271,6 +3243,49 @@
       const scaleY = canvasHeight / rect.height;
       const clickX = (e.clientX - rect.left) * scaleX;
       const clickY = (e.clientY - rect.top) * scaleY;
+
+      if (state.currentVenue === 'bakery') {
+        // 1. Клик по выпечке на витрине для установки приоритета официанту
+        const clickedOrder = readyOrders.find(o => Math.hypot(o.x - clickX, o.y - clickY) < 28);
+        if (clickedOrder) {
+          clickedOrder.isPriority = true;
+          playSound('bell');
+          addVisualParticle(clickedOrder.x, clickedOrder.y - 20, '⭐ Приоритет!', '#ffd700', 'text');
+          if (!state.bakery.seenHints?.priority) {
+            if (!state.bakery.seenHints) state.bakery.seenHints = {};
+            state.bakery.seenHints.priority = true;
+            showToast('⭐ Выпечка отмечена! Официант Пончик отнесёт её в первую очередь!');
+          }
+          if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+          return;
+        }
+
+        // 2. Клик по котикам (официант, пекари или гости)
+        const clickedCustomer = bakeryCustomers.find(c => Math.hypot(c.x - clickX, c.y - clickY) < 30);
+        if (clickedCustomer) {
+          playSound('purr');
+          addVisualParticle(clickedCustomer.x, clickedCustomer.y - 30, '🐾 Мяу!', '#ff4081', 'heart');
+          if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+          return;
+        }
+        if (Math.hypot(waiterCat.x - clickX, waiterCat.y - clickY) < 30) {
+          playSound('purr');
+          addVisualParticle(waiterCat.x, waiterCat.y - 30, '🐾 Пончик спешит!', '#ff4081', 'heart');
+          if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+          return;
+        }
+
+        // 3. Клик по печи -> ускорение выпечки
+        const activeStation = bakeryOvenStations.find(s => s.isBaking && Math.hypot(s.x - clickX, s.y - clickY) < 45);
+        if (activeStation) {
+          activeStation.progress = Math.min(0.98, activeStation.progress + 0.22);
+          playSound('sizzle');
+          addVisualParticle(activeStation.x, activeStation.y - 35, '⚡ +Жар в печи!', '#ff9800', 'text');
+          if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+          return;
+        }
+        return;
+      }
 
       // 1. Проверяем клик по VIP котику или его золотому облачку для принятия заказа
       const vipCatToAccept = customers.find(c => 
@@ -2310,6 +3325,7 @@
       canvas.height = canvasHeight * window.devicePixelRatio;
       ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
       updateStationPositions();
+      updateBakeryPositions();
     }
     window.addEventListener('resize', resizeCanvas);
 
@@ -2947,6 +3963,502 @@
       });
     }
 
+    // --- 11.1. Отрисовка Пекарни (Bakery Scene Rendering) ---
+    function renderBakeryScene() {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      drawBakeryEnvironment();
+      drawBakeryOven();
+      drawBakeryVitrine();
+      drawBakeryTables();
+      drawBakeryCustomers();
+      drawBakeryWaiter();
+      drawParticles();
+    }
+
+    function drawBakeryEnvironment() {
+      const vy = getVitrineY();
+      const wallH = vy - 10;
+
+      // Теплая стена пекарни с мягким пастельным кремовым фоном
+      ctx.fillStyle = '#fff8e7';
+      ctx.fillRect(0, 0, canvasWidth, wallH);
+
+      // Верхний декоративный бордюр пекарни с флажками и выпечкой
+      const awningH = 22;
+      const stripeW = 26;
+      for (let x = 0; x < canvasWidth; x += stripeW) {
+        ctx.fillStyle = (Math.floor(x / stripeW) % 2 === 0) ? '#d87d4a' : '#ffe8d6';
+        ctx.beginPath();
+        ctx.rect(x, 0, stripeW, awningH);
+        ctx.arc(x + stripeW / 2, awningH, stripeW / 2, 0, Math.PI, false);
+        ctx.fill();
+      }
+
+      // Вывеска пекарни
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#8d6e63';
+      ctx.fillText('🥖 КОШАЧЬЯ ПЕКАРНЯ: СВЕЖАЯ ВЫПЕЧКА 🥐', canvasWidth / 2, awningH + 13);
+
+      // Теплый терракотовый пол пекарни
+      ctx.fillStyle = '#eddcd2';
+      ctx.fillRect(0, wallH, canvasWidth, canvasHeight - wallH);
+      ctx.strokeStyle = '#ddbea9';
+      ctx.lineWidth = 1;
+      for (let y = wallH; y < canvasHeight; y += 26) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvasWidth, y);
+        ctx.stroke();
+      }
+
+      // Декоративные рамки на стене
+      drawPictureFrame(45, Math.round(wallH * 0.48), '🥐');
+      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.48), '🥧');
+
+      // Корзинка с багетами и колоски на полу
+      ctx.font = '22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🥖', 30, canvasHeight - 16);
+      ctx.fillText('🌾', canvasWidth - 30, canvasHeight - 16);
+    }
+
+    function drawBakeryOven() {
+      const ovenStation = bakeryOvenStations[0];
+      const ovenX = canvasWidth * 0.50;
+      const ovenY = ovenStation.y + 12;
+      const hasPushok = (state.bakery?.upgrades?.baker_helper || 0) > 0;
+
+      // Кирпичный фасад печи
+      ctx.save();
+      const ow = hasPushok ? 116 : 94;
+      const oh = 48;
+      ctx.fillStyle = '#a1887f';
+      ctx.fillRect(ovenX - ow / 2, ovenY - oh / 2, ow, oh);
+      ctx.fillStyle = '#8d6e63';
+      ctx.fillRect(ovenX - ow / 2 + 2, ovenY - oh / 2 + 2, ow - 4, oh - 4);
+
+      // Свод арки печи
+      ctx.fillStyle = '#3e2723';
+      ctx.beginPath();
+      ctx.arc(ovenX, ovenY + 6, 22, Math.PI, 0, false);
+      ctx.rect(ovenX - 22, ovenY + 6, 44, 16);
+      ctx.fill();
+
+      // Живое пламя внутри печи
+      const flameFlicker = Math.sin(globalGameTime * 10) * 3;
+      ctx.fillStyle = '#ff5722';
+      ctx.beginPath();
+      ctx.arc(ovenX, ovenY + 12 + flameFlicker, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffeb3b';
+      ctx.beginPath();
+      ctx.arc(ovenX, ovenY + 14 + flameFlicker, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Дымоход
+      ctx.fillStyle = '#6d4c41';
+      ctx.fillRect(ovenX - 10, ovenY - oh / 2 - 12, 20, 12);
+      ctx.restore();
+
+      // Отрисовка шеф-пекаря Коржика (слева)
+      drawBakerCat(bakeryOvenStations[0].x, bakeryOvenStations[0].y, 'Коржик', bakeryOvenStations[0].isBaking, '#ffb74d');
+      drawBakeryStationProgress(bakeryOvenStations[0]);
+
+      // Отрисовка второго пекаря Пушка (справа, если нанят)
+      if (hasPushok) {
+        drawBakerCat(bakeryOvenStations[1].x, bakeryOvenStations[1].y, 'Пушок', bakeryOvenStations[1].isBaking, '#ffffff');
+        drawBakeryStationProgress(bakeryOvenStations[1]);
+      }
+    }
+
+    function drawBakerCat(x, y, name, isBaking, furColor) {
+      ctx.save();
+      const bob = Math.sin(globalGameTime * 6 + (name === 'Пушок' ? 1.5 : 0)) * 2;
+      const cy = y + bob;
+
+      // Тело пекаря
+      ctx.fillStyle = furColor;
+      ctx.beginPath();
+      ctx.ellipse(x, cy, 22, 19, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (furColor === '#ffffff') {
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Белый фартук пекаря
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(x, cy + 4, 14, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d7ccc8';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Ушки
+      ctx.fillStyle = furColor;
+      ctx.beginPath();
+      ctx.moveTo(x - 16, cy - 8); ctx.lineTo(x - 7, cy - 23); ctx.lineTo(x - 1, cy - 10);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 16, cy - 8); ctx.lineTo(x + 7, cy - 23); ctx.lineTo(x + 1, cy - 10);
+      ctx.fill();
+
+      // Внутренние ушки
+      ctx.fillStyle = '#ffab91';
+      ctx.beginPath();
+      ctx.moveTo(x - 14, cy - 9); ctx.lineTo(x - 7, cy - 19); ctx.lineTo(x - 3, cy - 10);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 14, cy - 9); ctx.lineTo(x + 7, cy - 19); ctx.lineTo(x + 3, cy - 10);
+      ctx.fill();
+
+      // Глазки
+      ctx.fillStyle = '#3e2723';
+      ctx.beginPath();
+      ctx.arc(x - 7, cy - 3, 2.6, 0, Math.PI * 2);
+      ctx.arc(x + 7, cy - 3, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x - 8, cy - 4, 0.9, 0, Math.PI * 2);
+      ctx.arc(x + 6, cy - 4, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Носик
+      ctx.fillStyle = '#ff7043';
+      ctx.beginPath();
+      ctx.arc(x, cy, 2.0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Усики
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - 8, cy); ctx.lineTo(x - 18, cy - 2);
+      ctx.moveTo(x + 8, cy); ctx.lineTo(x + 18, cy - 2);
+      ctx.stroke();
+
+      // Высокий белый колпак пекаря
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#d7ccc8';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.rect(x - 13, cy - 21, 26, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x - 7, cy - 26, 8, 0, Math.PI * 2);
+      ctx.arc(x, cy - 30, 9, 0, Math.PI * 2);
+      ctx.arc(x + 7, cy - 26, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Лопатка пекаря с выпечкой
+      if (isBaking) {
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🥖', x + 18, cy + Math.sin(globalGameTime * 10) * 3);
+      }
+
+      ctx.restore();
+    }
+
+    function drawBakeryStationProgress(station) {
+      if (!station.isBaking || !station.dish) return;
+      ctx.save();
+      const sx = station.x;
+      const sy = station.y - 20;
+      const barW = 50;
+      const barH = 7;
+      const bx = sx - barW / 2;
+      const by = sy - 28;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 4);
+      else ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ff9800';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, barW * station.progress, barH, 3);
+      else ctx.rect(bx, by, barW * station.progress, barH);
+      ctx.fill();
+
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(station.dish.icon, sx, by - 5);
+      ctx.restore();
+    }
+
+    function drawBakeryVitrine() {
+      const vy = getVitrineY();
+      ctx.save();
+
+      // Барная стойка витрины
+      const barW = canvasWidth * 0.88;
+      const bx = (canvasWidth - barW) / 2;
+
+      ctx.fillStyle = '#6d4c41';
+      ctx.fillRect(bx, vy - 12, barW, 26);
+
+      // Стеклянная полка
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fillRect(bx - 4, vy - 14, barW + 8, 5);
+      ctx.fillStyle = '#d7ccc8';
+      ctx.fillRect(bx - 4, vy - 16, barW + 8, 2);
+
+      // Текст витрины
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#d7ccc8';
+      ctx.fillText('ВИТРИНА ГОТОВОЙ ВЫПЕЧКИ', canvasWidth / 2, vy + 9);
+
+      // Отрисовка готовых заказов на витрине
+      readyOrders.forEach(o => {
+        const ox = o.x;
+        const oy = o.y - 6;
+
+        // Тарелочка
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#d7ccc8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(ox, oy + 4, 15, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Выпечка
+        ctx.font = '22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(o.dish.icon, ox, oy);
+
+        // ЗОЛОТАЯ ПОДСВЕТКА И ЗВЕЗДА ПРИОРИТЕТА
+        if (o.isPriority) {
+          const pulse = Math.sin(globalGameTime * 8) * 2;
+          ctx.strokeStyle = '#ffd700';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(ox, oy, 18 + pulse, 14 + pulse, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.font = '13px sans-serif';
+          ctx.fillText('⭐', ox + 14, oy - 14);
+
+          // Плашка приоритета
+          ctx.fillStyle = '#ffd700';
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(ox - 24, oy + 12, 48, 12, 4);
+          else ctx.rect(ox - 24, oy + 12, 48, 12);
+          ctx.fill();
+          ctx.fillStyle = '#3e2723';
+          ctx.font = 'bold 8px sans-serif';
+          ctx.fillText('ПРИОРИТЕТ', ox, oy + 18);
+        }
+      });
+
+      ctx.restore();
+    }
+
+    function drawBakeryTables() {
+      const maxTables = getBakeryMaxTables();
+      ctx.save();
+      for (let i = 0; i < maxTables; i++) {
+        const t = bakeryTables[i];
+        const tx = t.x;
+        const ty = t.y;
+
+        // Коврик под столиком
+        drawCozyRug(tx, ty + 12, 58, 32);
+
+        // Столик со скатертью
+        ctx.fillStyle = '#8d6e63';
+        ctx.fillRect(tx - 3, ty + 10, 6, 16);
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 26, 12, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Столешница со скатертью в красно-белую клеточку
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 8, 24, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 8, 20, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Сервированное блюдо на столе
+        if (t.servedDish) {
+          ctx.font = '20px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(t.servedDish.icon, tx, ty + 6);
+        } else {
+          // Вазочка с цветочком
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🌼', tx, ty + 4);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawBakeryCustomers() {
+      bakeryCustomers.forEach(c => {
+        ctx.save();
+        const walkBob = (c.state === 'walking_to_table' || c.state === 'leaving') ? Math.sin(c.walkAnim) * 3 : 0;
+        const cx = c.x;
+        const cy = c.y + walkBob;
+
+        // Хвостик
+        ctx.strokeStyle = c.breed.fur;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, cy + 7);
+        ctx.quadraticCurveTo(cx - 18, cy, cx - 16, cy - 9 + Math.sin(globalGameTime * 5) * 3);
+        ctx.stroke();
+
+        // Тело
+        ctx.fillStyle = c.breed.fur;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 21, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ушки
+        ctx.beginPath();
+        ctx.moveTo(cx - 14, cy - 7); ctx.lineTo(cx - 6, cy - 20); ctx.lineTo(cx - 1, cy - 9);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 14, cy - 7); ctx.lineTo(cx + 6, cy - 20); ctx.lineTo(cx + 1, cy - 9);
+        ctx.fill();
+
+        ctx.fillStyle = c.breed.ear;
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, cy - 8); ctx.lineTo(cx - 6, cy - 17); ctx.lineTo(cx - 3, cy - 9);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 12, cy - 8); ctx.lineTo(cx + 6, cy - 17); ctx.lineTo(cx + 3, cy - 9);
+        ctx.fill();
+
+        // Глазки
+        ctx.fillStyle = c.breed.eye;
+        ctx.beginPath();
+        ctx.arc(cx - 6, cy - 3, 2.7, 0, Math.PI * 2);
+        ctx.arc(cx + 6, cy - 3, 2.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx - 7, cy - 4, 0.9, 0, Math.PI * 2);
+        ctx.arc(cx + 5, cy - 4, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Носик
+        ctx.fillStyle = c.breed.ear;
+        ctx.beginPath();
+        ctx.arc(cx, cy + 1, 1.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Облачко заказа или сердечко
+        if (c.state === 'waiting_order') {
+          drawThoughtBubble(cx, cy - 34, c.dish.icon, false, false, 0, 1, 20, 20, false);
+        } else if (c.state === 'eating') {
+          ctx.font = '22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('❤️', cx, cy - 34);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawBakeryWaiter() {
+      ctx.save();
+      const wx = waiterCat.x;
+      const wy = waiterCat.y + Math.sin(waiterCat.walkAnim) * 2;
+
+      // Тело официанта Пончика (темно-серый котик)
+      ctx.fillStyle = '#37474f';
+      ctx.beginPath();
+      ctx.ellipse(wx, wy, 20, 17, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Белая манишка
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(wx, wy + 2, 11, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Красный галстук-бабочка 🎀
+      ctx.fillStyle = '#e53935';
+      ctx.beginPath();
+      ctx.moveTo(wx - 6, wy - 5); ctx.lineTo(wx + 6, wy - 1); ctx.lineTo(wx + 6, wy - 5); ctx.lineTo(wx - 6, wy - 1);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(wx, wy - 3, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ушки
+      ctx.fillStyle = '#37474f';
+      ctx.beginPath();
+      ctx.moveTo(wx - 14, wy - 6); ctx.lineTo(wx - 6, wy - 20); ctx.lineTo(wx - 1, wy - 8);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(wx + 14, wy - 6); ctx.lineTo(wx + 6, wy - 20); ctx.lineTo(wx + 1, wy - 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#f8bbd0';
+      ctx.beginPath();
+      ctx.moveTo(wx - 12, wy - 7); ctx.lineTo(wx - 6, wy - 16); ctx.lineTo(wx - 3, wy - 8);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(wx + 12, wy - 7); ctx.lineTo(wx + 6, wy - 16); ctx.lineTo(wx + 3, wy - 8);
+      ctx.fill();
+
+      // Глазки
+      ctx.fillStyle = '#fdd835';
+      ctx.beginPath();
+      ctx.arc(wx - 6, wy - 2, 2.5, 0, Math.PI * 2);
+      ctx.arc(wx + 6, wy - 2, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(wx - 7, wy - 3, 0.9, 0, Math.PI * 2);
+      ctx.arc(wx + 5, wy - 3, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Носик
+      ctx.fillStyle = '#ff8a80';
+      ctx.beginPath();
+      ctx.arc(wx, wy + 2, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Серебряный поднос с выпечкой в лапках, если несёт заказ
+      if (waiterCat.carryingDish) {
+        ctx.fillStyle = '#cfd8dc';
+        ctx.strokeStyle = '#90a4ae';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(wx + 16, wy - 4, 14, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(waiterCat.carryingDish.icon, wx + 16, wy - 12);
+      }
+
+      ctx.restore();
+    }
+
     // --- 12. Интерфейс пользователя (UI Updates & Сворачивание магазина) ---
     let isShopCollapsed = false;
     function toggleShopCollapse() {
@@ -2971,8 +4483,162 @@
     }
 
     function updateUI() {
+      // 1. Обновление переключателя заведений
+      const cafeBtn = document.getElementById('venue-btn-cafe');
+      const bakeryBtn = document.getElementById('venue-btn-bakery');
+      const bakeryText = document.getElementById('venue-tab-bakery-text');
+      const shopTitleEl = document.querySelector('.upgrades-title span:first-child');
+      const tapHintEl = document.getElementById('tap-hint');
+
+      const isBakeryUnlocked = !!state.bakery?.unlocked;
+      if (bakeryBtn) {
+        if (isBakeryUnlocked) {
+          bakeryBtn.classList.remove('locked');
+          if (bakeryText) bakeryText.innerText = 'Пекарня ✨';
+        } else {
+          bakeryBtn.classList.add('locked');
+          if (bakeryText) bakeryText.innerText = 'Пекарня 🔒';
+        }
+      }
+
+      if (state.currentVenue === 'bakery') {
+        if (cafeBtn) cafeBtn.classList.remove('active');
+        if (bakeryBtn) bakeryBtn.classList.add('active');
+        if (tapHintEl) tapHintEl.innerText = '⭐ Нажми на выпечку на витрине, чтобы официант отнёс её первой!';
+        if (shopTitleEl) shopTitleEl.innerText = '🥐 Улучшения пекарни';
+
+        // Заголовок
+        const titleEl = document.querySelector('.cafe-title');
+        if (titleEl) titleEl.innerText = 'Кошачья Пекарня: Свежая Выпечка 🥐';
+
+        // Монеты и счетчик заказов
+        document.getElementById('coins-display').innerText = Math.floor(state.bakery.coins).toLocaleString('ru-RU');
+        const venueLabel = document.getElementById('coins-venue-label');
+        if (venueLabel) venueLabel.innerText = '(Пекарня)';
+        document.getElementById('orders-display').innerText = formatOrdersCount(state.bakery.ordersServed);
+
+        // Индикатор рецептов
+        const featStatEl = document.getElementById('featured-stat-name');
+        if (featStatEl) {
+          const unlockedRecs = getBakeryUnlockedRecipes().length;
+          featStatEl.innerText = `🥐 Рецепты: ${unlockedRecs}/3`;
+        }
+
+        // Обновление текущей цели развития пекарни
+        updateQuestsUI();
+
+        // Рендер улучшений пекарни
+        const listEl = document.getElementById('upgrades-list');
+        if (!listEl) return;
+
+        let affordableCount = 0;
+        const bakeryCardsHtml = BAKERY_UPGRADES.map(upg => {
+          const currentLvl = getBakeryUpgradeLevel(upg.id);
+          const isMax = currentLvl >= upg.maxLevel;
+          const cost = getBakeryUpgradeCost(upg);
+          const canAfford = state.bakery.coins >= cost && !isMax;
+
+          if (canAfford) affordableCount++;
+
+          let levelLabel = '';
+          let btnContent = '';
+
+          if (upg.id === 'baker_helper') {
+            if (currentLvl > 0) {
+              levelLabel = '<span style="color:#2e7d32; font-weight:800;">Нанят ✨</span>';
+              btnContent = 'Нанят ✨';
+            } else {
+              levelLabel = '<span style="color:#8d6e63; font-weight:700;">Не нанят</span>';
+              btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
+            }
+          } else {
+            levelLabel = `Ур. ${currentLvl}`;
+            if (isMax) {
+              levelLabel += ' (МАКС)';
+              btnContent = 'МАКС ✨';
+            } else {
+              btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
+            }
+          }
+
+          let deltaHtml = '';
+          if (upg.id === 'oven') {
+            if (!isMax) {
+              const nextLvl = currentLvl + 1;
+              const curPct = Math.round(Math.max(0.25, Math.pow(0.85, currentLvl - 1)) * 100);
+              const nextPct = Math.round(Math.max(0.25, Math.pow(0.85, nextLvl - 1)) * 100);
+              deltaHtml = `<div class="upgrade-delta">⚡ Выпечка: ${curPct}% → ${nextPct}%</div>`;
+            } else {
+              deltaHtml = `<div class="upgrade-delta">⚡ Макс. жар: x4 выпечка!</div>`;
+            }
+          } else if (upg.id === 'waiter_speed') {
+            if (!isMax) {
+              const curBonus = (currentLvl - 1) * 20;
+              const nextBonus = curBonus + 20;
+              deltaHtml = `<div class="upgrade-delta">🐾 Скорость официанта: +${curBonus}% → +${nextBonus}%</div>`;
+            } else {
+              deltaHtml = `<div class="upgrade-delta">🐾 Пончик бегает с макс. скоростью!</div>`;
+            }
+          } else if (upg.id === 'tables') {
+            if (!isMax) {
+              const curTbl = getBakeryMaxTables();
+              deltaHtml = `<div class="upgrade-delta">🪑 Столиков в зале: ${curTbl} → ${curTbl + 1}</div>`;
+            } else {
+              deltaHtml = `<div class="upgrade-delta">🪑 Все 4 столика установлены!</div>`;
+            }
+          } else if (upg.id === 'recipes') {
+            if (!isMax) {
+              const nextRec = BAKERY_RECIPES[currentLvl];
+              deltaHtml = `<div class="upgrade-delta">📜 След. выпечка: ${nextRec ? `${nextRec.icon} ${nextRec.name} (${nextRec.basePrice} 🪙)` : 'Все открыты'}</div>`;
+            } else {
+              deltaHtml = `<div class="upgrade-delta">📜 Всё меню выпечки открыто!</div>`;
+            }
+          } else if (upg.id === 'baker_helper') {
+            deltaHtml = `<div class="upgrade-delta">👨‍🍳 Второй пекарь выпекает параллельно</div>`;
+          }
+
+          return `
+            <div class="upgrade-card ${canAfford ? 'can-afford' : ''} ${isMax ? 'maxed' : ''}">
+              <div class="upgrade-info">
+                <div class="upgrade-icon-wrap">${upg.icon}</div>
+                <div class="upgrade-texts">
+                  <div class="upgrade-name">${upg.name}</div>
+                  <div class="upgrade-desc">${upg.desc}</div>
+                  ${deltaHtml}
+                  <div class="upgrade-level">${levelLabel}</div>
+                </div>
+              </div>
+              <button class="upgrade-btn" onclick="buyBakeryUpgrade('${upg.id}')" ${isMax ? 'disabled' : ''}>
+                ${btnContent}
+              </button>
+            </div>
+          `;
+        }).join('');
+
+        listEl.innerHTML = bakeryCardsHtml;
+
+        const badgeEl = document.getElementById('shop-badge');
+        if (badgeEl) {
+          if (affordableCount > 0) {
+            badgeEl.innerText = `${affordableCount} 💡`;
+            badgeEl.classList.remove('zero');
+          } else {
+            badgeEl.classList.add('zero');
+          }
+        }
+        return;
+      }
+
+      // --- РЕЖИМ КАФЕ ---
+      if (cafeBtn) cafeBtn.classList.add('active');
+      if (bakeryBtn) bakeryBtn.classList.remove('active');
+      if (tapHintEl) tapHintEl.innerText = '⚡ Тапай по кухне, чтобы ускорить готовку!';
+      if (shopTitleEl) shopTitleEl.innerText = '🛠️ Улучшения кафе';
+
       // 1. Монеты и счетчик заказов с правильным склонением
       document.getElementById('coins-display').innerText = Math.floor(state.coins).toLocaleString('ru-RU');
+      const venueLabel = document.getElementById('coins-venue-label');
+      if (venueLabel) venueLabel.innerText = '(Кафе)';
       document.getElementById('orders-display').innerText = formatOrdersCount(state.ordersServed);
 
       // Заголовок кафе с учетом расширения и цветочного оформления
@@ -2997,7 +4663,7 @@
         featStatEl.innerText = `${curFeatured.icon} ${curFeatured.name} (${bonusTag})`;
       }
 
-      // Обновление текущей цели развития
+      // Обновление текущей цели развития кафе
       updateQuestsUI();
 
       // 2. Рендер списка улучшений и подсчет доступных покупок
@@ -3092,6 +4758,42 @@
         }
       }
 
+      // Карточка открытия Пекарни (Cat Bakery)
+      let bakeryUnlockHtml = '';
+      if (!state.bakery?.unlocked) {
+        const canUnlockB = canUnlockBakery();
+        const canAffordB = state.coins >= BAKERY_UNLOCK_COST && canUnlockB;
+        if (canAffordB) affordableCount++;
+        bakeryUnlockHtml = `
+          <div class="bakery-unlock-card ${canUnlockB ? 'unlocked-ready' : ''}">
+            <div class="expansion-header">
+              <span style="font-size: 24px;">🥐</span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 13px; font-weight: 800; color: #b78103;">Новое заведение: «Кошачья пекарня»</div>
+                <div style="font-size: 11px; color: #795548;">Кирпичная печь, столики и официант Пончик! 🐾</div>
+              </div>
+              <button class="upgrade-btn ${canAffordB ? 'can-afford' : ''}" 
+                      onclick="buyBakery()" 
+                      ${!canAffordB ? 'disabled' : ''} 
+                      style="min-width: 90px;">
+                ${canUnlockB ? `<span class="upgrade-cost-text">${BAKERY_UNLOCK_COST.toLocaleString('ru-RU')} 🪙</span>` : '🔒 Закрыто'}
+              </button>
+            </div>
+            <div class="expansion-reqs">
+              <span class="req-pill ${(state.expansion || 0) >= 1 ? 'ok' : ''}">🌿 Веранда ${(state.expansion || 0) >= 1 ? '✅' : '🔒'}</span>
+              <span class="req-pill ${(state.verandaDecor || 0) >= 1 ? 'ok' : ''}">🌸 Цветочный уголок ${(state.verandaDecor || 0) >= 1 ? '✅' : '🔒'}</span>
+              <span class="req-pill ${state.ordersServed >= 150 ? 'ok' : ''}">🐾 Заказов: ${Math.min(150, state.ordersServed)}/150 ${state.ordersServed >= 150 ? '✅' : '🔒'}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        bakeryUnlockHtml = `
+          <div class="expansion-done-banner" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: #ffb74d; color: #e65100; margin-bottom: 4px; cursor: pointer;" onclick="switchVenue('bakery')">
+            🥐 «Кошачья пекарня» открыта! Нажмите сюда или переключитесь в шапке игры ✨
+          </div>
+        `;
+      }
+
       const cardsHtml = UPGRADES.map(upg => {
         const currentLvl = getUpgradeLevel(upg.id);
         const isMax = currentLvl >= upg.maxLevel;
@@ -3176,7 +4878,7 @@
         `;
       }).join('');
 
-      listEl.innerHTML = featuredDishHtml + expansionHtml + decorHtml + cardsHtml;
+      listEl.innerHTML = featuredDishHtml + expansionHtml + decorHtml + bakeryUnlockHtml + cardsHtml;
 
       // Обновление бэйджа доступных улучшений
       const badgeEl = document.getElementById('shop-badge');
@@ -3324,7 +5026,38 @@
         pluralize,
         QUESTS,
         DISHES,
-        UPGRADES
+        UPGRADES,
+        // --- Методы и данные Пекарни (Bakery API) ---
+        switchVenue,
+        canUnlockBakery,
+        buyBakery,
+        closeBakeryUnlockedModal,
+        buyBakeryUpgrade,
+        getBakeryUpgradeLevel,
+        getBakeryUpgradeCost,
+        getEffectiveBakeTime,
+        getBakeryWaiterSpeed,
+        getBakeryMaxTables,
+        getBakeryUnlockedRecipes,
+        getAverageBakeryBakeTime,
+        getAverageBakeryRecipePrice,
+        getBakeryTables: () => bakeryTables,
+        getReadyOrders: () => readyOrders,
+        getWaiterCat: () => waiterCat,
+        getBakeryCustomers: () => bakeryCustomers,
+        getBakeryOvenStations: () => bakeryOvenStations,
+        getCurrentBakeryQuest,
+        claimBakeryQuestReward,
+        checkBakeryOfflineEarnings,
+        updateBakerySimulation,
+        renderBakeryScene,
+        resetBakerySimulationState,
+        spawnBakeryCustomer,
+        addBakeryCoins: (n) => { if (state.bakery) { state.bakery.coins += n; updateUI(); } },
+        BAKERY_RECIPES,
+        BAKERY_UPGRADES,
+        BAKERY_QUESTS,
+        BAKERY_UNLOCK_COST
       };
     });
   </script>
