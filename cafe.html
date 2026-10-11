@@ -1067,7 +1067,7 @@
           flatBonus: 6,           // сэндвич: дополнительная фиксированная оплата +6 🪙
           payoutMult: 1.0,
           gourmetVipMult: 3.0,
-          desc: '💰 +6 🪙 фиксированная надбавка к каждому заказу'
+          desc: '💰 +6 🪙 к каждому заказу блюда дня'
         }
       },
       {
@@ -1081,8 +1081,8 @@
           cookTimeMult: 1.0,
           flatBonus: 0,
           payoutMult: 1.0,
-          gourmetVipMult: 4.5,    // рыбка: повышенная выплата заказов гурмана x4.5 вместо x3.0
-          desc: '👑 Кот-гурман платит x4.5 вместо x3.0'
+          gourmetVipMult: 8.0,    // рыбка: повышенная выплата заказов гурмана x8.0 вместо x3.0
+          desc: '👑 Кот-гурман платит x8.0 вместо x3.0'
         }
       },
       {
@@ -1347,22 +1347,19 @@
         // Ограничиваем оффлайн доход первыми 4 часами (14400 сек)
         const cappedSec = Math.min(14400, elapsedSec);
 
-        // 1. Учитываем среднее время готовки с учетом вероятностей заказов
-        const avgCookTime = getAverageCookTime();
+        // 1. Учитываем среднее итоговое время готовки с учетом плиты, перков и минимума 0.6 сек
+        const avgEffectiveCookTime = getAverageCookTime();
 
-        // 2. Реальная скорость готовки с учетом быстрой плиты
-        const cookSpeed = getCookTimeMultiplier();
-
-        // 3. Количество поваров (Шеф = 1, с помощником = 2 повара)
+        // 2. Количество поваров (Шеф = 1, с помощником = 2 повара)
         const hasHelper = (state.upgrades.helper || 0) > 0;
         const chefCount = 1 + (hasHelper ? 1 : 0);
 
-        // 4. Средняя доходность блюда с бонусом соуса (прибыли)
+        // 3. Средняя доходность блюда с бонусом соуса (прибыли)
         const avgDishPrice = getAverageDishPrice();
 
         // Полный цикл выполнения заказа на одного повара:
         // время готовки блюда + обслуживание и поедание (~2.0 сек)
-        const cycleSec = (avgCookTime * cookSpeed) + 2.0;
+        const cycleSec = avgEffectiveCookTime + 2.0;
 
         // Расчетное число заказов всеми поварами
         const estimatedOrders = Math.floor((cappedSec / cycleSec) * chefCount);
@@ -1474,6 +1471,12 @@
       return dish.cookTime * mult;
     }
 
+    function getEffectiveCookTime(dish, isFeatured = false, stoveMultiplier = getCookTimeMultiplier()) {
+      if (!dish) return 0.6;
+      const perkMult = (isFeatured && dish.featuredPerk?.cookTimeMult) ? dish.featuredPerk.cookTimeMult : 1.0;
+      return Math.max(0.6, dish.cookTime * perkMult * stoveMultiplier);
+    }
+
     function setFeaturedDish(dishId) {
       const available = getAvailableDishes();
       const found = available.find(d => d.id === dishId);
@@ -1494,7 +1497,8 @@
       const sauceMult = getProfitMultiplier();
       const decorMult = (state.verandaDecor || 0) >= 1 ? 1.10 : 1.0;
       const featuredMult = isFeatured ? 1.20 : 1.0;
-      const perkExtraMult = isFeatured ? (perk.payoutMult || 1.0) : 1.0;
+      // Бонус обычных заказов (+50% для тортика) применяется только к обычным заказам (не VIP)
+      const regularExtraMult = (isFeatured && !isVIP) ? (perk.payoutMult || 1.0) : 1.0;
       const flat = isFeatured ? (perk.flatBonus || 0) : 0;
 
       let vipMult = 1.0;
@@ -1502,7 +1506,7 @@
         vipMult = (isFeatured && perk.gourmetVipMult) ? perk.gourmetVipMult : 3.0;
       }
 
-      const subtotal = Math.floor(dish.basePrice * sauceMult * decorMult * featuredMult * perkExtraMult * vipMult);
+      const subtotal = Math.floor(dish.basePrice * sauceMult * decorMult * featuredMult * regularExtraMult * vipMult);
       const flatTotal = isVIP ? Math.floor(flat * vipMult) : flat;
       return subtotal + flatTotal;
     }
@@ -1538,9 +1542,9 @@
       return expectedPrice;
     }
 
-    function getAverageCookTime() {
+    function getAverageCookTime(stoveMultiplier = getCookTimeMultiplier()) {
       const list = getAvailableDishes();
-      if (list.length === 0) return 3.0;
+      if (list.length === 0) return 0.6;
       const featuredId = state.featuredDish || list[0].id;
       const weights = list.map(d => d.id === featuredId ? 3 : 1);
       const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -1548,7 +1552,7 @@
       for (let i = 0; i < list.length; i++) {
         const prob = weights[i] / totalWeight;
         const isFeat = (list[i].id === featuredId);
-        expectedTime += prob * getDishCookTime(list[i], isFeat);
+        expectedTime += prob * getEffectiveCookTime(list[i], isFeat, stoveMultiplier);
       }
       return expectedTime;
     }
@@ -1967,9 +1971,11 @@
       initAudio();
       cat.isVipAccepted = true;
       cat.state = 'waiting_order';
-      // Фиксируем статус фирменного блюда на момент подтверждения заказа
-      cat.isFeaturedOrder = (cat.dish.id === state.featuredDish);
-      const cookTimeEst = getDishCookTime(cat.dish, cat.isFeaturedOrder) * getCookTimeMultiplier();
+      // Сохраняем снимок заказа (isFeaturedOrder зафиксирован при создании заказа)
+      if (typeof cat.isFeaturedOrder !== 'boolean') {
+        cat.isFeaturedOrder = (cat.dish.id === state.featuredDish);
+      }
+      const cookTimeEst = getEffectiveCookTime(cat.dish, cat.isFeaturedOrder);
       cat.totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
       cat.vipTimer = cat.totalVipTimer;
 
@@ -2116,7 +2122,7 @@
             playSound(c.isVIP ? 'upgrade' : 'coin');
             let extraTag = '';
             if (c.isVIP) {
-              extraTag = (isFeatured && c.dish.id === 'fish') ? ' (VIP x4.5!)' : ' (VIP x3!)';
+              extraTag = (isFeatured && c.dish.id === 'fish') ? ' (VIP x8.0!)' : ' (VIP x3!)';
             } else if (isFeatured) {
               if (c.dish.id === 'cake') extraTag = ' (⭐ +50%)';
               else if (c.dish.id === 'sandwich') extraTag = ' (⭐ +6 🪙)';
@@ -2169,7 +2175,7 @@
             station.targetCustomer = waitingCustomer;
             station.isFeaturedOrder = !!waitingCustomer.isFeaturedOrder;
             station.progress = 0;
-            station.totalTime = Math.max(0.6, getDishCookTime(station.dish, station.isFeaturedOrder) * speedMult);
+            station.totalTime = getEffectiveCookTime(station.dish, station.isFeaturedOrder, speedMult);
           }
         } else {
           // Процесс приготовления блюда
@@ -3162,7 +3168,7 @@
         // Будущая выплата после выбора этого блюда фирменным (не меняет state)
         const futurePayout = calculateDishPayout(dish, false, dish.id);
         // Фактическое время приготовления с текущей плитой, если это блюдо выбрано фирменным
-        const cookTimeSec = getDishCookTime(dish, true) * getCookTimeMultiplier();
+        const cookTimeSec = getEffectiveCookTime(dish, true);
         const cookTimeStr = cookTimeSec.toFixed(1) + 'с';
 
         // Метка бонуса
@@ -3263,6 +3269,7 @@
         isShopCollapsed: () => isShopCollapsed,
         getCookTimeMultiplier,
         getDishCookTime,
+        getEffectiveCookTime,
         checkOfflineEarnings,
         claimOfflineEarnings,
         formatOrdersCount,
