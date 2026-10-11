@@ -623,11 +623,11 @@
       {
         id: 'speed',
         name: 'Быстрая Плита ⚡',
-        desc: 'Ускоряет время готовки блюд на 15%',
+        desc: 'Ускоряет время готовки блюд на 15% (до 4х раз на 10 ур.)',
         icon: '⚡',
         baseCost: 35,
         costMult: 1.55,
-        maxLevel: 20
+        maxLevel: 10
       },
       {
         id: 'profit',
@@ -773,10 +773,28 @@
       saveGame();
     }
 
-    // --- 7. Сохранение и Загрузка (Save / Load) ---
+    // --- 7. Сохранение, Загрузка и Склонения ---
+    function pluralize(n, one, few, many) {
+      const abs = Math.abs(Math.floor(n));
+      const n100 = abs % 100;
+      if (n100 >= 11 && n100 <= 19) return many;
+      const n10 = abs % 10;
+      if (n10 === 1) return one;
+      if (n10 >= 2 && n10 <= 4) return few;
+      return many;
+    }
+
+    function formatOrdersCount(count) {
+      return `${count.toLocaleString('ru-RU')} ${pluralize(count, 'заказ', 'заказа', 'заказов')}`;
+    }
+
     function saveGame() {
       try {
-        state.lastSavedTime = Date.now();
+        // Защита от потери оффлайн-дохода: не перезаписываем время последнего сохранения,
+        // пока открыта модалка с невостребованной наградой
+        if (pendingOfflineCoins === 0) {
+          state.lastSavedTime = Date.now();
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (e) {
         console.error('Ошибка сохранения игры:', e);
@@ -799,6 +817,19 @@
               if (typeof state.upgrades.helper !== 'number') {
                 state.upgrades.helper = 0;
               }
+              // Сохранение и защита прогресса игроков:
+              // Если в сохранении уровень плиты был > 10 (бывший max 20),
+              // фиксируем максимальный 10-й уровень (максимальная скорость готовки),
+              // и возвращаем монеты, потраченные впустую на уровни 11..N
+              if (typeof state.upgrades.speed === 'number' && state.upgrades.speed > 10) {
+                let refundCoins = 0;
+                for (let lvl = 11; lvl <= state.upgrades.speed; lvl++) {
+                  refundCoins += Math.floor(35 * Math.pow(1.55, lvl - 2));
+                }
+                state.coins += refundCoins;
+                state.totalEarned += refundCoins;
+                state.upgrades.speed = 10;
+              }
             }
           }
         }
@@ -810,18 +841,44 @@
     let pendingOfflineCoins = 0;
     function checkOfflineEarnings() {
       const now = Date.now();
-      const elapsedSec = Math.floor((now - state.lastSavedTime) / 1000);
+      const lastTime = state.lastSavedTime || now;
+      const elapsedSec = Math.floor((now - lastTime) / 1000);
       if (elapsedSec > 20) {
         // Ограничиваем оффлайн доход первыми 4 часами (14400 сек)
         const cappedSec = Math.min(14400, elapsedSec);
+
+        // 1. Учитываем среднее время готовки всех открытых блюд в меню
+        const availableDishes = getAvailableDishes();
+        const avgCookTime = availableDishes.reduce((sum, d) => sum + d.cookTime, 0) / availableDishes.length;
+
+        // 2. Реальная скорость готовки с учетом быстрой плиты
         const cookSpeed = getCookTimeMultiplier();
+
+        // 3. Количество поваров (Шеф = 1, с помощником = 2 повара)
+        const hasHelper = (state.upgrades.helper || 0) > 0;
+        const chefCount = 1 + (hasHelper ? 1 : 0);
+
+        // 4. Средняя доходность блюда с бонусом соуса (прибыли)
         const avgDishPrice = getAverageDishPrice();
-        // 1 заказ каждые (3.5 сек * cookSpeed + 2 сек обслуживания)
-        const cycleSec = 3.5 * cookSpeed + 2.0;
-        const estimatedOrders = Math.floor(cappedSec / cycleSec);
-        const earned = Math.floor(estimatedOrders * avgDishPrice * 0.75); // 75% эффективность оффлайн
+
+        // Полный цикл выполнения заказа на одного повара:
+        // время готовки блюда + обслуживание и поедание (~2.0 сек)
+        const cycleSec = (avgCookTime * cookSpeed) + 2.0;
+
+        // Расчетное число заказов всеми поварами
+        const estimatedOrders = Math.floor((cappedSec / cycleSec) * chefCount);
+
+        // Итоговый доход с 75% оффлайн-эффективностью
+        const earned = Math.floor(estimatedOrders * avgDishPrice * 0.75);
+
         if (earned > 5) {
           pendingOfflineCoins = earned;
+          const modalText = document.querySelector('#welcome-modal .modal-text');
+          if (modalText) {
+            const chefsText = hasHelper ? 'котики-повара (шеф и помощник)' : 'котик-повар';
+            const ordersStr = formatOrdersCount(estimatedOrders);
+            modalText.innerText = `Пока вас не было, ${chefsText} выполнили ~${ordersStr} и заработали:`;
+          }
           document.getElementById('offline-earned-val').innerText = `+${earned.toLocaleString('ru-RU')} 🪙`;
           document.getElementById('welcome-modal').style.display = 'flex';
         }
@@ -829,14 +886,19 @@
     }
 
     function claimOfflineEarnings() {
-      playSound('coin');
-      if (pendingOfflineCoins > 0) {
-        state.coins += pendingOfflineCoins;
-        state.totalEarned += pendingOfflineCoins;
-        pendingOfflineCoins = 0;
-        updateUI();
-        saveGame();
+      if (pendingOfflineCoins <= 0) {
+        document.getElementById('welcome-modal').style.display = 'none';
+        return;
       }
+      playSound('coin');
+      const earned = pendingOfflineCoins;
+      // Сразу обнуляем, исключая повторное начисление при быстрых кликах
+      pendingOfflineCoins = 0;
+      state.coins += earned;
+      state.totalEarned += earned;
+      state.lastSavedTime = Date.now();
+      updateUI();
+      saveGame();
       document.getElementById('welcome-modal').style.display = 'none';
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     }
@@ -860,6 +922,10 @@
     // --- 8. Вычисления улучшений (Upgrades Math) ---
     function getUpgradeLevel(upgId) {
       if (typeof state.upgrades[upgId] === 'number') {
+        const upg = UPGRADES.find(u => u.id === upgId);
+        if (upg && state.upgrades[upgId] > upg.maxLevel) {
+          return upg.maxLevel;
+        }
         return state.upgrades[upgId];
       }
       return upgId === 'helper' ? 0 : 1;
@@ -875,8 +941,8 @@
     }
 
     function getCookTimeMultiplier() {
-      // 1 уровень = 1.0, 2 ур = 0.85, 3 ур = 0.7225...
-      const lvl = state.upgrades.speed || 1;
+      // 1 ур = 1.0, 2 ур = 0.85, ... 10 ур = 0.25 (ускорение в 4 раза на макс. уровне)
+      const lvl = Math.min(10, getUpgradeLevel('speed'));
       return Math.max(0.25, Math.pow(0.85, lvl - 1));
     }
 
@@ -1761,9 +1827,9 @@
     }
 
     function updateUI() {
-      // 1. Монеты и счетчик заказов
+      // 1. Монеты и счетчик заказов с правильным склонением
       document.getElementById('coins-display').innerText = Math.floor(state.coins).toLocaleString('ru-RU');
-      document.getElementById('orders-display').innerText = `${state.ordersServed} заказов`;
+      document.getElementById('orders-display').innerText = formatOrdersCount(state.ordersServed);
 
       // 2. Рендер списка улучшений и подсчет доступных покупок
       const listEl = document.getElementById('upgrades-list');
@@ -1871,6 +1937,11 @@
         renderScene,
         toggleShopCollapse,
         isShopCollapsed: () => isShopCollapsed,
+        getCookTimeMultiplier,
+        checkOfflineEarnings,
+        claimOfflineEarnings,
+        formatOrdersCount,
+        pluralize,
         DISHES,
         UPGRADES
       };
