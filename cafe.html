@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Кошачье Кафе: Снек-Бар ☕🐾</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#fdf6ec">
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-cream: #fbf5eb;
+      --card-bg: #ffffff;
+      --accent-warm: #ff8a65;
+      --accent-gold: #ffb74d;
+      --accent-green: #66bb6a;
+      --wood-dark: #6d4c41;
+      --wood-light: #8d6e63;
+      --text-main: #3e2723;
+      --text-muted: #795548;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #4e342e;
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #app-container {
+      width: 100%;
+      max-width: 440px;
+      height: 100vh;
+      max-height: 920px;
+      background: var(--bg-cream);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+      overflow: hidden;
+    }
+
+    /* --- ВЕРХНЯЯ ШАПКА КАФЕ --- */
+    header {
+      padding: calc(var(--safe-top) + 10px) 14px 10px;
+      background: #fff8f0;
+      border-bottom: 2px solid #ecdac6;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(109,76,65,0.06);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cafe-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cafe-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--wood-dark);
+      letter-spacing: -0.3px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: #f5e8d9;
+      border: 1.5px solid #dfc7b0;
+      border-radius: 10px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.1s;
+    }
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: #ecdac6;
+    }
+
+    .header-stats {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .stat-pill {
+      background: #ffffff;
+      border: 1.5px solid #ecdac6;
+      border-radius: 14px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    .coins-pill {
+      background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
+      border-color: #ffd54f;
+      color: #b78103;
+      font-size: 16px;
+    }
+
+    .stat-pill span.icon {
+      font-size: 16px;
+    }
+
+    /* --- ИГРОВОЕ ПОЛЕ (ХОЛСТ КАФЕ) --- */
+    #cafe-viewport {
+      flex: 1;
+      position: relative;
+      background: #fbf5eb;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    #cafe-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Подсказка ускорения тапом */
+    #tap-hint {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(109, 76, 65, 0.85);
+      color: #fff;
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    /* --- ПАНЕЛЬ УЛУЧШЕНИЙ (МАГАЗИН) --- */
+    #upgrades-sheet {
+      background: #ffffff;
+      border-top: 3px solid #ecdac6;
+      border-radius: 20px 20px 0 0;
+      padding: 12px 14px calc(var(--safe-bottom) + 12px);
+      box-shadow: 0 -6px 20px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      max-height: 44%;
+      z-index: 10;
+    }
+
+    .upgrades-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .upgrades-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--wood-dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .upgrades-scroll {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .upgrades-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .upgrades-scroll::-webkit-scrollbar-thumb {
+      background: #dfc7b0;
+      border-radius: 4px;
+    }
+
+    .upgrade-card {
+      background: #fffaf4;
+      border: 1.5px solid #ecdac6;
+      border-radius: 14px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: transform 0.1s, border-color 0.15s, background 0.15s;
+    }
+
+    .upgrade-card.can-afford {
+      border-color: #ffb74d;
+      background: #ffffff;
+    }
+
+    .upgrade-card.maxed {
+      background: #f1f8e9;
+      border-color: #c8e6c9;
+      opacity: 0.9;
+    }
+
+    .upgrade-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .upgrade-icon-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: #fcf1e4;
+      border: 1px solid #ebd6c0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .upgrade-texts {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .upgrade-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--wood-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .upgrade-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .upgrade-level {
+      font-size: 10px;
+      font-weight: 700;
+      color: #e65100;
+      margin-top: 1px;
+    }
+
+    .upgrade-btn {
+      background: #ccc;
+      color: #666;
+      border: none;
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: not-allowed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 78px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      transition: transform 0.1s, background 0.15s;
+    }
+
+    .upgrade-card.can-afford .upgrade-btn {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(245, 124, 0, 0.35);
+    }
+    .upgrade-card.can-afford .upgrade-btn:active {
+      transform: scale(0.95);
+    }
+
+    .upgrade-card.maxed .upgrade-btn {
+      background: #81c784;
+      color: #fff;
+      cursor: default;
+    }
+
+    .upgrade-cost-text {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    /* --- МОДАЛЬНОЕ ОКНО ОФФЛАЙН ДОХОДА И НАСТРОЕК --- */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(62, 39, 35, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 22px;
+      border: 3px solid #ecdac6;
+      width: 100%;
+      max-width: 340px;
+      padding: 22px 18px;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+      animation: popIn 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-icon {
+      font-size: 50px;
+      margin-bottom: 8px;
+      animation: floatCat 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatCat {
+      from { transform: translateY(0); }
+      to { transform: translateY(-6px); }
+    }
+
+    .modal-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--wood-dark);
+      margin-bottom: 6px;
+    }
+
+    .modal-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .modal-reward {
+      background: #fff9e6;
+      border: 2px dashed #ffb74d;
+      border-radius: 14px;
+      padding: 10px;
+      margin-bottom: 16px;
+      font-size: 20px;
+      font-weight: 800;
+      color: #e65100;
+    }
+
+    .modal-btn {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(245, 124, 0, 0.35);
+      transition: transform 0.1s;
+    }
+    .modal-btn:active {
+      transform: scale(0.96);
+    }
+
+    .modal-btn.secondary {
+      background: #f5e8d9;
+      color: var(--wood-dark);
+      box-shadow: none;
+      margin-top: 8px;
+    }
+
+    /* Всплывающие уведомления (Toast) */
+    #toast-msg {
+      position: absolute;
+      top: calc(var(--safe-top) + 65px);
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(62, 39, 35, 0.92);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <!-- Шапка игры -->
+    <header>
+      <div class="header-top">
+        <div class="cafe-title-wrap">
+          <span style="font-size: 20px;">☕</span>
+          <span class="cafe-title">Кошачье Кафе: Снек-Бар</span>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Звук">🔊</button>
+          <button class="icon-btn" onclick="openSettingsModal()" title="Настройки">⚙️</button>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill coins-pill">
+          <span class="icon">🪙</span>
+          <span id="coins-display">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="icon">📋</span>
+          <span id="orders-display">0 заказов</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Игровая сцена с анимацией котиков -->
+    <main id="cafe-viewport" onclick="handleStageClick(event)">
+      <canvas id="cafe-canvas"></canvas>
+      <div id="tap-hint">⚡ Тапай по кухне, чтобы ускорить готовку!</div>
+    </main>
+
+    <!-- Нижняя панель улучшений -->
+    <section id="upgrades-sheet">
+      <div class="upgrades-header">
+        <div class="upgrades-title">
+          <span>🛠️ Улучшения кафе</span>
+        </div>
+      </div>
+      <div class="upgrades-scroll" id="upgrades-list">
+        <!-- Генерируется скриптом -->
+      </div>
+    </section>
+
+    <!-- Модалка оффлайн-дохода -->
+    <div class="modal-overlay" id="welcome-modal">
+      <div class="modal-card">
+        <div class="modal-icon">🐱‍🍳</div>
+        <h3 class="modal-title">С возвращением в Кафе!</h3>
+        <p class="modal-text">Пока вас не было, котик-повар усердно готовил вкусняшки для гостей и заработал:</p>
+        <div class="modal-reward" id="offline-earned-val">+0 🪙</div>
+        <button class="modal-btn" onclick="claimOfflineEarnings()">ЗАБРАТЬ ВЫРУЧКУ 🐾</button>
+      </div>
+    </div>
+
+    <!-- Модалка настроек -->
+    <div class="modal-overlay" id="settings-modal">
+      <div class="modal-card">
+        <div class="modal-icon">⚙️</div>
+        <h3 class="modal-title">Настройки Кафе</h3>
+        <p class="modal-text">Прогресс игры автоматически сохраняется в памяти браузера.</p>
+        <button class="modal-btn secondary" onclick="resetSaveData()">СБРОСИТЬ ПРОГРЕСС 🗑️</button>
+        <button class="modal-btn" style="margin-top: 10px;" onclick="closeSettingsModal()">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+
+    <!-- Всплывающий тост -->
+    <div id="toast-msg"></div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       КОШАЧЬЕ КАФЕ: СНЕК-БАР (Cat Snack Bar Mini App)
+       Архитектура игры:
+       1. Game State & Local Storage Save/Load
+       2. Web Audio API звуковой синтезатор
+       3. Физика & Анимация Canvas 60 FPS (Шеф-кот, Посетители, Станция готовки)
+       4. Система заказов, очередей и улучшений
+       5. Telegram WebApp интеграция
+       ========================================================================== */
+
+    // --- 1. Telegram WebApp SDK ---
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      try {
+        tg.ready();
+        tg.expand();
+      } catch (e) {
+        console.warn('Telegram WebApp init warning:', e);
+      }
+    }
+
+    // --- 2. Каталог меню и блюд ---
+    const DISHES = [
+      { id: 'coffee', name: 'Ароматный Кофе', icon: '☕', basePrice: 10, cookTime: 3.0, reqMenuLevel: 1 },
+      { id: 'sandwich', name: 'Мяу-Сэндвич', icon: '🥪', basePrice: 25, cookTime: 3.8, reqMenuLevel: 2 },
+      { id: 'fish', name: 'Рыбка-Гриль', icon: '🐟', basePrice: 55, cookTime: 4.6, reqMenuLevel: 3 },
+      { id: 'cake', name: 'Сливочный Тортик', icon: '🍰', basePrice: 120, cookTime: 5.5, reqMenuLevel: 4 }
+    ];
+
+    // --- 3. Каталог улучшений ---
+    const UPGRADES = [
+      {
+        id: 'speed',
+        name: 'Быстрая Плита ⚡',
+        desc: 'Ускоряет время готовки блюд на 15%',
+        icon: '⚡',
+        baseCost: 35,
+        costMult: 1.55,
+        maxLevel: 20
+      },
+      {
+        id: 'profit',
+        name: 'Секретный Соус 💰',
+        desc: 'Увеличивает доход с каждого заказа на +30%',
+        icon: '💰',
+        baseCost: 45,
+        costMult: 1.6,
+        maxLevel: 20
+      },
+      {
+        id: 'seats',
+        name: 'Уютные Столики 🪑',
+        desc: 'Добавляет дополнительное место для гостей в кафе',
+        icon: '🪑',
+        baseCost: 150,
+        costMult: 2.3,
+        maxLevel: 4 // от 2 до 5 мест
+      },
+      {
+        id: 'menu',
+        name: 'Новое Меню 📖',
+        desc: 'Открывает новое вкусное блюдо с повышенной ценой',
+        icon: '📖',
+        baseCost: 200,
+        costMult: 3.2,
+        maxLevel: 4
+      },
+      {
+        id: 'helper',
+        name: 'Котёнок-Помощник 🐾',
+        desc: 'Су-шеф Мурзик готовит второй заказ параллельно!',
+        icon: '🐾',
+        baseCost: 500,
+        costMult: 4.0,
+        maxLevel: 1
+      }
+    ];
+
+    // --- 4. Состояние игры (State) ---
+    const STORAGE_KEY = 'cat_cafe_save_v1';
+    let state = {
+      coins: 40,
+      totalEarned: 40,
+      ordersServed: 0,
+      lastSavedTime: Date.now(),
+      soundEnabled: true,
+      upgrades: {
+        speed: 1,
+        profit: 1,
+        seats: 1,
+        menu: 1,
+        helper: 0
+      }
+    };
+
+    // --- 5. Локальный PRNG для декоративных частиц (не засоряет системный RNG) ---
+    let cafeParticleSeed = 0x5a17e8b9;
+    function cafeRandom() {
+      let t = (cafeParticleSeed += 0x6D2B79F5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+
+    // --- 6. Web Audio API звуковой синтезатор ---
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx && typeof window !== 'undefined') {
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioClass) audioCtx = new AudioClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      if (!state.soundEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'coin') {
+        // Звон монет
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(987.77, now); // B5
+        osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'bell') {
+        // Дзынь колокольчика готовности блюда
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1567.98, now); // G6
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (type === 'purr') {
+        // Довольное мурлыканье / мяу
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+        osc.frequency.exponentialRampToValueAtTime(660, now + 0.22);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'upgrade') {
+        // Победный аккорд улучшения
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.07);
+        osc.frequency.setValueAtTime(783.99, now + 0.14);
+        osc.frequency.setValueAtTime(1046.50, now + 0.21);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (type === 'sizzle') {
+        // Легкий клик ускорения готовки
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(320, now);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.start(now);
+        osc.stop(now + 0.06);
+      }
+    }
+
+    function toggleSound() {
+      state.soundEnabled = !state.soundEnabled;
+      const btn = document.getElementById('sound-btn');
+      if (btn) btn.innerText = state.soundEnabled ? '🔊' : '🔇';
+      showToast(state.soundEnabled ? 'Звук включён 🔊' : 'Звук выключен 🔇');
+      saveGame();
+    }
+
+    // --- 7. Сохранение и Загрузка (Save / Load) ---
+    function saveGame() {
+      try {
+        state.lastSavedTime = Date.now();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error('Ошибка сохранения игры:', e);
+      }
+    }
+
+    function loadGame() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.coins === 'number') {
+            state.coins = parsed.coins;
+            state.totalEarned = parsed.totalEarned || parsed.coins;
+            state.ordersServed = parsed.ordersServed || 0;
+            state.soundEnabled = parsed.soundEnabled !== false;
+            state.lastSavedTime = parsed.lastSavedTime || Date.now();
+            if (parsed.upgrades) {
+              state.upgrades = Object.assign(state.upgrades, parsed.upgrades);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Ошибка загрузки сохранения:', e);
+      }
+    }
+
+    let pendingOfflineCoins = 0;
+    function checkOfflineEarnings() {
+      const now = Date.now();
+      const elapsedSec = Math.floor((now - state.lastSavedTime) / 1000);
+      if (elapsedSec > 20) {
+        // Ограничиваем оффлайн доход первыми 4 часами (14400 сек)
+        const cappedSec = Math.min(14400, elapsedSec);
+        const cookSpeed = getCookTimeMultiplier();
+        const avgDishPrice = getAverageDishPrice();
+        // 1 заказ каждые (3.5 сек * cookSpeed + 2 сек обслуживания)
+        const cycleSec = 3.5 * cookSpeed + 2.0;
+        const estimatedOrders = Math.floor(cappedSec / cycleSec);
+        const earned = Math.floor(estimatedOrders * avgDishPrice * 0.75); // 75% эффективность оффлайн
+        if (earned > 5) {
+          pendingOfflineCoins = earned;
+          document.getElementById('offline-earned-val').innerText = `+${earned.toLocaleString('ru-RU')} 🪙`;
+          document.getElementById('welcome-modal').style.display = 'flex';
+        }
+      }
+    }
+
+    function claimOfflineEarnings() {
+      playSound('coin');
+      if (pendingOfflineCoins > 0) {
+        state.coins += pendingOfflineCoins;
+        state.totalEarned += pendingOfflineCoins;
+        pendingOfflineCoins = 0;
+        updateUI();
+        saveGame();
+      }
+      document.getElementById('welcome-modal').style.display = 'none';
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    }
+
+    function openSettingsModal() {
+      initAudio();
+      document.getElementById('settings-modal').style.display = 'flex';
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').style.display = 'none';
+    }
+
+    function resetSaveData() {
+      if (confirm('Сбросить весь прогресс кафе до начального уровня?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      }
+    }
+
+    // --- 8. Вычисления улучшений (Upgrades Math) ---
+    function getUpgradeCost(upg) {
+      const currentLvl = state.upgrades[upg.id] || 1;
+      if (currentLvl >= upg.maxLevel) return Infinity;
+      return Math.floor(upg.baseCost * Math.pow(upg.costMult, currentLvl - 1));
+    }
+
+    function getCookTimeMultiplier() {
+      // 1 уровень = 1.0, 2 ур = 0.85, 3 ур = 0.7225...
+      const lvl = state.upgrades.speed || 1;
+      return Math.max(0.25, Math.pow(0.85, lvl - 1));
+    }
+
+    function getProfitMultiplier() {
+      // 1 уровень = 1.0, 2 ур = 1.30, 3 ур = 1.60...
+      const lvl = state.upgrades.profit || 1;
+      return 1 + (lvl - 1) * 0.30;
+    }
+
+    function getMaxCustomerSeats() {
+      const seatsLvl = state.upgrades.seats || 1;
+      return 1 + seatsLvl; // Ур 1: 2 места, Ур 2: 3 места, Ур 3: 4 места, Ур 4: 5 мест
+    }
+
+    function getAvailableDishes() {
+      const menuLvl = state.upgrades.menu || 1;
+      return DISHES.filter(d => d.reqMenuLevel <= menuLvl);
+    }
+
+    function getAverageDishPrice() {
+      const list = getAvailableDishes();
+      const sum = list.reduce((acc, d) => acc + d.basePrice, 0);
+      return (sum / list.length) * getProfitMultiplier();
+    }
+
+    function buyUpgrade(id) {
+      initAudio();
+      const upg = UPGRADES.find(u => u.id === id);
+      if (!upg) return;
+
+      const cost = getUpgradeCost(upg);
+      if (state.coins >= cost) {
+        state.coins -= cost;
+        state.upgrades[id] = (state.upgrades[id] || 0) + 1;
+        playSound('upgrade');
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+        showToast(`Улучшено: ${upg.name}! 🎉`);
+        updateUI();
+        saveGame();
+      } else {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        showToast('Недостаточно монет! 🪙');
+      }
+    }
+
+    // --- 9. Сущности симуляции (Шеф-кот, Гости, Станция готовки) ---
+    const canvas = document.getElementById('cafe-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let canvasWidth = 380;
+    let canvasHeight = 340;
+
+    // Станции приготовления (Основная шефа + помощника)
+    const cookingStations = [
+      {
+        id: 'chef',
+        name: 'Плита Шефа',
+        x: 190,
+        y: 110,
+        dish: null,
+        progress: 0,
+        targetCustomer: null,
+        isCooking: false,
+        totalTime: 3.0
+      },
+      {
+        id: 'helper',
+        name: 'Плита Су-шефа',
+        x: 290,
+        y: 110,
+        dish: null,
+        progress: 0,
+        targetCustomer: null,
+        isCooking: false,
+        totalTime: 3.5
+      }
+    ];
+
+    // Посетители
+    let customers = [];
+    let customerIdCounter = 1;
+    let nextCustomerSpawnTimer = 0.5;
+
+    // Всплывающие частицы и текст (+25 🪙, сердечки, пар)
+    let visualParticles = [];
+
+    // Места у барной стойки
+    function getSeatPosition(index) {
+      const maxSeats = getMaxCustomerSeats();
+      const startX = 65;
+      const endX = 315;
+      const step = (endX - startX) / Math.max(1, maxSeats - 1);
+      return {
+        x: startX + index * step,
+        y: 220
+      };
+    }
+
+    const CAT_BREEDS = [
+      { id: 'orange', fur: '#ff9800', ear: '#ff7043', stripe: '#e65100', eye: '#2e7d32' },
+      { id: 'white', fur: '#ffffff', ear: '#f8bbd0', stripe: '#f5f5f5', eye: '#0288d1' },
+      { id: 'black', fur: '#37474f', ear: '#cfd8dc', stripe: '#263238', eye: '#fdd835' },
+      { id: 'siamese', fur: '#efebe9', ear: '#5d4037', stripe: '#8d6e63', eye: '#039be5' },
+      { id: 'calico', fur: '#ffe0b2', ear: '#e65100', stripe: '#5d4037', eye: '#388e3c' }
+    ];
+
+    function spawnCustomer() {
+      const maxSeats = getMaxCustomerSeats();
+      const currentWaitingCount = customers.filter(c => c.state !== 'leaving').length;
+      if (currentWaitingCount >= maxSeats) return;
+
+      // Находим свободное место
+      const occupiedSeatIndices = customers
+        .filter(c => c.state !== 'leaving')
+        .map(c => c.seatIndex);
+      
+      let freeSeatIndex = -1;
+      for (let i = 0; i < maxSeats; i++) {
+        if (!occupiedSeatIndices.includes(i)) {
+          freeSeatIndex = i;
+          break;
+        }
+      }
+      if (freeSeatIndex === -1) return;
+
+      const seatPos = getSeatPosition(freeSeatIndex);
+      const availableDishes = getAvailableDishes();
+      const chosenDish = availableDishes[Math.floor(cafeRandom() * availableDishes.length)];
+      const breed = CAT_BREEDS[Math.floor(cafeRandom() * CAT_BREEDS.length)];
+
+      const customer = {
+        id: customerIdCounter++,
+        seatIndex: freeSeatIndex,
+        x: -40,
+        y: 290,
+        targetX: seatPos.x,
+        targetY: seatPos.y,
+        state: 'walking_to_seat', // 'walking_to_seat', 'waiting_order', 'eating', 'leaving'
+        breed,
+        dish: chosenDish,
+        eatTimer: 0,
+        eatTotalTime: 1.4,
+        walkAnim: 0,
+        heartAnim: 0
+      };
+
+      customers.push(customer);
+    }
+
+    function addVisualParticle(x, y, text, color, type = 'text') {
+      visualParticles.push({
+        x,
+        y,
+        text,
+        color,
+        type,
+        life: 0.9,
+        maxLife: 0.9,
+        vy: -45,
+        vx: (cafeRandom() - 0.5) * 20
+      });
+    }
+
+    // --- 10. Игровой цикл и логика готовки (Update Loop) ---
+    let lastFrameTime = performance.now();
+    let globalGameTime = 0;
+
+    function gameLoop(now) {
+      const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
+      lastFrameTime = now;
+      globalGameTime += dt;
+
+      updateSimulation(dt);
+      renderScene();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateSimulation(dt) {
+      // Спавн посетителей
+      nextCustomerSpawnTimer -= dt;
+      if (nextCustomerSpawnTimer <= 0) {
+        spawnCustomer();
+        nextCustomerSpawnTimer = 1.2 + cafeRandom() * 1.5;
+      }
+
+      // Обновление посетителей
+      for (let i = customers.length - 1; i >= 0; i--) {
+        const c = customers[i];
+        c.walkAnim += dt * 8;
+
+        if (c.state === 'walking_to_seat') {
+          const dx = c.targetX - c.x;
+          const dy = c.targetY - c.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 3) {
+            c.x = c.targetX;
+            c.y = c.targetY;
+            c.state = 'waiting_order';
+          } else {
+            c.x += (dx / dist) * 75 * dt;
+            c.y += (dy / dist) * 75 * dt;
+          }
+        } else if (c.state === 'eating') {
+          c.eatTimer -= dt;
+          c.heartAnim += dt * 4;
+          if (c.eatTimer <= 0) {
+            // Закончил кушать -> оплата и уход
+            const profitMult = getProfitMultiplier();
+            const earnedCoins = Math.floor(c.dish.basePrice * profitMult);
+            state.coins += earnedCoins;
+            state.totalEarned += earnedCoins;
+            state.ordersServed++;
+
+            playSound('coin');
+            addVisualParticle(c.x, c.y - 35, `+${earnedCoins} 🪙`, '#ffb300', 'text');
+            addVisualParticle(c.x, c.y - 20, '❤️', '#e91e63', 'heart');
+
+            updateUI();
+            saveGame();
+
+            c.state = 'leaving';
+            c.targetX = canvasWidth + 50;
+            c.targetY = 290;
+          }
+        } else if (c.state === 'leaving') {
+          const dx = c.targetX - c.x;
+          const dy = c.targetY - c.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 4 || c.x > canvasWidth + 30) {
+            customers.splice(i, 1);
+          } else {
+            c.x += (dx / dist) * 85 * dt;
+            c.y += (dy / dist) * 85 * dt;
+          }
+        }
+      }
+
+      // Обновление станций готовки (Шеф + Помощник)
+      const speedMult = getCookTimeMultiplier();
+      const hasHelper = (state.upgrades.helper || 0) > 0;
+
+      cookingStations.forEach(station => {
+        if (station.id === 'helper' && !hasHelper) return;
+
+        if (!station.isCooking) {
+          // Ищем посетителя, ожидающего заказ, которого еще никто не готовит
+          const waitingCustomer = customers.find(c => 
+            c.state === 'waiting_order' && 
+            !cookingStations.some(s => s.targetCustomer === c)
+          );
+
+          if (waitingCustomer) {
+            station.isCooking = true;
+            station.dish = waitingCustomer.dish;
+            station.targetCustomer = waitingCustomer;
+            station.progress = 0;
+            station.totalTime = Math.max(0.6, station.dish.cookTime * speedMult);
+          }
+        } else {
+          // Процесс приготовления блюда
+          station.progress += dt / station.totalTime;
+
+          // Спавн частичек пара/аромата во время готовки
+          if (cafeRandom() < 0.15) {
+            addVisualParticle(station.x + (cafeRandom() - 0.5) * 20, station.y - 25, '♨️', '#fff', 'steam');
+          }
+
+          if (station.progress >= 1.0) {
+            // Блюдо готово! Выдаем посетителю
+            station.progress = 1.0;
+            const cust = station.targetCustomer;
+            if (cust && cust.state === 'waiting_order') {
+              cust.state = 'eating';
+              cust.eatTimer = cust.eatTotalTime;
+              playSound('bell');
+              addVisualParticle(station.x, station.y - 30, '🛎️ Готово!', '#4caf50', 'text');
+            }
+
+            station.isCooking = false;
+            station.dish = null;
+            station.targetCustomer = null;
+            station.progress = 0;
+          }
+        }
+      });
+
+      // Обновление всплывающих эффектов
+      for (let i = visualParticles.length - 1; i >= 0; i--) {
+        const p = visualParticles[i];
+        p.life -= dt;
+        p.y += p.vy * dt;
+        p.x += p.vx * dt;
+        if (p.life <= 0) {
+          visualParticles.splice(i, 1);
+        }
+      }
+    }
+
+    // Тап по игровому полю (ускорение готовки шефа или ласка котика)
+    function handleStageClick(e) {
+      initAudio();
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const clickY = (e.clientY - rect.top) * scaleY;
+
+      // Проверяем клик по котикам-посетителям (ласка)
+      const clickedCat = customers.find(c => Math.hypot(c.x - clickX, c.y - clickY) < 30);
+      if (clickedCat) {
+        playSound('purr');
+        addVisualParticle(clickedCat.x, clickedCat.y - 30, '🐾 Мяу!', '#ff4081', 'heart');
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        return;
+      }
+
+      // Клик по кухне шефа -> мгновенное ускорение готовки
+      const chefStation = cookingStations[0];
+      if (chefStation.isCooking) {
+        chefStation.progress = Math.min(0.98, chefStation.progress + 0.22);
+        playSound('sizzle');
+        addVisualParticle(chefStation.x, chefStation.y - 40, '⚡ +Ускорение!', '#ffb300', 'text');
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      }
+    }
+
+    // --- 11. Отрисовка Кафе (Canvas Rendering) ---
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvasWidth = rect.width;
+      canvasHeight = rect.height;
+      canvas.width = canvasWidth * window.devicePixelRatio;
+      canvas.height = canvasHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function renderScene() {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      // 1. Уютные деревянные обои и пол кафе
+      drawCafeEnvironment();
+
+      // 2. Кухонная зона и повара
+      drawKitchenAndChefs();
+
+      // 3. Барная стойка и столики
+      drawCounterAndTables();
+
+      // 4. Посетители котики
+      drawCustomers();
+
+      // 5. Всплывающие частицы
+      drawParticles();
+    }
+
+    function drawCafeEnvironment() {
+      // Стена кафе (пастельно-кремовая с деревянной планкой)
+      ctx.fillStyle = '#fff6ea';
+      ctx.fillRect(0, 0, canvasWidth, 140);
+
+      // Декоративный навес кафе (Awning 🎪)
+      const awningHeight = 22;
+      const stripeWidth = 26;
+      for (let x = 0; x < canvasWidth; x += stripeWidth) {
+        ctx.fillStyle = (Math.floor(x / stripeWidth) % 2 === 0) ? '#ff7043' : '#fff3e0';
+        ctx.beginPath();
+        ctx.rect(x, 0, stripeWidth, awningHeight);
+        ctx.arc(x + stripeWidth / 2, awningHeight, stripeWidth / 2, 0, Math.PI, false);
+        ctx.fill();
+      }
+
+      // Деревянный теплый пол
+      ctx.fillStyle = '#d7ccc8';
+      ctx.fillRect(0, 140, canvasWidth, canvasHeight - 140);
+      ctx.strokeStyle = '#bcaaa4';
+      ctx.lineWidth = 1;
+      for (let y = 140; y < canvasHeight; y += 28) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvasWidth, y);
+        ctx.stroke();
+      }
+
+      // Декоративные картины с рыбкой и растением на стене
+      drawPictureFrame(45, 55, '🐟');
+      drawPlantPot(canvasWidth - 45, 125);
+    }
+
+    function drawPictureFrame(x, y, icon) {
+      ctx.save();
+      ctx.fillStyle = '#8d6e63';
+      ctx.fillRect(x - 14, y - 14, 28, 28);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 11, y - 11, 22, 22);
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, x, y);
+      ctx.restore();
+    }
+
+    function drawPlantPot(x, y) {
+      ctx.save();
+      // Горшок
+      ctx.fillStyle = '#b08968';
+      ctx.beginPath();
+      ctx.moveTo(x - 8, y);
+      ctx.lineTo(x + 8, y);
+      ctx.lineTo(x + 6, y + 14);
+      ctx.lineTo(x - 6, y + 14);
+      ctx.closePath();
+      ctx.fill();
+      // Листики
+      ctx.fillStyle = '#66bb6a';
+      ctx.beginPath();
+      ctx.arc(x - 4, y - 4, 6, 0, Math.PI * 2);
+      ctx.arc(x + 4, y - 5, 7, 0, Math.PI * 2);
+      ctx.arc(x, y - 8, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawKitchenAndChefs() {
+      // 1. Главный Шеф-повар Барсик
+      const chefStation = cookingStations[0];
+      drawChefCat(chefStation.x, chefStation.y, 'Барсик', chefStation.isCooking);
+      drawCookingStation(chefStation);
+
+      // 2. Су-шеф Мурзик (если разблокирован)
+      const hasHelper = (state.upgrades.helper || 0) > 0;
+      if (hasHelper) {
+        const helperStation = cookingStations[1];
+        drawHelperCat(helperStation.x, helperStation.y, helperStation.isCooking);
+        drawCookingStation(helperStation);
+      }
+    }
+
+    function drawChefCat(x, y, name, isCooking) {
+      ctx.save();
+      const bob = Math.sin(globalGameTime * 5) * 2;
+      const cy = y + bob;
+
+      // Тело котика-повара (Рыжий пушистик)
+      ctx.fillStyle = '#ff9800';
+      ctx.beginPath();
+      ctx.ellipse(x, cy, 18, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Белый фартучек
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(x, cy + 4, 11, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e65100';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Ушки
+      ctx.fillStyle = '#ff9800';
+      ctx.beginPath();
+      ctx.moveTo(x - 14, cy - 8);
+      ctx.lineTo(x - 6, cy - 20);
+      ctx.lineTo(x - 1, cy - 10);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 14, cy - 8);
+      ctx.lineTo(x + 6, cy - 20);
+      ctx.lineTo(x + 1, cy - 10);
+      ctx.fill();
+
+      // Розовые серединки ушек
+      ctx.fillStyle = '#ffab91';
+      ctx.beginPath();
+      ctx.moveTo(x - 12, cy - 9);
+      ctx.lineTo(x - 6, cy - 17);
+      ctx.lineTo(x - 2, cy - 10);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 12, cy - 9);
+      ctx.lineTo(x + 6, cy - 17);
+      ctx.lineTo(x + 2, cy - 10);
+      ctx.fill();
+
+      // Мордочка и глазки
+      ctx.fillStyle = '#3e2723';
+      ctx.beginPath();
+      ctx.arc(x - 6, cy - 3, 2.2, 0, Math.PI * 2);
+      ctx.arc(x + 6, cy - 3, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Розовый носик
+      ctx.fillStyle = '#ff7043';
+      ctx.beginPath();
+      ctx.arc(x, cy, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Колпак шеф-повара (Toque Blanche 👨‍🍳)
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#d7ccc8';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.rect(x - 12, cy - 18, 24, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x - 7, cy - 23, 7, 0, Math.PI * 2);
+      ctx.arc(x, cy - 27, 8.5, 0, Math.PI * 2);
+      ctx.arc(x + 7, cy - 23, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Лопатка / половник при готовке
+      if (isCooking) {
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        const spatulaSway = Math.sin(globalGameTime * 12) * 4;
+        ctx.fillText('🍳', x + 16, cy + spatulaSway);
+      }
+
+      ctx.restore();
+    }
+
+    function drawHelperCat(x, y, isCooking) {
+      ctx.save();
+      const bob = Math.sin(globalGameTime * 6 + 1) * 2;
+      const cy = y + bob;
+
+      // Маленький белый котик-помощник
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(x, cy, 15, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Розовая косынка поваренка
+      ctx.fillStyle = '#ff80ab';
+      ctx.beginPath();
+      ctx.ellipse(x, cy - 8, 12, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ушки
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(x - 12, cy - 6);
+      ctx.lineTo(x - 5, cy - 16);
+      ctx.lineTo(x - 1, cy - 8);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 12, cy - 6);
+      ctx.lineTo(x + 5, cy - 16);
+      ctx.lineTo(x + 1, cy - 8);
+      ctx.fill();
+
+      // Глазки
+      ctx.fillStyle = '#1e88e5';
+      ctx.beginPath();
+      ctx.arc(x - 5, cy - 2, 2, 0, Math.PI * 2);
+      ctx.arc(x + 5, cy - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isCooking) {
+        ctx.font = '13px sans-serif';
+        ctx.fillText('🥄', x + 14, cy + Math.sin(globalGameTime * 10) * 3);
+      }
+
+      ctx.restore();
+    }
+
+    function drawCookingStation(station) {
+      const sx = station.x;
+      const sy = station.y + 24;
+
+      // Плита / Кофемашина
+      ctx.save();
+      ctx.fillStyle = '#546e7a';
+      ctx.fillRect(sx - 20, sy - 12, 40, 20);
+      ctx.fillStyle = '#37474f';
+      ctx.fillRect(sx - 18, sy - 10, 36, 16);
+
+      // Конфорка
+      ctx.fillStyle = station.isCooking ? '#ff5722' : '#78909c';
+      ctx.beginPath();
+      ctx.arc(sx, sy - 2, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Прогресс приготовления над плитой
+      if (station.isCooking && station.dish) {
+        const barW = 40;
+        const barH = 7;
+        const bx = sx - barW / 2;
+        const by = sy - 44;
+
+        // Фон шкалы
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+
+        // Заполнение шкалы
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(bx, by, barW * station.progress, barH);
+
+        // Иконка блюда
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(station.dish.icon, sx, by - 4);
+      }
+      ctx.restore();
+    }
+
+    function drawCounterAndTables() {
+      // Барная деревянная стойка кафе
+      ctx.save();
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(30, 168, canvasWidth - 60, 20);
+
+      // Верхняя полированная доска стойки
+      ctx.fillStyle = '#a1887f';
+      ctx.fillRect(25, 162, canvasWidth - 50, 7);
+      ctx.fillStyle = '#d7ccc8';
+      ctx.fillRect(25, 162, canvasWidth - 50, 1.5);
+
+      // Стульчики у стойки
+      const maxSeats = getMaxCustomerSeats();
+      for (let i = 0; i < maxSeats; i++) {
+        const pos = getSeatPosition(i);
+        ctx.fillStyle = '#8d6e63';
+        ctx.beginPath();
+        ctx.ellipse(pos.x, 235, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(pos.x - 2, 235, 4, 18);
+      }
+      ctx.restore();
+    }
+
+    function drawCustomers() {
+      customers.forEach(c => {
+        ctx.save();
+        const walkBob = (c.state === 'walking_to_seat' || c.state === 'leaving') 
+          ? Math.sin(c.walkAnim) * 3 
+          : 0;
+        const cx = c.x;
+        const cy = c.y + walkBob;
+
+        // Хвостик котика
+        ctx.strokeStyle = c.breed.fur;
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - 10, cy + 6);
+        ctx.quadraticCurveTo(cx - 16, cy, cx - 14, cy - 8 + Math.sin(globalGameTime * 5) * 3);
+        ctx.stroke();
+
+        // Тело котика
+        ctx.fillStyle = c.breed.fur;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 16, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ушки
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, cy - 6);
+        ctx.lineTo(cx - 5, cy - 18);
+        ctx.lineTo(cx - 1, cy - 8);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 12, cy - 6);
+        ctx.lineTo(cx + 5, cy - 18);
+        ctx.lineTo(cx + 1, cy - 8);
+        ctx.fill();
+
+        // Глазки
+        ctx.fillStyle = c.breed.eye;
+        ctx.beginPath();
+        ctx.arc(cx - 5, cy - 2, 2.2, 0, Math.PI * 2);
+        ctx.arc(cx + 5, cy - 2, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Носик
+        ctx.fillStyle = c.breed.ear;
+        ctx.beginPath();
+        ctx.arc(cx, cy + 1, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Облачко заказа над посетителем (Thought Bubble 💭)
+        if (c.state === 'waiting_order') {
+          drawThoughtBubble(cx, cy - 28, c.dish.icon);
+        } else if (c.state === 'eating') {
+          // Сердечко восторга от еды
+          ctx.font = '16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('❤️', cx, cy - 30);
+          // Блюдо на стойке перед котиком
+          ctx.fillText(c.dish.icon, cx, 162);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawThoughtBubble(x, y, icon) {
+      ctx.save();
+      // Хвостик облачка
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#bcaaa4';
+      ctx.lineWidth = 1.2;
+
+      ctx.beginPath();
+      ctx.arc(x - 4, y + 10, 2.5, 0, Math.PI * 2);
+      ctx.arc(x - 2, y + 5, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Круглое облачко
+      ctx.beginPath();
+      ctx.arc(x, y - 6, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Иконка желаемого блюда
+      ctx.font = '15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, x, y - 6);
+
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      visualParticles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = p.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(p.text, p.x, p.y);
+        ctx.restore();
+      });
+    }
+
+    // --- 12. Интерфейс пользователя (UI Updates) ---
+    function updateUI() {
+      // 1. Монеты и счетчик заказов
+      document.getElementById('coins-display').innerText = Math.floor(state.coins).toLocaleString('ru-RU');
+      document.getElementById('orders-display').innerText = `${state.ordersServed} заказов`;
+
+      // 2. Рендер списка улучшений
+      const listEl = document.getElementById('upgrades-list');
+      if (!listEl) return;
+
+      listEl.innerHTML = UPGRADES.map(upg => {
+        const currentLvl = state.upgrades[upg.id] || 1;
+        const isMax = currentLvl >= upg.maxLevel;
+        const cost = getUpgradeCost(upg);
+        const canAfford = state.coins >= cost && !isMax;
+
+        let levelLabel = `Ур. ${currentLvl}`;
+        if (isMax) levelLabel += ' (МАКС)';
+
+        let btnContent = '';
+        if (isMax) {
+          btnContent = 'МАКС ✨';
+        } else {
+          btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
+        }
+
+        return `
+          <div class="upgrade-card ${canAfford ? 'can-afford' : ''} ${isMax ? 'maxed' : ''}">
+            <div class="upgrade-info">
+              <div class="upgrade-icon-wrap">${upg.icon}</div>
+              <div class="upgrade-texts">
+                <div class="upgrade-name">${upg.name}</div>
+                <div class="upgrade-desc">${upg.desc}</div>
+                <div class="upgrade-level">${levelLabel}</div>
+              </div>
+            </div>
+            <button class="upgrade-btn" onclick="buyUpgrade('${upg.id}')">
+              ${btnContent}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toastEl = document.getElementById('toast-msg');
+      if (!toastEl) return;
+      toastEl.innerText = msg;
+      toastEl.classList.add('show');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toastEl.classList.remove('show');
+      }, 2000);
+    }
+
+    // --- 13. Инициализация игры ---
+    window.addEventListener('DOMContentLoaded', () => {
+      loadGame();
+      resizeCanvas();
+      updateUI();
+      checkOfflineEarnings();
+
+      // Автосохранение каждые 4 секунды
+      setInterval(saveGame, 4000);
+
+      // Запуск игрового цикла
+      requestAnimationFrame(gameLoop);
+
+      // Expose test interface for headless runner / Codex
+      window.__game = {
+        getState: () => state,
+        setState: (s) => { state = s; updateUI(); },
+        buyUpgrade,
+        spawnCustomer,
+        getCustomers: () => customers,
+        getCookingStations: () => cookingStations,
+        saveGame,
+        loadGame,
+        addCoins: (n) => { state.coins += n; updateUI(); },
+        updateSimulation,
+        renderScene,
+        DISHES,
+        UPGRADES
+      };
+    });
+  </script>
+</body>
+</html>
