@@ -1,22 +1,99 @@
-let puppeteer;
-try {
-  puppeteer = require('puppeteer-core');
-} catch (e) {
-  puppeteer = require('/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df/scratch/node_modules/puppeteer-core');
-}
 const path = require('path');
 const fs = require('fs');
 
-const ARTIFACT_DIR = '/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df';
-const FILE_URL = 'file://' + path.resolve('/Users/ksh/GolandProjects/awesomeProject/web/cafe/index.html');
+function findGameHtmlPath() {
+  if (process.argv[2] && fs.existsSync(process.argv[2])) {
+    return path.resolve(process.argv[2]);
+  }
+  if (process.env.GAME_HTML_PATH && fs.existsSync(process.env.GAME_HTML_PATH)) {
+    return path.resolve(process.env.GAME_HTML_PATH);
+  }
+  const candidateRelatives = [
+    '../web/cafe/index.html',
+    '../cafe.html',
+    '../index.html',
+    'web/cafe/index.html',
+    'cafe.html',
+    'index.html',
+    './cafe.html',
+    './web/cafe/index.html'
+  ];
+  for (const rel of candidateRelatives) {
+    const fromDir = path.resolve(__dirname, rel);
+    if (fs.existsSync(fromDir)) return fromDir;
+    const fromCwd = path.resolve(process.cwd(), rel);
+    if (fs.existsSync(fromCwd)) return fromCwd;
+  }
+  const knownAbsolutes = [
+    '/Users/ksh/GolandProjects/awesomeProject/web/cafe/index.html',
+    '/Users/ksh/GolandProjects/pacman-game/cafe.html'
+  ];
+  for (const abs of knownAbsolutes) {
+    if (fs.existsSync(abs)) return abs;
+  }
+  throw new Error('Game HTML file not found! Searched: ' + candidateRelatives.join(', '));
+}
+
+function getPuppeteer() {
+  try {
+    return require('puppeteer-core');
+  } catch (e1) {
+    try {
+      return require('puppeteer');
+    } catch (e2) {
+      const scratchDir = '/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df/scratch/node_modules/puppeteer-core';
+      if (fs.existsSync(scratchDir)) {
+        return require(scratchDir);
+      }
+      throw new Error('Puppeteer is not installed. Run: npm install puppeteer-core or npm install puppeteer');
+    }
+  }
+}
+
+function findChromePath() {
+  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
+    return process.env.CHROME_PATH;
+  }
+  const candidates = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return undefined;
+}
+
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || 
+  (fs.existsSync('/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df')
+    ? '/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df'
+    : path.resolve(__dirname, '../screenshots'));
+if (!fs.existsSync(ARTIFACT_DIR)) {
+  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+}
+
+const gameHtmlFile = findGameHtmlPath();
+const FILE_URL = 'file://' + gameHtmlFile;
 
 async function runTests() {
   console.log('🚀 Starting Comprehensive Cat Bakery (Пекарня) Verification Suite...');
-  const browser = await puppeteer.launch({
+  console.log('Target Game HTML:', gameHtmlFile);
+  const puppeteer = getPuppeteer();
+  const chromePath = findChromePath();
+  const launchOptions = {
     headless: true,
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  };
+  if (chromePath) {
+    launchOptions.executablePath = chromePath;
+  }
+  const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
   const consoleErrors = [];
@@ -297,6 +374,13 @@ async function runTests() {
   await page.evaluate(() => {
     // Dismiss any open modal overlays
     document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+    // Hide toast notifications completely
+    const toast = document.getElementById('toast-msg');
+    if (toast) {
+      toast.classList.remove('show');
+      toast.style.display = 'none';
+      toast.style.opacity = '0';
+    }
     window.__game.switchVenue('bakery');
     // Spawn customers at tables and simulate to show active baking and dining
     window.__game.spawnBakeryCustomer();
@@ -306,36 +390,82 @@ async function runTests() {
     }
   });
 
-  // iPhone 390x844
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
-  await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
-  await page.screenshot({ path: path.join(ARTIFACT_DIR, 'bakery_mobile_390x844.png') });
-  console.log('📸 Saved bakery_mobile_390x844.png');
+  const dismissToast = async () => {
+    await page.evaluate(() => {
+      const toast = document.getElementById('toast-msg');
+      if (toast) {
+        toast.classList.remove('show');
+        toast.style.display = 'none';
+        toast.style.opacity = '0';
+      }
+      if (window.__game && typeof window.__game.clearParticles === 'function') {
+        window.__game.clearParticles();
+      }
+    });
+  };
 
-  // Android compact 360x640
+  // 1. Android compact 360x640 - OPEN SHOP
   await page.setViewport({ width: 360, height: 640, deviceScaleFactor: 2 });
-  await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
-  await page.screenshot({ path: path.join(ARTIFACT_DIR, 'bakery_mobile_360x640.png') });
-  console.log('📸 Saved bakery_mobile_360x640.png');
+  await page.evaluate(() => {
+    if (window.__game.isShopCollapsed()) {
+      window.__game.toggleShopCollapse();
+    }
+  });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 400)));
+  await dismissToast();
+  const screen360OpenPath = path.join(ARTIFACT_DIR, 'bakery_mobile_360x640_open.png');
+  await page.screenshot({ path: screen360OpenPath });
+  fs.copyFileSync(screen360OpenPath, path.join(ARTIFACT_DIR, 'bakery_mobile_360x640.png'));
+  console.log('📸 Saved bakery_mobile_360x640_open.png (and bakery_mobile_360x640.png)');
 
-  // Bakery Canvas Collapsed Shop
+  // 2. Android compact 360x640 - COLLAPSED SHOP
   await page.evaluate(() => {
     if (!window.__game.isShopCollapsed()) {
       window.__game.toggleShopCollapse();
     }
   });
-  await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
-  await page.screenshot({ path: path.join(ARTIFACT_DIR, 'bakery_canvas_collapsed.png') });
-  console.log('📸 Saved bakery_canvas_collapsed.png');
+  await page.evaluate(() => new Promise(r => setTimeout(r, 400)));
+  await dismissToast();
+  const screen360CollapsedPath = path.join(ARTIFACT_DIR, 'bakery_mobile_360x640_collapsed.png');
+  await page.screenshot({ path: screen360CollapsedPath });
+  console.log('📸 Saved bakery_mobile_360x640_collapsed.png');
 
-  // Switch to Cafe view
+  // 3. iPhone 390x844 - OPEN SHOP
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+  await page.evaluate(() => {
+    if (window.__game.isShopCollapsed()) {
+      window.__game.toggleShopCollapse();
+    }
+  });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 400)));
+  await dismissToast();
+  const screen390OpenPath = path.join(ARTIFACT_DIR, 'bakery_mobile_390x844_open.png');
+  await page.screenshot({ path: screen390OpenPath });
+  fs.copyFileSync(screen390OpenPath, path.join(ARTIFACT_DIR, 'bakery_mobile_390x844.png'));
+  console.log('📸 Saved bakery_mobile_390x844_open.png (and bakery_mobile_390x844.png)');
+
+  // 4. iPhone 390x844 - COLLAPSED SHOP
+  await page.evaluate(() => {
+    if (!window.__game.isShopCollapsed()) {
+      window.__game.toggleShopCollapse();
+    }
+  });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 400)));
+  await dismissToast();
+  const screen390CollapsedPath = path.join(ARTIFACT_DIR, 'bakery_mobile_390x844_collapsed.png');
+  await page.screenshot({ path: screen390CollapsedPath });
+  fs.copyFileSync(screen390CollapsedPath, path.join(ARTIFACT_DIR, 'bakery_canvas_collapsed.png'));
+  console.log('📸 Saved bakery_mobile_390x844_collapsed.png (and bakery_canvas_collapsed.png)');
+
+  // 5. Switch to Cafe view
   await page.evaluate(() => {
     if (window.__game.isShopCollapsed()) {
       window.__game.toggleShopCollapse();
     }
     window.__game.switchVenue('cafe');
   });
-  await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
+  await page.evaluate(() => new Promise(r => setTimeout(r, 400)));
+  await dismissToast();
   await page.screenshot({ path: path.join(ARTIFACT_DIR, 'cafe_with_bakery_tab.png') });
   console.log('📸 Saved cafe_with_bakery_tab.png');
 

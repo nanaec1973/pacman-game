@@ -112,34 +112,63 @@
     }
 
     .header-stats {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
     }
 
     .stat-pill {
       background: #ffffff;
       border: 1.5px solid #ecdac6;
-      border-radius: 14px;
-      padding: 6px 12px;
+      border-radius: 12px;
+      padding: 5px 8px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 14px;
+      justify-content: center;
+      gap: 5px;
+      font-size: 13px;
       font-weight: 800;
       box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
     }
 
     .coins-pill {
       background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
       border-color: #ffd54f;
       color: #b78103;
-      font-size: 16px;
+      font-size: 14.5px;
+    }
+
+    .coins-venue-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #b78103;
+      margin-left: 2px;
+    }
+
+    .orders-pill {
+      color: var(--wood-dark);
+      font-size: 12.5px;
+    }
+
+    .featured-pill {
+      grid-column: 1 / -1;
+      background: #fff8e1;
+      border-color: #ffe082;
+      color: #8d6e63;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 10px;
+      justify-content: center;
     }
 
     .stat-pill span.icon {
-      font-size: 16px;
+      font-size: 14px;
+      flex-shrink: 0;
     }
 
     /* --- ПЕРЕКЛЮЧАТЕЛЬ ЗАВЕДЕНИЙ (КАФЕ / ПЕКАРНЯ) --- */
@@ -572,20 +601,24 @@
     /* Подсказка ускорения тапом (внизу игрового поля, не перекрывает повара!) */
     #tap-hint {
       position: absolute;
-      bottom: 8px;
+      bottom: 6px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(84, 53, 44, 0.88);
+      background: rgba(84, 53, 44, 0.90);
       color: #fff;
-      padding: 5px 14px;
-      border-radius: 16px;
-      font-size: 11px;
+      padding: 3px 12px;
+      border-radius: 14px;
+      font-size: 10.5px;
       font-weight: 700;
-      letter-spacing: 0.2px;
+      line-height: 1.2;
+      letter-spacing: 0.1px;
       pointer-events: none;
       transition: opacity 0.3s;
       box-shadow: 0 3px 8px rgba(0,0,0,0.18);
-      white-space: nowrap;
+      text-align: center;
+      max-width: 88%;
+      white-space: normal;
+      box-sizing: border-box;
       z-index: 5;
     }
 
@@ -605,7 +638,7 @@
     }
 
     #upgrades-sheet.expanded {
-      max-height: 48%;
+      max-height: 44%;
     }
 
     #upgrades-sheet.collapsed {
@@ -927,23 +960,26 @@
       margin-bottom: 8px;
     }
 
-    /* Всплывающие уведомления (Toast) */
+    /* Всплывающие уведомления (Toast) — внизу над панелью, не перекрывают цель и показатели! */
     #toast-msg {
       position: absolute;
-      top: calc(var(--safe-top) + 145px);
+      top: auto;
+      bottom: calc(var(--safe-bottom) + 68px);
       left: 50%;
-      transform: translateX(-50%) translateY(-20px);
-      background: rgba(62, 39, 35, 0.92);
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(62, 39, 35, 0.94);
       color: #fff;
-      padding: 8px 16px;
+      padding: 7px 16px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
+      max-width: 88%;
+      text-align: center;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.25s, transform 0.25s;
-      z-index: 50;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 100;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
     }
     #toast-msg.show {
       opacity: 1;
@@ -980,14 +1016,14 @@
         <div class="stat-pill coins-pill" id="coins-stat-pill">
           <span class="icon">🪙</span>
           <span id="coins-display">0</span>
-          <span id="coins-venue-label" style="font-size: 11px; font-weight: 700; color: #b78103; margin-left: -2px;">(Кафе)</span>
+          <span id="coins-venue-label" class="coins-venue-badge">(Кафе)</span>
         </div>
-        <div class="stat-pill">
+        <div class="stat-pill orders-pill" id="orders-stat-pill">
           <span class="icon">📋</span>
           <span id="orders-display">0 заказов</span>
         </div>
         <div class="stat-pill featured-pill" id="featured-stat-pill" onclick="openFeaturedModal()" title="Выбрать фирменное блюдо">
-          <span class="icon">⭐</span>
+          <span class="icon" id="featured-stat-icon">⭐</span>
           <span id="featured-stat-name">Кофе (+20%)</span>
         </div>
       </div>
@@ -2508,7 +2544,8 @@
     let nextBakeryCustomerSpawnTimer = 0.5;
 
     function getVitrineY() {
-      return Math.min(145, Math.max(115, canvasHeight * 0.35));
+      const ovenY = Math.round(Math.min(125, Math.max(82, canvasHeight * 0.22)));
+      return Math.round(Math.min(185, Math.max(ovenY + 46, canvasHeight * 0.38)));
     }
 
     function updateVitrinePositions() {
@@ -2525,7 +2562,7 @@
 
     function updateBakeryPositions() {
       const maxTables = getBakeryMaxTables();
-      const ovenY = Math.min(95, Math.max(70, canvasHeight * 0.22));
+      const ovenY = Math.round(Math.min(125, Math.max(82, canvasHeight * 0.22)));
       const hasHelper = (state.bakery?.upgrades?.baker_helper || 0) > 0;
 
       if (hasHelper) {
@@ -2540,33 +2577,50 @@
         bakeryOvenStations[1].y = ovenY;
       }
 
-      const diningStartY = Math.min(210, Math.max(170, canvasHeight * 0.52));
-      const diningEndY = Math.min(canvasHeight - 45, diningStartY + 75);
+      updateVitrinePositions();
+      const vy = getVitrineY();
+
+      // Динамический расчёт вертикальных координат столов с учётом высоты экрана
+      const diningTopY = Math.round(vy + 46);
+      const diningBottomY = Math.round(Math.max(diningTopY + 50, canvasHeight - 34));
 
       if (maxTables === 2) {
+        const tableY = Math.round((diningTopY + diningBottomY) / 2);
         bakeryTables[0].x = Math.round(canvasWidth * 0.28);
-        bakeryTables[0].y = diningStartY + 15;
+        bakeryTables[0].y = tableY;
         bakeryTables[1].x = Math.round(canvasWidth * 0.72);
-        bakeryTables[1].y = diningStartY + 15;
+        bakeryTables[1].y = tableY;
       } else if (maxTables === 3) {
+        const tableY = Math.round((diningTopY + diningBottomY) / 2);
         bakeryTables[0].x = Math.round(canvasWidth * 0.20);
-        bakeryTables[0].y = diningStartY + 15;
+        bakeryTables[0].y = tableY;
         bakeryTables[1].x = Math.round(canvasWidth * 0.50);
-        bakeryTables[1].y = diningStartY + 15;
+        bakeryTables[1].y = tableY;
         bakeryTables[2].x = Math.round(canvasWidth * 0.80);
-        bakeryTables[2].y = diningStartY + 15;
+        bakeryTables[2].y = tableY;
       } else {
         bakeryTables[0].x = Math.round(canvasWidth * 0.28);
-        bakeryTables[0].y = diningStartY;
+        bakeryTables[0].y = diningTopY;
         bakeryTables[1].x = Math.round(canvasWidth * 0.72);
-        bakeryTables[1].y = diningStartY;
+        bakeryTables[1].y = diningTopY;
         bakeryTables[2].x = Math.round(canvasWidth * 0.28);
-        bakeryTables[2].y = diningEndY;
+        bakeryTables[2].y = diningBottomY;
         bakeryTables[3].x = Math.round(canvasWidth * 0.72);
-        bakeryTables[3].y = diningEndY;
+        bakeryTables[3].y = diningBottomY;
       }
 
-      updateVitrinePositions();
+      // Корректируем координаты уже сидящих гостей при изменении размеров экрана
+      bakeryCustomers.forEach(c => {
+        if (c.state !== 'leaving' && typeof c.tableIndex === 'number' && bakeryTables[c.tableIndex]) {
+          const t = bakeryTables[c.tableIndex];
+          c.targetX = t.x;
+          c.targetY = t.y - 12;
+          if (c.state !== 'walking_to_table') {
+            c.x = t.x;
+            c.y = t.y - 12;
+          }
+        }
+      });
     }
 
     function chooseBakeryRecipe() {
@@ -2597,9 +2651,9 @@
         id: bakeryCustomerIdCounter++,
         tableIndex: targetTableIndex,
         x: -40,
-        y: targetTable.y + 10,
+        y: targetTable.y - 12,
         targetX: targetTable.x,
-        targetY: targetTable.y,
+        targetY: targetTable.y - 12,
         state: 'walking_to_table',
         dish: recipe,
         breed,
@@ -3176,7 +3230,7 @@
           if (order) {
             waiterCat.carryingDish = order.dish;
             waiterCat.targetX = waiterCat.targetTable.x;
-            waiterCat.targetY = waiterCat.targetTable.y - 20;
+            waiterCat.targetY = waiterCat.targetTable.y + 24;
             waiterCat.state = 'carrying_to_table';
           } else {
             waiterCat.state = 'idle';
@@ -3238,7 +3292,7 @@
         p.life -= dt;
         p.y += p.vy * dt;
         p.x += p.vx * dt;
-        if (p.life <= 0) {
+        if (p.life <= 0 || (p.type === 'steam' && p.y <= 46)) {
           visualParticles.splice(i, 1);
         }
       }
@@ -4008,6 +4062,7 @@
 
     function drawParticles() {
       visualParticles.forEach(p => {
+        if (state.currentVenue === 'bakery' && p.type === 'steam' && p.y <= 46) return;
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
         ctx.font = 'bold 14px sans-serif';
@@ -4024,8 +4079,8 @@
       drawBakeryEnvironment();
       drawBakeryOven();
       drawBakeryVitrine();
-      drawBakeryTables();
       drawBakeryCustomers();
+      drawBakeryTables();
       drawBakeryWaiter();
       drawParticles();
     }
@@ -4038,9 +4093,9 @@
       ctx.fillStyle = '#fff8e7';
       ctx.fillRect(0, 0, canvasWidth, wallH);
 
-      // Верхний декоративный бордюр пекарни с флажками и выпечкой
-      const awningH = 22;
-      const stripeW = 26;
+      // Верхний декоративный бордюр пекарни с козырьком (компактный и аккуратный)
+      const awningH = 12;
+      const stripeW = 20;
       for (let x = 0; x < canvasWidth; x += stripeW) {
         ctx.fillStyle = (Math.floor(x / stripeW) % 2 === 0) ? '#d87d4a' : '#ffe8d6';
         ctx.beginPath();
@@ -4049,11 +4104,25 @@
         ctx.fill();
       }
 
-      // Вывеска пекарни
-      ctx.font = 'bold 11px sans-serif';
+      // Вывеска пекарни на аккуратной деревянной табличке (чистый зазор ниже козырька)
+      const signW = Math.min(270, canvasWidth * 0.76);
+      const signH = 17;
+      const signX = (canvasWidth - signW) / 2;
+      const signY = 25;
+      ctx.fillStyle = 'rgba(255, 248, 238, 0.94)';
+      ctx.strokeStyle = '#c7a793';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(signX, signY, signW, signH, 6);
+      else ctx.rect(signX, signY, signW, signH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#8d6e63';
-      ctx.fillText('🥖 КОШАЧЬЯ ПЕКАРНЯ: СВЕЖАЯ ВЫПЕЧКА 🥐', canvasWidth / 2, awningH + 13);
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#6d4c41';
+      ctx.fillText('🥖 КОШАЧЬЯ ПЕКАРНЯ: СВЕЖАЯ ВЫПЕЧКА 🥐', canvasWidth / 2, signY + Math.round(signH / 2));
 
       // Теплый терракотовый пол пекарни
       ctx.fillStyle = '#eddcd2';
@@ -4068,8 +4137,8 @@
       }
 
       // Декоративные рамки на стене
-      drawPictureFrame(45, Math.round(wallH * 0.48), '🥐');
-      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.48), '🥧');
+      drawPictureFrame(45, Math.round(wallH * 0.50), '🥐');
+      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.50), '🥧');
 
       // Корзинка с багетами и колоски на полу
       ctx.font = '22px sans-serif';
@@ -4082,13 +4151,13 @@
     function drawBakeryOven() {
       const ovenStation = bakeryOvenStations[0];
       const ovenX = canvasWidth * 0.50;
-      const ovenY = ovenStation.y + 12;
+      const ovenY = ovenStation.y + 10;
       const hasPushok = (state.bakery?.upgrades?.baker_helper || 0) > 0;
 
       // Кирпичный фасад печи
       ctx.save();
       const ow = hasPushok ? 116 : 94;
-      const oh = 48;
+      const oh = 44;
       ctx.fillStyle = '#a1887f';
       ctx.fillRect(ovenX - ow / 2, ovenY - oh / 2, ow, oh);
       ctx.fillStyle = '#8d6e63';
@@ -4097,24 +4166,24 @@
       // Свод арки печи
       ctx.fillStyle = '#3e2723';
       ctx.beginPath();
-      ctx.arc(ovenX, ovenY + 6, 22, Math.PI, 0, false);
-      ctx.rect(ovenX - 22, ovenY + 6, 44, 16);
+      ctx.arc(ovenX, ovenY + 5, 20, Math.PI, 0, false);
+      ctx.rect(ovenX - 20, ovenY + 5, 40, 14);
       ctx.fill();
 
       // Живое пламя внутри печи
       const flameFlicker = Math.sin(globalGameTime * 10) * 3;
       ctx.fillStyle = '#ff5722';
       ctx.beginPath();
-      ctx.arc(ovenX, ovenY + 12 + flameFlicker, 14, 0, Math.PI * 2);
+      ctx.arc(ovenX, ovenY + 11 + flameFlicker, 13, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffeb3b';
       ctx.beginPath();
-      ctx.arc(ovenX, ovenY + 14 + flameFlicker, 8, 0, Math.PI * 2);
+      ctx.arc(ovenX, ovenY + 13 + flameFlicker, 7, 0, Math.PI * 2);
       ctx.fill();
 
       // Дымоход
       ctx.fillStyle = '#6d4c41';
-      ctx.fillRect(ovenX - 10, ovenY - oh / 2 - 12, 20, 12);
+      ctx.fillRect(ovenX - 10, ovenY - oh / 2 - 10, 20, 10);
       ctx.restore();
 
       // Отрисовка шеф-пекаря Коржика (слева)
@@ -4133,10 +4202,10 @@
       const bob = Math.sin(globalGameTime * 6 + (name === 'Пушок' ? 1.5 : 0)) * 2;
       const cy = y + bob;
 
-      // Тело пекаря
+      // Тело пекаря (пропорциональное 19x19)
       ctx.fillStyle = furColor;
       ctx.beginPath();
-      ctx.ellipse(x, cy, 22, 19, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, cy, 19, 19, 0, 0, Math.PI * 2);
       ctx.fill();
       if (furColor === '#ffffff') {
         ctx.strokeStyle = '#e0e0e0';
@@ -4147,7 +4216,7 @@
       // Белый фартук пекаря
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(x, cy + 4, 14, 11, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, cy + 3, 12, 11, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#d7ccc8';
       ctx.lineWidth = 1;
@@ -4156,45 +4225,45 @@
       // Ушки
       ctx.fillStyle = furColor;
       ctx.beginPath();
-      ctx.moveTo(x - 16, cy - 8); ctx.lineTo(x - 7, cy - 23); ctx.lineTo(x - 1, cy - 10);
+      ctx.moveTo(x - 14, cy - 7); ctx.lineTo(x - 6, cy - 20); ctx.lineTo(x - 1, cy - 9);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(x + 16, cy - 8); ctx.lineTo(x + 7, cy - 23); ctx.lineTo(x + 1, cy - 10);
+      ctx.moveTo(x + 14, cy - 7); ctx.lineTo(x + 6, cy - 20); ctx.lineTo(x + 1, cy - 9);
       ctx.fill();
 
       // Внутренние ушки
       ctx.fillStyle = '#ffab91';
       ctx.beginPath();
-      ctx.moveTo(x - 14, cy - 9); ctx.lineTo(x - 7, cy - 19); ctx.lineTo(x - 3, cy - 10);
+      ctx.moveTo(x - 12, cy - 8); ctx.lineTo(x - 6, cy - 17); ctx.lineTo(x - 3, cy - 9);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(x + 14, cy - 9); ctx.lineTo(x + 7, cy - 19); ctx.lineTo(x + 3, cy - 10);
+      ctx.moveTo(x + 12, cy - 8); ctx.lineTo(x + 6, cy - 17); ctx.lineTo(x + 3, cy - 9);
       ctx.fill();
 
       // Глазки
       ctx.fillStyle = '#3e2723';
       ctx.beginPath();
-      ctx.arc(x - 7, cy - 3, 2.6, 0, Math.PI * 2);
-      ctx.arc(x + 7, cy - 3, 2.6, 0, Math.PI * 2);
+      ctx.arc(x - 6, cy - 3, 2.5, 0, Math.PI * 2);
+      ctx.arc(x + 6, cy - 3, 2.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(x - 8, cy - 4, 0.9, 0, Math.PI * 2);
-      ctx.arc(x + 6, cy - 4, 0.9, 0, Math.PI * 2);
+      ctx.arc(x - 7, cy - 4, 0.9, 0, Math.PI * 2);
+      ctx.arc(x + 5, cy - 4, 0.9, 0, Math.PI * 2);
       ctx.fill();
 
       // Носик
       ctx.fillStyle = '#ff7043';
       ctx.beginPath();
-      ctx.arc(x, cy, 2.0, 0, Math.PI * 2);
+      ctx.arc(x, cy, 1.9, 0, Math.PI * 2);
       ctx.fill();
 
       // Усики
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x - 8, cy); ctx.lineTo(x - 18, cy - 2);
-      ctx.moveTo(x + 8, cy); ctx.lineTo(x + 18, cy - 2);
+      ctx.moveTo(x - 8, cy); ctx.lineTo(x - 17, cy - 2);
+      ctx.moveTo(x + 8, cy); ctx.lineTo(x + 17, cy - 2);
       ctx.stroke();
 
       // Высокий белый колпак пекаря
@@ -4202,13 +4271,13 @@
       ctx.strokeStyle = '#d7ccc8';
       ctx.lineWidth = 1.3;
       ctx.beginPath();
-      ctx.rect(x - 13, cy - 21, 26, 8);
+      ctx.rect(x - 11, cy - 19, 22, 7);
       ctx.fill();
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(x - 7, cy - 26, 8, 0, Math.PI * 2);
-      ctx.arc(x, cy - 30, 9, 0, Math.PI * 2);
-      ctx.arc(x + 7, cy - 26, 8, 0, Math.PI * 2);
+      ctx.arc(x - 6, cy - 23, 7, 0, Math.PI * 2);
+      ctx.arc(x, cy - 27, 8, 0, Math.PI * 2);
+      ctx.arc(x + 6, cy - 23, 7, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
@@ -4216,7 +4285,7 @@
       if (isBaking) {
         ctx.font = '18px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('🥖', x + 18, cy + Math.sin(globalGameTime * 10) * 3);
+        ctx.fillText('🥖', x + 16, cy + Math.sin(globalGameTime * 10) * 3);
       }
 
       ctx.restore();
@@ -4226,27 +4295,26 @@
       if (!station.isBaking || !station.dish) return;
       ctx.save();
       const sx = station.x;
-      const sy = station.y - 20;
-      const barW = 50;
-      const barH = 7;
+      const barW = 44;
+      const barH = 6;
       const bx = sx - barW / 2;
-      const by = sy - 28;
+      const by = station.y - 25;
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 4);
+      if (ctx.roundRect) ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 3);
       else ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
       ctx.fill();
 
       ctx.fillStyle = '#ff9800';
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx, by, barW * station.progress, barH, 3);
+      if (ctx.roundRect) ctx.roundRect(bx, by, barW * station.progress, barH, 2);
       else ctx.rect(bx, by, barW * station.progress, barH);
       ctx.fill();
 
-      ctx.font = '20px sans-serif';
+      ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(station.dish.icon, sx, by - 5);
+      ctx.fillText(station.dish.icon, sx, by - 4);
       ctx.restore();
     }
 
@@ -4283,12 +4351,12 @@
         ctx.strokeStyle = '#d7ccc8';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.ellipse(ox, oy + 4, 15, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(ox, oy + 4, 14, 7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
         // Выпечка
-        ctx.font = '22px sans-serif';
+        ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(o.dish.icon, ox, oy);
@@ -4299,17 +4367,17 @@
           ctx.strokeStyle = '#ffd700';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.ellipse(ox, oy, 18 + pulse, 14 + pulse, 0, 0, Math.PI * 2);
+          ctx.ellipse(ox, oy, 17 + pulse, 13 + pulse, 0, 0, Math.PI * 2);
           ctx.stroke();
 
           ctx.font = '13px sans-serif';
-          ctx.fillText('⭐', ox + 14, oy - 14);
+          ctx.fillText('⭐', ox + 13, oy - 13);
 
           // Плашка приоритета
           ctx.fillStyle = '#ffd700';
           ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(ox - 24, oy + 12, 48, 12, 4);
-          else ctx.rect(ox - 24, oy + 12, 48, 12);
+          if (ctx.roundRect) ctx.roundRect(ox - 22, oy + 12, 44, 12, 4);
+          else ctx.rect(ox - 22, oy + 12, 44, 12);
           ctx.fill();
           ctx.fillStyle = '#3e2723';
           ctx.font = 'bold 8px sans-serif';
@@ -4328,38 +4396,63 @@
         const tx = t.x;
         const ty = t.y;
 
-        // Коврик под столиком
-        drawCozyRug(tx, ty + 12, 58, 32);
+        // Коврик под столиком и стулом
+        drawCozyRug(tx, ty + 2, 58, 38);
 
-        // Столик со скатертью
+        // Ножка столика и основание
         ctx.fillStyle = '#8d6e63';
-        ctx.fillRect(tx - 3, ty + 10, 6, 16);
+        ctx.fillRect(tx - 3, ty + 4, 6, 14);
         ctx.beginPath();
-        ctx.ellipse(tx, ty + 26, 12, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(tx, ty + 18, 11, 4, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Столешница со скатертью в красно-белую клеточку
-        ctx.fillStyle = '#e53935';
+        // Столешница (круглая деревянная)
+        ctx.fillStyle = '#8d6e63';
         ctx.beginPath();
-        ctx.ellipse(tx, ty + 8, 24, 14, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.ellipse(tx, ty + 8, 20, 11, 0, 0, Math.PI * 2);
+        ctx.ellipse(tx, ty + 2, 25, 13, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Сервированное блюдо на столе
+        // Круглая скатерть в теплых кремовых тонах с каймой
+        ctx.fillStyle = '#fff8e7';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 1, 21, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#e0cfc1';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Сервированное блюдо на столе (тарелочка и выпечка)
         if (t.servedDish) {
-          ctx.font = '20px sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.ellipse(tx, ty + 1, 13, 5.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#d7ccc8';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.font = '18px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(t.servedDish.icon, tx, ty + 6);
+          ctx.fillText(t.servedDish.icon, tx, ty - 1);
         } else {
           // Вазочка с цветочком
           ctx.font = '12px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🌼', tx, ty + 4);
+          ctx.fillText('🌼', tx, ty);
+        }
+
+        // Лапки сидящего котика на краю стола
+        if (t.customer && t.customer.state !== 'walking_to_table' && t.customer.state !== 'leaving') {
+          ctx.fillStyle = t.customer.breed.fur;
+          ctx.beginPath();
+          ctx.ellipse(tx - 9, ty - 3, 3.5, 2.5, 0, 0, Math.PI * 2);
+          ctx.ellipse(tx + 9, ty - 3, 3.5, 2.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#d7ccc8';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
         }
       }
       ctx.restore();
@@ -4381,33 +4474,33 @@
         ctx.quadraticCurveTo(cx - 18, cy, cx - 16, cy - 9 + Math.sin(globalGameTime * 5) * 3);
         ctx.stroke();
 
-        // Тело
+        // Тело (пропорциональное 18x18)
         ctx.fillStyle = c.breed.fur;
         ctx.beginPath();
-        ctx.ellipse(cx, cy, 21, 18, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, 18, 18, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Ушки
         ctx.beginPath();
-        ctx.moveTo(cx - 14, cy - 7); ctx.lineTo(cx - 6, cy - 20); ctx.lineTo(cx - 1, cy - 9);
+        ctx.moveTo(cx - 13, cy - 7); ctx.lineTo(cx - 6, cy - 20); ctx.lineTo(cx - 1, cy - 9);
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(cx + 14, cy - 7); ctx.lineTo(cx + 6, cy - 20); ctx.lineTo(cx + 1, cy - 9);
+        ctx.moveTo(cx + 13, cy - 7); ctx.lineTo(cx + 6, cy - 20); ctx.lineTo(cx + 1, cy - 9);
         ctx.fill();
 
         ctx.fillStyle = c.breed.ear;
         ctx.beginPath();
-        ctx.moveTo(cx - 12, cy - 8); ctx.lineTo(cx - 6, cy - 17); ctx.lineTo(cx - 3, cy - 9);
+        ctx.moveTo(cx - 11, cy - 8); ctx.lineTo(cx - 6, cy - 17); ctx.lineTo(cx - 3, cy - 9);
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(cx + 12, cy - 8); ctx.lineTo(cx + 6, cy - 17); ctx.lineTo(cx + 3, cy - 9);
+        ctx.moveTo(cx + 11, cy - 8); ctx.lineTo(cx + 6, cy - 17); ctx.lineTo(cx + 3, cy - 9);
         ctx.fill();
 
         // Глазки
         ctx.fillStyle = c.breed.eye;
         ctx.beginPath();
-        ctx.arc(cx - 6, cy - 3, 2.7, 0, Math.PI * 2);
-        ctx.arc(cx + 6, cy - 3, 2.7, 0, Math.PI * 2);
+        ctx.arc(cx - 6, cy - 3, 2.6, 0, Math.PI * 2);
+        ctx.arc(cx + 6, cy - 3, 2.6, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
@@ -4418,16 +4511,24 @@
         // Носик
         ctx.fillStyle = c.breed.ear;
         ctx.beginPath();
-        ctx.arc(cx, cy + 1, 1.9, 0, Math.PI * 2);
+        ctx.arc(cx, cy + 1, 1.8, 0, Math.PI * 2);
         ctx.fill();
+
+        // Усики
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 17, cy - 1);
+        ctx.moveTo(cx + 8, cy); ctx.lineTo(cx + 17, cy - 1);
+        ctx.stroke();
 
         // Облачко заказа или сердечко
         if (c.state === 'waiting_order') {
-          drawThoughtBubble(cx, cy - 34, c.dish.icon, false, false, 0, 1, 20, 20, false);
+          drawThoughtBubble(cx, cy - 30, c.dish.icon, false, false, 0, 1, 20, 20, false);
         } else if (c.state === 'eating') {
           ctx.font = '22px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('❤️', cx, cy - 34);
+          ctx.fillText('❤️', cx, cy - 30);
         }
 
         ctx.restore();
@@ -4439,54 +4540,54 @@
       const wx = waiterCat.x;
       const wy = waiterCat.y + Math.sin(waiterCat.walkAnim) * 2;
 
-      // Тело официанта Пончика (темно-серый котик)
+      // Тело официанта Пончика (пропорциональное 18x18)
       ctx.fillStyle = '#37474f';
       ctx.beginPath();
-      ctx.ellipse(wx, wy, 20, 17, 0, 0, Math.PI * 2);
+      ctx.ellipse(wx, wy, 18, 18, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Белая манишка
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(wx, wy + 2, 11, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(wx, wy + 2, 10, 10, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Красный галстук-бабочка 🎀
       ctx.fillStyle = '#e53935';
       ctx.beginPath();
-      ctx.moveTo(wx - 6, wy - 5); ctx.lineTo(wx + 6, wy - 1); ctx.lineTo(wx + 6, wy - 5); ctx.lineTo(wx - 6, wy - 1);
+      ctx.moveTo(wx - 5, wy - 4); ctx.lineTo(wx + 5, wy); ctx.lineTo(wx + 5, wy - 4); ctx.lineTo(wx - 5, wy);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(wx, wy - 3, 2, 0, Math.PI * 2);
+      ctx.arc(wx, wy - 2, 2, 0, Math.PI * 2);
       ctx.fill();
 
       // Ушки
       ctx.fillStyle = '#37474f';
       ctx.beginPath();
-      ctx.moveTo(wx - 14, wy - 6); ctx.lineTo(wx - 6, wy - 20); ctx.lineTo(wx - 1, wy - 8);
+      ctx.moveTo(wx - 13, wy - 6); ctx.lineTo(wx - 6, wy - 19); ctx.lineTo(wx - 1, wy - 8);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(wx + 14, wy - 6); ctx.lineTo(wx + 6, wy - 20); ctx.lineTo(wx + 1, wy - 8);
+      ctx.moveTo(wx + 13, wy - 6); ctx.lineTo(wx + 6, wy - 19); ctx.lineTo(wx + 1, wy - 8);
       ctx.fill();
 
       ctx.fillStyle = '#f8bbd0';
       ctx.beginPath();
-      ctx.moveTo(wx - 12, wy - 7); ctx.lineTo(wx - 6, wy - 16); ctx.lineTo(wx - 3, wy - 8);
+      ctx.moveTo(wx - 11, wy - 7); ctx.lineTo(wx - 6, wy - 15); ctx.lineTo(wx - 3, wy - 8);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(wx + 12, wy - 7); ctx.lineTo(wx + 6, wy - 16); ctx.lineTo(wx + 3, wy - 8);
+      ctx.moveTo(wx + 11, wy - 7); ctx.lineTo(wx + 6, wy - 15); ctx.lineTo(wx + 3, wy - 8);
       ctx.fill();
 
       // Глазки
       ctx.fillStyle = '#fdd835';
       ctx.beginPath();
-      ctx.arc(wx - 6, wy - 2, 2.5, 0, Math.PI * 2);
-      ctx.arc(wx + 6, wy - 2, 2.5, 0, Math.PI * 2);
+      ctx.arc(wx - 5, wy - 2, 2.5, 0, Math.PI * 2);
+      ctx.arc(wx + 5, wy - 2, 2.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(wx - 7, wy - 3, 0.9, 0, Math.PI * 2);
-      ctx.arc(wx + 5, wy - 3, 0.9, 0, Math.PI * 2);
+      ctx.arc(wx - 6, wy - 3, 0.9, 0, Math.PI * 2);
+      ctx.arc(wx + 4, wy - 3, 0.9, 0, Math.PI * 2);
       ctx.fill();
 
       // Носик
@@ -4501,14 +4602,14 @@
         ctx.strokeStyle = '#90a4ae';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.ellipse(wx + 16, wy - 4, 14, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(wx + 14, wy - 3, 13, 6, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
         ctx.font = '18px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(waiterCat.carryingDish.icon, wx + 16, wy - 12);
+        ctx.fillText(waiterCat.carryingDish.icon, wx + 14, wy - 11);
       }
 
       ctx.restore();
@@ -4535,6 +4636,7 @@
         if (btn) btn.setAttribute('aria-label', 'Свернуть магазин');
       }
       setTimeout(resizeCanvas, 60);
+      setTimeout(resizeCanvas, 320);
     }
 
     function updateUI() {
@@ -4559,7 +4661,7 @@
       if (state.currentVenue === 'bakery') {
         if (cafeBtn) cafeBtn.classList.remove('active');
         if (bakeryBtn) bakeryBtn.classList.add('active');
-        if (tapHintEl) tapHintEl.innerText = '⭐ Нажми на выпечку на витрине, чтобы официант отнёс её первой!';
+        if (tapHintEl) tapHintEl.innerText = 'Нажми на блюдо — официант подаст его первым';
         if (shopTitleEl) shopTitleEl.innerText = '🥐 Улучшения пекарни';
 
         // Заголовок
@@ -4573,10 +4675,17 @@
         document.getElementById('orders-display').innerText = formatOrdersCount(state.bakery.ordersServed);
 
         // Индикатор рецептов
+        const featIconEl = document.getElementById('featured-stat-icon');
+        if (featIconEl) featIconEl.innerText = '🥐';
         const featStatEl = document.getElementById('featured-stat-name');
         if (featStatEl) {
           const unlockedRecs = getBakeryUnlockedRecipes().length;
-          featStatEl.innerText = `🥐 Рецепты: ${unlockedRecs}/3`;
+          featStatEl.innerText = `Рецепты: ${unlockedRecs} из 3`;
+        }
+        const featPillEl = document.getElementById('featured-stat-pill');
+        if (featPillEl) {
+          featPillEl.title = 'Открытые рецепты выпечки';
+          featPillEl.style.cursor = 'default';
         }
 
         // Обновление текущей цели развития пекарни
@@ -4710,12 +4819,19 @@
 
       // Блюдо дня в шапке
       const curFeatured = getFeaturedDish();
+      const featIconEl = document.getElementById('featured-stat-icon');
+      if (featIconEl) featIconEl.innerText = '⭐';
       const featStatEl = document.getElementById('featured-stat-name');
       if (featStatEl) {
         let bonusTag = '+20%';
         if (curFeatured.id === 'cake') bonusTag = '+50%';
         else if (curFeatured.id === 'sandwich') bonusTag = '+20% +6 🪙';
         featStatEl.innerText = `${curFeatured.icon} ${curFeatured.name} (${bonusTag})`;
+      }
+      const featPillEl = document.getElementById('featured-stat-pill');
+      if (featPillEl) {
+        featPillEl.title = 'Выбрать фирменное блюдо';
+        featPillEl.style.cursor = 'pointer';
       }
 
       // Обновление текущей цели развития кафе
@@ -4949,6 +5065,7 @@
 
     // --- 12.1. Управление модальным окном выбора Блюда дня ---
     function openFeaturedModal() {
+      if (state.currentVenue === 'bakery') return;
       initAudio();
       renderFeaturedModal();
       const modal = document.getElementById('featured-modal');
@@ -5113,6 +5230,7 @@
         resetBakerySimulationState,
         spawnBakeryCustomer,
         addBakeryCoins: (n) => { if (state.bakery) { state.bakery.coins += n; updateUI(); } },
+        clearParticles: () => { visualParticles = []; },
         BAKERY_RECIPES,
         BAKERY_UPGRADES,
         BAKERY_QUESTS,

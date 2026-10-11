@@ -1,16 +1,91 @@
-const puppeteer = require('puppeteer-core');
 const path = require('path');
 const fs = require('fs');
 
-const FILE_URL = 'file://' + path.resolve(__dirname, '../web/cafe/index.html');
+function findGameHtmlPath() {
+  if (process.argv[2] && fs.existsSync(process.argv[2])) {
+    return path.resolve(process.argv[2]);
+  }
+  if (process.env.GAME_HTML_PATH && fs.existsSync(process.env.GAME_HTML_PATH)) {
+    return path.resolve(process.env.GAME_HTML_PATH);
+  }
+  const candidateRelatives = [
+    '../web/cafe/index.html',
+    '../cafe.html',
+    '../index.html',
+    'web/cafe/index.html',
+    'cafe.html',
+    'index.html',
+    './cafe.html',
+    './web/cafe/index.html'
+  ];
+  for (const rel of candidateRelatives) {
+    const fromDir = path.resolve(__dirname, rel);
+    if (fs.existsSync(fromDir)) return fromDir;
+    const fromCwd = path.resolve(process.cwd(), rel);
+    if (fs.existsSync(fromCwd)) return fromCwd;
+  }
+  const knownAbsolutes = [
+    '/Users/ksh/GolandProjects/awesomeProject/web/cafe/index.html',
+    '/Users/ksh/GolandProjects/pacman-game/cafe.html'
+  ];
+  for (const abs of knownAbsolutes) {
+    if (fs.existsSync(abs)) return abs;
+  }
+  throw new Error('Game HTML file not found! Searched: ' + candidateRelatives.join(', '));
+}
+
+function getPuppeteer() {
+  try {
+    return require('puppeteer-core');
+  } catch (e1) {
+    try {
+      return require('puppeteer');
+    } catch (e2) {
+      const scratchDir = '/Users/ksh/.gemini/antigravity/brain/ffa885fb-fa06-401d-b1a0-6698d13a18df/scratch/node_modules/puppeteer-core';
+      if (fs.existsSync(scratchDir)) {
+        return require(scratchDir);
+      }
+      throw new Error('Puppeteer is not installed. Run: npm install puppeteer-core or npm install puppeteer');
+    }
+  }
+}
+
+function findChromePath() {
+  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
+    return process.env.CHROME_PATH;
+  }
+  const candidates = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return undefined;
+}
+
+const gameHtmlFile = findGameHtmlPath();
+const FILE_URL = 'file://' + gameHtmlFile;
 
 async function runTests() {
   console.log('🚀 Запуск верификационного пакета: Исправление офлайн-дохода и учёта времени...');
-  const browser = await puppeteer.launch({
+  console.log('Целевой HTML игры:', gameHtmlFile);
+  const puppeteer = getPuppeteer();
+  const chromePath = findChromePath();
+  const launchOptions = {
     headless: true,
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  };
+  if (chromePath) {
+    launchOptions.executablePath = chromePath;
+  }
+  const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
   const consoleErrors = [];
