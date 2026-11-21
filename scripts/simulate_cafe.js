@@ -47,19 +47,46 @@ function createGameEngine(htmlPath) {
     devicePixelRatio: 1
   };
 
+  // Универсальная заглушка: любой метод — no-op, любое свойство — снова заглушка.
+  // Так симулятору не нужно знать о каждом новом вызове Canvas/DOM API в игре.
+  const makeStub = () => {
+    const target = function () {};
+    const handler = {
+      get: (t, prop) => {
+        if (prop === Symbol.toPrimitive) return () => 0;
+        if (prop in t) return t[prop];
+        return stub;
+      },
+      apply: () => stub,
+      construct: () => stub,
+      set: (t, prop, value) => { t[prop] = value; return true; }
+    };
+    const stub = new Proxy(target, handler);
+    return stub;
+  };
+  const makeElement = () => {
+    const el = makeStub();
+    el.innerText = '';
+    el.innerHTML = '';
+    el.style = {};
+    el.dataset = {};
+    el.classList = { add: () => {}, remove: () => {}, contains: () => false };
+    el.addEventListener = () => {};
+    el.getContext = () => makeStub();
+    el.getBoundingClientRect = () => ({ width: 380, height: 340, left: 0, top: 0 });
+    el.width = 380;
+    el.height = 340;
+    return el;
+  };
+
   const mockDoc = {
-    getElementById: () => ({
-      innerText: '',
-      style: {},
-      classList: { add: () => {}, remove: () => {} },
-      getContext: () => ({
-        scale: () => {}, clearRect: () => {}, fillRect: () => {}, save: () => {}, restore: () => {},
-        beginPath: () => {}, rect: () => {}, arc: () => {}, ellipse: () => {}, fill: () => {}, stroke: () => {}, fillText: () => {}
-      }),
-      getBoundingClientRect: () => ({ width: 380, height: 340, left: 0, top: 0 })
-    }),
-    querySelector: () => ({ innerText: '' }),
-    querySelectorAll: () => []
+    getElementById: () => makeElement(),
+    createElement: () => makeElement(),
+    querySelector: () => makeElement(),
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+    visibilityState: 'visible',
+    hidden: false
   };
 
   const sandbox = {
