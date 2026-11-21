@@ -304,10 +304,12 @@
     //  Звук (Web Audio, синтез, обход беззвучного режима iOS)
     // =====================================================================
     const AC = window.AudioContext || window.webkitAudioContext;
-    let actx = null, master = null, sirenOsc = null, sirenGain = null, sirenPhase = 0;
+    let actx = null, master = null, bus = null;
     let audioUnlocked = false;
     let soundOn = lsGet('pacman_sound', '1') !== '0';
-    let wakaFlip = false;
+    // Пентатоника (до мажор): любые сочетания нот звучат благозвучно
+    const PENTA = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51];
+    let dotNote = 3;
 
     function unlockAudio() {
       if (!AC) return;
@@ -317,6 +319,17 @@
           master = actx.createGain();
           master.gain.value = soundOn ? 0.9 : 0;
           master.connect(actx.destination);
+          // Мягкая цепочка: фильтр срезает резкие верха + лёгкое эхо для «тёплого» звучания
+          bus = actx.createGain();
+          bus.gain.value = 1.4;
+          const lp = actx.createBiquadFilter();
+          lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.4;
+          bus.connect(lp); lp.connect(master);
+          const delay = actx.createDelay(1);
+          delay.delayTime.value = 0.14;
+          const fb = actx.createGain(); fb.gain.value = 0.2;
+          const wet = actx.createGain(); wet.gain.value = 0.16;
+          lp.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
         }
         if (actx.state === 'suspended') actx.resume();
         if (!audioUnlocked) {
@@ -335,43 +348,56 @@
       if (!document.hidden && actx && actx.state === 'suspended') tgCall(() => actx.resume());
     });
 
-    function tone(freq, dur, opt) {
+    // Мягкая нота: плавная атака (без щелчков) и затухание
+    function note(freq, dur, opt) {
       if (!actx || !soundOn) return;
       opt = opt || {};
       const t = actx.currentTime + (opt.delay || 0);
+      const vol = opt.vol || 0.08;
       const o = actx.createOscillator();
       const g = actx.createGain();
-      o.type = opt.type || 'square';
+      o.type = opt.type || 'sine';
       o.frequency.setValueAtTime(freq, t);
       if (opt.slideTo) o.frequency.exponentialRampToValueAtTime(opt.slideTo, t + dur);
-      g.gain.setValueAtTime(opt.vol || 0.08, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + (opt.attack || 0.008));
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g); g.connect(master);
-      o.start(t); o.stop(t + dur + 0.03);
+      o.connect(g); g.connect(bus);
+      o.start(t); o.stop(t + dur + 0.05);
+    }
+    // «Маримба»: основной тон + тихий короткий обертон
+    function pluck(freq, vol, delay) {
+      note(freq, 0.32, { vol, delay });
+      note(freq * 4, 0.05, { vol: vol * 0.12, delay });
     }
     const SFX = {
+      // Точки: тихие капельки, бродящие по пентатонике — получается ненавязчивая мелодия
       waka() {
-        wakaFlip = !wakaFlip;
-        if (wakaFlip) tone(240, 0.075, { type: 'triangle', slideTo: 480, vol: 0.13 });
-        else tone(480, 0.075, { type: 'triangle', slideTo: 240, vol: 0.13 });
+        dotNote += Math.random() < 0.5 ? -1 : 1;
+        if (dotNote < 0) dotNote = 1;
+        if (dotNote >= PENTA.length) dotNote = PENTA.length - 2;
+        pluck(PENTA[dotNote], 0.045, 0);
       },
-      power() { tone(300, 0.3, { type: 'sawtooth', slideTo: 1100, vol: 0.07 }); },
-      eatGhost() { tone(180, 0.32, { type: 'square', slideTo: 1500, vol: 0.07 }); },
-      fruit() { [660, 880, 1175].forEach((f, i) => tone(f, 0.1, { type: 'sine', vol: 0.15, delay: i * 0.06 })); },
-      extraLife() { [880, 1320, 880, 1320, 1760].forEach((f, i) => tone(f, 0.09, { type: 'square', vol: 0.06, delay: i * 0.08 })); },
+      power() { [659.25, 880, 1318.51].forEach((f, i) => pluck(f, 0.08, i * 0.07)); },
+      eatGhost() {
+        note(330, 0.3, { vol: 0.08, slideTo: 880 });
+        pluck(1318.51, 0.05, 0.16);
+      },
+      fruit() { [783.99, 1046.5, 1318.51].forEach((f, i) => pluck(f, 0.08, i * 0.06)); },
+      extraLife() { [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, i) => pluck(f, 0.07, i * 0.09)); },
       die() {
-        for (let i = 0; i < 9; i++) tone(760 - i * 60, 0.13, { type: 'square', slideTo: 520 - i * 50, vol: 0.06, delay: i * 0.11 });
-        tone(120, 0.12, { type: 'sine', vol: 0.15, delay: 1.05 });
-        tone(110, 0.12, { type: 'sine', vol: 0.15, delay: 1.2 });
+        note(587.33, 1.1, { vol: 0.09, slideTo: 147, attack: 0.03 });
+        note(293.66, 1.1, { vol: 0.04, slideTo: 73, type: 'triangle', attack: 0.03 });
+        note(196, 0.35, { vol: 0.07, delay: 1.15 });
+        note(130.81, 0.5, { vol: 0.07, delay: 1.35 });
       },
-      levelClear() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.14, { type: 'sine', vol: 0.18, delay: i * 0.11 })); },
+      levelClear() { [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((f, i) => pluck(f, 0.08, i * 0.12)); },
       jingle() {
         // Собственная короткая мелодия старта
-        const seq = [392, 523, 659, 784, 659, 523, 587, 784, 1047];
-        seq.forEach((f, i) => tone(f, 0.12, { type: 'triangle', vol: 0.14, delay: i * 0.14 }));
-        [196, 262, 196, 294].forEach((f, i) => tone(f, 0.25, { type: 'sine', vol: 0.12, delay: i * 0.31 }));
+        [392, 523.25, 659.25, 783.99, 659.25, 523.25, 587.33, 783.99, 1046.5].forEach((f, i) => pluck(f, 0.07, i * 0.15));
+        [130.81, 196, 130.81, 146.83].forEach((f, i) => note(f, 0.5, { vol: 0.06, delay: i * 0.34, attack: 0.02 }));
       },
-      tick() { tone(1200, 0.03, { type: 'square', vol: 0.03 }); },
+      tick() { pluck(1567.98, 0.03, 0); },
     };
 
     function setSound(on) {
@@ -379,36 +405,6 @@
       lsSet('pacman_sound', on ? '1' : '0');
       if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, actx.currentTime, 0.02);
       document.getElementById('btn-sound').textContent = on ? '🔊' : '🔇';
-    }
-
-    function updateSiren() {
-      if (!actx) return;
-      const active = soundOn && phase === 'play';
-      if (active && !sirenOsc) {
-        try {
-          sirenOsc = actx.createOscillator();
-          sirenGain = actx.createGain();
-          sirenOsc.type = 'triangle';
-          sirenGain.gain.value = 0;
-          sirenOsc.connect(sirenGain); sirenGain.connect(master);
-          sirenOsc.start();
-        } catch (e) { sirenOsc = null; return; }
-      }
-      if (!sirenOsc) return;
-      const now = actx.currentTime;
-      sirenGain.gain.setTargetAtTime(active ? 0.045 : 0, now, 0.04);
-      if (!active) return;
-      let f;
-      if (ghosts.some(g => g.mode === 'eaten')) {
-        f = 760 + 220 * Math.sin(frame * 0.7);
-      } else if (frightTicks > 0) {
-        f = 200 + 70 * Math.sin(frame * 0.55);
-      } else {
-        const prog = totalDots ? dotsEaten / totalDots : 0;
-        sirenPhase += 0.09 + prog * 0.14;
-        f = 330 + prog * 160 + 75 * Math.sin(sirenPhase);
-      }
-      sirenOsc.frequency.setTargetAtTime(f, now, 0.02);
     }
 
     // =====================================================================
@@ -1049,7 +1045,6 @@
           playTick();
           break;
       }
-      updateSiren();
     }
 
     function playTick() {
@@ -1523,6 +1518,7 @@
       stepTime,
       startGame, startNextLevel, pauseGame, resumeGame, onPrimary,
       setDirection,
+      sfx: SFX,
       initLevel(lvl) { initLevel(lvl); },
       blocked: (c, r) => blocked(c, r, null),
       setGhost(i, o) { Object.assign(ghosts[i], o); },
