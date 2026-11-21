@@ -2,202 +2,161 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Pac-Man Mini App</title>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
+    :root { --bg: #07070f; --accent: #2121de; --glow: rgba(33, 33, 222, 0.45); }
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     html, body {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      margin: 0;
-      padding: 0;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
       overscroll-behavior: none;
-      -webkit-overscroll-behavior: none;
-      background-color: #0b0b14;
+      touch-action: none;
+      background: var(--bg);
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
-      touch-action: none;
-      user-select: none;
-      -webkit-user-select: none;
     }
+
+    /* ---------- HUD ---------- */
     #header {
+      flex: none;
       width: 100%;
-      max-width: 420px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 14px;
-      font-size: 15px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      border-bottom: 2px solid #1a1a2e;
+      max-width: 440px;
+      padding: calc(8px + env(safe-area-inset-top)) 14px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     }
-    .score-box {
-      display: flex;
-      flex-direction: column;
+    .hud-row { display: flex; justify-content: space-between; align-items: center; }
+    .stat { display: flex; flex-direction: column; min-width: 92px; }
+    .stat.center { align-items: center; }
+    .stat.right { align-items: flex-end; }
+    .stat-label { font-size: 9px; color: #8a8aa8; letter-spacing: 1.5px; font-weight: 700; }
+    .stat-val {
+      font-size: 19px; font-weight: 800; color: #ffe14d;
+      text-shadow: 0 0 8px rgba(255, 225, 77, 0.55);
+      font-variant-numeric: tabular-nums;
     }
-    .score-label {
-      font-size: 9px;
-      color: #888;
+    .stat-val.level { color: #00e5ff; text-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
+    .hud-sub { margin-top: 5px; min-height: 30px; }
+    #lives { display: flex; gap: 6px; min-width: 92px; }
+    .life {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: conic-gradient(#ffd400 0deg 60deg, transparent 60deg 120deg, #ffd400 120deg 360deg);
+      filter: drop-shadow(0 0 3px rgba(255, 212, 0, 0.65));
     }
-    .score-val {
-      color: #ffff00;
-      font-size: 18px;
-      text-shadow: 0 0 8px rgba(255, 255, 0, 0.6);
+    #level-name { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #9aa3c7; text-align: center; }
+    .hud-buttons { display: flex; gap: 8px; min-width: 92px; justify-content: flex-end; }
+    .icon-btn {
+      width: 36px; height: 30px; border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff; font-size: 15px; line-height: 1;
+      cursor: pointer; touch-action: manipulation;
     }
-    .level-val {
-      color: #00e5ff;
-      font-size: 18px;
-      text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
-    }
-    .lives-box {
-      font-size: 16px;
-    }
+    .icon-btn:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.14); }
+
+    /* ---------- Поле ---------- */
     #game-container {
       position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
       width: 100%;
-      max-width: 380px;
+      max-width: 560px;
       display: flex;
-      justify-content: center;
       align-items: center;
-      flex-grow: 1;
-      padding: 4px;
+      justify-content: center;
+      padding: 6px;
     }
     canvas {
-      background-color: #000;
-      border: 3px solid #2121de;
-      border-radius: 8px;
-      box-shadow: 0 0 20px rgba(33, 33, 222, 0.4);
-      max-width: 100%;
-      max-height: 60vh;
-      transition: border-color 0.3s, box-shadow 0.3s;
+      display: block;
+      border-radius: 10px;
+      border: 2px solid var(--accent);
+      box-shadow: 0 0 24px var(--glow), inset 0 0 12px var(--glow);
+      background: #000;
+      transition: border-color 0.4s, box-shadow 0.4s;
     }
-    /* Виртуальный джойстик на смартфонах */
-    #dpad {
-      display: grid;
-      grid-template-columns: repeat(3, 60px);
-      grid-template-rows: repeat(2, 50px);
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-    .dpad-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 22px;
-      color: #fff;
-      cursor: pointer;
-      touch-action: manipulation;
-      transition: background 0.1s, transform 0.1s;
-    }
-    .dpad-btn:active {
-      background: rgba(255, 255, 0, 0.3);
-      transform: scale(0.92);
-    }
-    #btn-up { grid-column: 2; grid-row: 1; }
-    #btn-left { grid-column: 1; grid-row: 2; }
-    #btn-down { grid-column: 2; grid-row: 2; }
-    #btn-right { grid-column: 3; grid-row: 2; }
 
-    /* Оверлей меню / Game Over */
+    /* ---------- Оверлей ---------- */
     #overlay {
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.88);
+      inset: 0;
+      z-index: 10;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
-      z-index: 10;
-      border-radius: 8px;
+      justify-content: center;
+      padding: 18px;
       text-align: center;
-      padding: 20px;
+      background: rgba(4, 4, 12, 0.86);
+      -webkit-backdrop-filter: blur(3px);
+      backdrop-filter: blur(3px);
+      overflow-y: auto;
+      touch-action: pan-y;
     }
     #overlay h2 {
-      font-size: 26px;
-      color: #ffff00;
-      margin-bottom: 8px;
-      text-shadow: 0 0 10px rgba(255,255,0,0.8);
+      font-size: 26px; color: #ffe14d; margin-bottom: 8px; letter-spacing: 1px;
+      text-shadow: 0 0 12px rgba(255, 225, 77, 0.8);
     }
-    #overlay p {
-      font-size: 15px;
-      color: #ddd;
-      margin-bottom: 18px;
-      line-height: 1.4;
+    #overlay p { font-size: 14px; color: #d6d6e6; margin-bottom: 14px; line-height: 1.45; max-width: 300px; }
+    #overlay .hint { font-size: 11px; color: #7d7d9a; margin-top: 6px; margin-bottom: 0; }
+    .new-record { color: #ffe14d; font-weight: 800; }
+    #top-scores { width: 100%; max-width: 260px; margin-bottom: 14px; font-size: 13px; }
+    #top-scores .row {
+      display: flex; justify-content: space-between; padding: 4px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06); color: #c9c9dc;
+      font-variant-numeric: tabular-nums;
     }
+    #top-scores .row.me { color: #ffe14d; font-weight: 700; }
+    #top-scores .title { font-size: 10px; letter-spacing: 1.5px; color: #8a8aa8; font-weight: 700; margin-bottom: 4px; }
     .btn-action {
-      background: #2121de;
+      background: var(--accent);
       color: #fff;
       border: none;
       padding: 12px 28px;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 800;
       border-radius: 25px;
       cursor: pointer;
-      box-shadow: 0 0 15px rgba(33, 33, 222, 0.8);
+      box-shadow: 0 0 16px var(--glow);
       margin-bottom: 10px;
+      touch-action: manipulation;
       transition: transform 0.1s;
     }
-    .btn-action:active {
-      transform: scale(0.95);
-    }
-    .btn-secondary {
-      background: #333;
-      box-shadow: none;
-    }
-    /* Ползунок и кнопки скорости */
+    .btn-action:active { transform: scale(0.95); }
+    .btn-secondary { background: #2a2a3a; box-shadow: none; font-size: 14px; padding: 10px 22px; }
+
     .settings-box {
       width: 100%;
       max-width: 290px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 14px;
       padding: 10px 12px;
-      margin-bottom: 15px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      margin-bottom: 14px;
       text-align: left;
     }
     .setting-label-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-      color: #bbb;
-      font-weight: 600;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; color: #bbb; font-weight: 600; margin-bottom: 6px;
     }
-    .setting-val {
-      color: #00ffff;
-      font-size: 13px;
-      font-weight: 700;
-    }
-    .speed-btn-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 5px;
-      margin: 4px 0;
-    }
+    .setting-val { color: #00ffff; font-size: 13px; font-weight: 700; }
+    .speed-btn-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
     .speed-pill {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -205,174 +164,256 @@
       color: #bbb;
       font-size: 11px;
       font-weight: bold;
-      padding: 7px 2px;
+      padding: 8px 2px;
       cursor: pointer;
       touch-action: manipulation;
       transition: all 0.15s;
     }
-    .speed-pill:active {
-      transform: scale(0.94);
+    .speed-pill:active { transform: scale(0.94); }
+    .speed-pill.active { background: #2121de; border-color: #00ffff; color: #fff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.55); }
+
+    /* ---------- Джойстик ---------- */
+    #dpad {
+      flex: none;
+      display: grid;
+      grid-template-columns: repeat(3, 72px);
+      grid-template-rows: repeat(2, 54px);
+      gap: 8px;
+      margin: 6px 0 calc(10px + env(safe-area-inset-bottom));
     }
-    .speed-pill.active {
-      background: #2121de;
-      border-color: #00ffff;
-      color: #fff;
-      box-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
-    }
-    input[type=range] {
-      width: 100%;
-      accent-color: #2121de;
+    .dpad-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 14px;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 22px; color: #6fefff;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.7);
       cursor: pointer;
-      height: 8px;
-      border-radius: 4px;
-      margin: 4px 0 2px 0;
+      touch-action: none;
+      transition: background 0.08s, transform 0.08s;
+    }
+    .dpad-btn.pressed, .dpad-btn:active { background: rgba(255, 225, 77, 0.28); transform: scale(0.93); color: #fff; }
+    #btn-up { grid-column: 2; grid-row: 1; }
+    #btn-left { grid-column: 1; grid-row: 2; }
+    #btn-down { grid-column: 2; grid-row: 2; }
+    #btn-right { grid-column: 3; grid-row: 2; }
+    @media (max-height: 660px) {
+      #dpad { grid-template-rows: repeat(2, 44px); grid-template-columns: repeat(3, 64px); gap: 6px; }
+      .stat-val { font-size: 16px; }
     }
   </style>
 </head>
 <body>
 
   <div id="header">
-    <div class="score-box">
-      <span class="score-label">СЧЁТ</span>
-      <span id="score" class="score-val">0</span>
+    <div class="hud-row">
+      <div class="stat">
+        <span class="stat-label">СЧЁТ</span>
+        <span id="score" class="stat-val">0</span>
+      </div>
+      <div class="stat center">
+        <span class="stat-label">УРОВЕНЬ</span>
+        <span id="level-display" class="stat-val level">1</span>
+      </div>
+      <div class="stat right">
+        <span class="stat-label">РЕКОРД</span>
+        <span id="high-score" class="stat-val">0</span>
+      </div>
     </div>
-    <div class="score-box">
-      <span class="score-label">УРОВЕНЬ</span>
-      <span id="level-display" class="level-val">1 / 3</span>
-    </div>
-    <div class="score-box">
-      <span class="score-label">РЕКОРД</span>
-      <span id="high-score" class="score-val">0</span>
-    </div>
-    <div class="lives-box" id="lives-display">
-      🟡 🟡 🟡
+    <div class="hud-row hud-sub">
+      <div id="lives"></div>
+      <div id="level-name">НЕОНОВЫЙ ЛАБИРИНТ</div>
+      <div class="hud-buttons">
+        <button class="icon-btn" id="btn-sound" aria-label="Звук">🔊</button>
+        <button class="icon-btn" id="btn-pause" aria-label="Пауза">⏸</button>
+      </div>
     </div>
   </div>
 
   <div id="game-container">
-    <canvas id="canvas" width="380" height="420"></canvas>
-    
+    <canvas id="canvas"></canvas>
+
     <div id="overlay">
       <h2 id="overlay-title">PAC-MAN 🕹️</h2>
-      <p id="overlay-desc">Пройди все 3 уровня, собери точки и берегись призраков!</p>
+      <p id="overlay-desc">Собери все точки и берегись призраков! Уровни бесконечны — с каждым кругом призраки быстрее.</p>
+      <div id="top-scores" style="display:none;"></div>
 
-      <div class="settings-box">
+      <div class="settings-box" id="settings-box">
         <div class="setting-label-row">
           <span>Скорость призраков:</span>
           <span id="ghost-speed-val" class="setting-val">🚶 Релакс (50%)</span>
         </div>
         <div class="speed-btn-row">
-          <button class="speed-pill" id="g-spd-1" onclick="onGhostSpeedChange(1)">🐢 33%</button>
-          <button class="speed-pill active" id="g-spd-2" onclick="onGhostSpeedChange(2)">🚶 50%</button>
-          <button class="speed-pill" id="g-spd-3" onclick="onGhostSpeedChange(3)">⚡ 75%</button>
-          <button class="speed-pill" id="g-spd-4" onclick="onGhostSpeedChange(4)">🚀 100%</button>
+          <button class="speed-pill" id="g-spd-1" data-speed="1">🐢 33%</button>
+          <button class="speed-pill active" id="g-spd-2" data-speed="2">🚶 50%</button>
+          <button class="speed-pill" id="g-spd-3" data-speed="3">⚡ 75%</button>
+          <button class="speed-pill" id="g-spd-4" data-speed="4">🚀 100%</button>
         </div>
-        <input type="range" id="ghost-speed-slider" min="1" max="4" value="2" step="1" oninput="onGhostSpeedChange(this.value)">
       </div>
 
-      <button class="btn-action" id="btn-start" onclick="handleOverlayClick()">ИГРАТЬ 🕹️</button>
-      <button class="btn-action btn-secondary" id="btn-send-score" style="display:none;" onclick="sendScoreToTelegram()">СОХРАНИТЬ РЕКОРД 🏆</button>
+      <button class="btn-action" id="btn-start">ИГРАТЬ 🕹️</button>
+      <button class="btn-action btn-secondary" id="btn-secondary" style="display:none;">ЗАНОВО</button>
+      <p class="hint" id="overlay-hint">Свайп по экрану или кнопки • ⏸ — пауза</p>
     </div>
   </div>
 
   <!-- Экранный джойстик -->
   <div id="dpad">
-    <button class="dpad-btn" id="btn-up">⬆️</button>
-    <button class="dpad-btn" id="btn-left">⬅️</button>
-    <button class="dpad-btn" id="btn-down">⬇️</button>
-    <button class="dpad-btn" id="btn-right">➡️</button>
+    <button class="dpad-btn" id="btn-up" aria-label="Вверх">▲</button>
+    <button class="dpad-btn" id="btn-left" aria-label="Влево">◀</button>
+    <button class="dpad-btn" id="btn-down" aria-label="Вниз">▼</button>
+    <button class="dpad-btn" id="btn-right" aria-label="Вправо">▶</button>
   </div>
 
   <script>
-    // Инициализация Telegram WebApp
+  'use strict';
+  (function () {
+    // =====================================================================
+    //  Telegram WebApp
+    // =====================================================================
     const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    function tgCall(fn) { try { fn(); } catch (e) { /* старые клиенты Telegram */ } }
     if (tg) {
-      tg.expand();
-      tg.ready();
-      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-      if (tg.isVerticalSwipesEnabled !== undefined) tg.isVerticalSwipesEnabled = false;
+      tgCall(() => tg.ready());
+      tgCall(() => tg.expand());
+      tgCall(() => { if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); });
+      tgCall(() => { if (tg.setHeaderColor) tg.setHeaderColor('#07070f'); });
+      tgCall(() => { if (tg.setBackgroundColor) tg.setBackgroundColor('#07070f'); });
+    }
+    function haptic(kind, arg) {
+      if (!tg || !tg.HapticFeedback) return;
+      tgCall(() => {
+        if (kind === 'impact') tg.HapticFeedback.impactOccurred(arg || 'light');
+        else if (kind === 'notify') tg.HapticFeedback.notificationOccurred(arg || 'success');
+        else tg.HapticFeedback.selectionChanged();
+      });
+    }
+    function setClosingConfirmation(on) {
+      if (!tg) return;
+      tgCall(() => { on ? tg.enableClosingConfirmation() : tg.disableClosingConfirmation(); });
     }
 
-    // --- Web Audio API Синтезатор ретро-звуков ---
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    let audioCtx = null;
+    // =====================================================================
+    //  Хранилище (localStorage + Telegram CloudStorage)
+    // =====================================================================
+    function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+    function cloudOk() { return !!(tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')); }
 
-    function initAudio() {
-      if (!audioCtx) audioCtx = new AudioContext();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+    // =====================================================================
+    //  Звук (Web Audio, синтез, обход беззвучного режима iOS)
+    // =====================================================================
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let actx = null, master = null, sirenOsc = null, sirenGain = null, sirenPhase = 0;
+    let audioUnlocked = false;
+    let soundOn = lsGet('pacman_sound', '1') !== '0';
+    let wakaFlip = false;
+
+    function unlockAudio() {
+      if (!AC) return;
+      try {
+        if (!actx) {
+          actx = new AC();
+          master = actx.createGain();
+          master.gain.value = soundOn ? 0.9 : 0;
+          master.connect(actx.destination);
+        }
+        if (actx.state === 'suspended') actx.resume();
+        if (!audioUnlocked) {
+          audioUnlocked = true;
+          try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+          try {
+            const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+            const p = a.play(); if (p && p.catch) p.catch(() => {});
+          } catch (e) {}
+        }
+      } catch (e) {}
+    }
+    ['pointerdown', 'touchend', 'keydown', 'click'].forEach(ev =>
+      window.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && actx && actx.state === 'suspended') tgCall(() => actx.resume());
+    });
+
+    function tone(freq, dur, opt) {
+      if (!actx || !soundOn) return;
+      opt = opt || {};
+      const t = actx.currentTime + (opt.delay || 0);
+      const o = actx.createOscillator();
+      const g = actx.createGain();
+      o.type = opt.type || 'square';
+      o.frequency.setValueAtTime(freq, t);
+      if (opt.slideTo) o.frequency.exponentialRampToValueAtTime(opt.slideTo, t + dur);
+      g.gain.setValueAtTime(opt.vol || 0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.03);
+    }
+    const SFX = {
+      waka() {
+        wakaFlip = !wakaFlip;
+        if (wakaFlip) tone(240, 0.075, { type: 'triangle', slideTo: 480, vol: 0.13 });
+        else tone(480, 0.075, { type: 'triangle', slideTo: 240, vol: 0.13 });
+      },
+      power() { tone(300, 0.3, { type: 'sawtooth', slideTo: 1100, vol: 0.07 }); },
+      eatGhost() { tone(180, 0.32, { type: 'square', slideTo: 1500, vol: 0.07 }); },
+      fruit() { [660, 880, 1175].forEach((f, i) => tone(f, 0.1, { type: 'sine', vol: 0.15, delay: i * 0.06 })); },
+      extraLife() { [880, 1320, 880, 1320, 1760].forEach((f, i) => tone(f, 0.09, { type: 'square', vol: 0.06, delay: i * 0.08 })); },
+      die() {
+        for (let i = 0; i < 9; i++) tone(760 - i * 60, 0.13, { type: 'square', slideTo: 520 - i * 50, vol: 0.06, delay: i * 0.11 });
+        tone(120, 0.12, { type: 'sine', vol: 0.15, delay: 1.05 });
+        tone(110, 0.12, { type: 'sine', vol: 0.15, delay: 1.2 });
+      },
+      levelClear() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.14, { type: 'sine', vol: 0.18, delay: i * 0.11 })); },
+      jingle() {
+        // Собственная короткая мелодия старта
+        const seq = [392, 523, 659, 784, 659, 523, 587, 784, 1047];
+        seq.forEach((f, i) => tone(f, 0.12, { type: 'triangle', vol: 0.14, delay: i * 0.14 }));
+        [196, 262, 196, 294].forEach((f, i) => tone(f, 0.25, { type: 'sine', vol: 0.12, delay: i * 0.31 }));
+      },
+      tick() { tone(1200, 0.03, { type: 'square', vol: 0.03 }); },
+    };
+
+    function setSound(on) {
+      soundOn = on;
+      lsSet('pacman_sound', on ? '1' : '0');
+      if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, actx.currentTime, 0.02);
+      document.getElementById('btn-sound').textContent = on ? '🔊' : '🔇';
     }
 
-    function playSound(type) {
-      if (!audioCtx) return;
-      const now = audioCtx.currentTime;
-
-      if (type === 'waka') {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.08);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.08);
-      } else if (type === 'eat_ghost') {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(900, now + 0.3);
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } else if (type === 'die') {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(100, now + 0.6);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.6);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.6);
-      } else if (type === 'power') {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.2);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'level_clear') {
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + idx * 0.12);
-          gain.gain.setValueAtTime(0.25, now + idx * 0.12);
-          gain.gain.linearRampToValueAtTime(0, now + idx * 0.12 + 0.15);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start(now + idx * 0.12);
-          osc.stop(now + idx * 0.12 + 0.15);
-        });
+    function updateSiren() {
+      if (!actx) return;
+      const active = soundOn && phase === 'play';
+      if (active && !sirenOsc) {
+        try {
+          sirenOsc = actx.createOscillator();
+          sirenGain = actx.createGain();
+          sirenOsc.type = 'triangle';
+          sirenGain.gain.value = 0;
+          sirenOsc.connect(sirenGain); sirenGain.connect(master);
+          sirenOsc.start();
+        } catch (e) { sirenOsc = null; return; }
       }
+      if (!sirenOsc) return;
+      const now = actx.currentTime;
+      sirenGain.gain.setTargetAtTime(active ? 0.045 : 0, now, 0.04);
+      if (!active) return;
+      let f;
+      if (ghosts.some(g => g.mode === 'eaten')) {
+        f = 760 + 220 * Math.sin(frame * 0.7);
+      } else if (frightTicks > 0) {
+        f = 200 + 70 * Math.sin(frame * 0.55);
+      } else {
+        const prog = totalDots ? dotsEaten / totalDots : 0;
+        sirenPhase += 0.09 + prog * 0.14;
+        f = 330 + prog * 160 + 75 * Math.sin(sirenPhase);
+      }
+      sirenOsc.frequency.setTargetAtTime(f, now, 0.02);
     }
 
-    // --- 3 УРОВНЯ ЛАБИРИНТОВ (19 колонок x 21 строка) ---
-    // 1: Стена, 2: Точка, 3: Энерджайзер, 0: Пусто
+    // =====================================================================
+    //  Лабиринты (19 колонок x 21 строка): 1 стена, 2 точка, 3 энерджайзер, 0 пусто
+    // =====================================================================
     const maps = [
       // УРОВЕНЬ 1: Неоновый Лабиринт (Классика 🔵)
       [
@@ -448,645 +489,1054 @@
       ]
     ];
 
+    // Сдвиг по вертикали домика / старта для каждого лабиринта (3-й лабиринт поднят на 1 строку)
+    const mapYOffset = [0, 0, -1];
+
     const levelThemes = [
-      { name: 'УРОВЕНЬ 1', title: 'НЕОНОВЫЙ ЛАБИРИНТ 🔵', wallFill: '#1919a6', wallStroke: '#2121de', door: '#ffb8ff', canvasGlow: 'rgba(33, 33, 222, 0.4)' },
-      { name: 'УРОВЕНЬ 2', title: 'ИЗУМРУДНЫЙ САД 🟢', wallFill: '#005f33', wallStroke: '#00ff88', door: '#a3ffb8', canvasGlow: 'rgba(0, 255, 136, 0.4)' },
-      { name: 'УРОВЕНЬ 3', title: 'МАГМА АРЕНА 🔴',    wallFill: '#800020', wallStroke: '#ff0055', door: '#ffb8d4', canvasGlow: 'rgba(255, 0, 85, 0.4)' }
+      { name: 'УРОВЕНЬ 1', title: 'НЕОНОВЫЙ ЛАБИРИНТ 🔵', short: 'НЕОНОВЫЙ ЛАБИРИНТ', wallFill: '#0b0b3a', wallStroke: '#3a3aff', glow: 'rgba(60, 60, 255, 0.9)',  door: '#ffb8ff', bgInner: '#0a0a24', canvasGlow: 'rgba(33, 33, 222, 0.45)', accent: '#2121de' },
+      { name: 'УРОВЕНЬ 2', title: 'ИЗУМРУДНЫЙ САД 🟢',    short: 'ИЗУМРУДНЫЙ САД',    wallFill: '#002616', wallStroke: '#00ff88', glow: 'rgba(0, 255, 136, 0.85)', door: '#a3ffb8', bgInner: '#03170e', canvasGlow: 'rgba(0, 255, 136, 0.4)',  accent: '#00a35a' },
+      { name: 'УРОВЕНЬ 3', title: 'МАГМА АРЕНА 🔴',       short: 'МАГМА АРЕНА',       wallFill: '#2a0010', wallStroke: '#ff2d6a', glow: 'rgba(255, 30, 90, 0.9)',  door: '#ffb8d4', bgInner: '#1c0509', canvasGlow: 'rgba(255, 0, 85, 0.4)',   accent: '#c4003f' },
     ];
 
+    const FRUITS = [
+      { e: '🍒', p: 100 }, { e: '🍓', p: 300 }, { e: '🍊', p: 500 }, { e: '🍎', p: 700 },
+      { e: '🍇', p: 1000 }, { e: '🍉', p: 2000 }, { e: '🔔', p: 3000 }, { e: '🔑', p: 5000 },
+    ];
+
+    // =====================================================================
+    //  Константы
+    // =====================================================================
+    const COLS = 19, ROWS = 21, TILE = 20, HALF = TILE / 2;
+    const W = COLS * TILE, H = ROWS * TILE;
+    const STEP_MS = 1000 / 60;           // логика всегда 60 тиков/с, независимо от частоты экрана
+    const PAC_SPEED = 2.0;               // пикс/тик на 1-м уровне
+    const PRETURN = 5;                   // допуск поворота до/после центра клетки, пикс
+    const DOOR_COL = 9;
+    const EXTRA_LIFE_SCORE = 10000;
+    const MAX_LIVES = 5;
+    const GHOST_PCT = { 1: 0.33, 2: 0.5, 3: 0.75, 4: 1.0 };
+    const ghostSpeedNames = { 1: '🐢 Черепаха (33%)', 2: '🚶 Релакс (50%)', 3: '⚡ Классика (75%)', 4: '🚀 Хардкор (100%)' };
+    const DIRS = [{ x: 0, y: -1 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 0 }]; // порядок приоритета: вверх, влево, вниз, вправо
+
+    // =====================================================================
+    //  Состояние
+    // =====================================================================
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const COLS = 19;
-    const ROWS = 21;
-    const TILE_SIZE = 20;
-    canvas.width = COLS * TILE_SIZE;
-    canvas.height = ROWS * TILE_SIZE;
+    let renderScale = 1;
+    let mazeCanvas = document.createElement('canvas');
+    let mazeFlash = document.createElement('canvas');
 
-    let currentLevel = 1;
+    let phase = 'menu';   // menu | ready | play | freeze | dying | clearing | paused | over | level_done
+    let pausedFrom = null;
+    let frame = 0;
+    let currentLevel = 1, mapIdx = 0, yOff = 0, theme = levelThemes[0], params = null;
     let map = [];
-    let score = 0;
-    let highScore = parseInt(localStorage.getItem('pacman_high') || '0', 10);
-    let lives = 3;
-    let gameRunning = false;
-    let frightenedTimer = 0;
-    let totalDots = 0;
-    let dotsEaten = 0;
-    let frameCount = 0;
-    let readyTimer = 90;
-    let overlayMode = 'start'; // 'start', 'next_level', 'game_over', 'win'
+    let score = 0, lives = 3, extraGiven = false;
+    let highScore = parseInt(lsGet('pacman_high', '0'), 10) || 0;
+    let highAtStart = highScore;
+    let ghostSpeedLevel = parseInt(lsGet('pacman_ghost_speed', '2'), 10);
+    if (!GHOST_PCT[ghostSpeedLevel]) ghostSpeedLevel = 2;
+    let totalDots = 0, dotsEaten = 0, dotsSinceReset = 0;
+    let frightTicks = 0, ghostChain = 0;
+    let modeIndex = 0, modeTicks = 0;
+    let readyTicks = 0, freezeTicks = 0, dyingTicks = 0, clearTicks = 0;
+    let fruit = null, fruitsSpawned = 0;
+    let shake = 0;
+    let particles = [], popups = [];
+    let debugInvincible = false, manualClock = false;
 
-    // Настройка скорости призраков (ползунок)
-    const ghostSpeedNames = {
-      1: '🐢 Черепаха (33%)',
-      2: '🚶 Релакс (50%)',
-      3: '⚡ Классика (75%)',
-      4: '🚀 Хардкор (100%)'
-    };
-    let ghostSpeedLevel = parseInt(localStorage.getItem('pacman_ghost_speed') || '2', 10);
-
-    function updateGhostSpeedUI() {
-      const slider = document.getElementById('ghost-speed-slider');
-      const label = document.getElementById('ghost-speed-val');
-      if (slider) slider.value = ghostSpeedLevel;
-      if (label) label.innerText = ghostSpeedNames[ghostSpeedLevel] || '🚶 Релакс (50%)';
-
-      for (let i = 1; i <= 4; i++) {
-        const pill = document.getElementById(`g-spd-${i}`);
-        if (pill) {
-          if (i === ghostSpeedLevel) pill.classList.add('active');
-          else pill.classList.remove('active');
-        }
-      }
+    // Позиции домика (зависят от yOff текущего лабиринта)
+    const L = {};
+    function computeLayout() {
+      L.exitRow = 8 + yOff;     // клетка над дверью
+      L.doorRow = 9 + yOff;     // проём двери
+      L.houseRow = 10 + yOff;   // внутренняя комната
+      L.pacRow = 16 + yOff;
+      L.fruitRow = 12 + yOff;
+      L.tunnelRow = 10 + yOff;
+      L.exitY = L.exitRow * TILE + HALF;
+      L.houseY = L.houseRow * TILE + HALF;
+      L.doorX = DOOR_COL * TILE + HALF;
     }
 
-    function onGhostSpeedChange(val) {
-      ghostSpeedLevel = parseInt(val, 10);
-      localStorage.setItem('pacman_ghost_speed', ghostSpeedLevel);
-      updateGhostSpeedUI();
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-    }
-
-    document.getElementById('high-score').innerText = highScore;
-    updateGhostSpeedUI();
-
-    // --- Сущности ---
-    const pacman = {
-      x: 9 * TILE_SIZE + 10,
-      y: 16 * TILE_SIZE + 10,
-      dirX: 0,
-      dirY: 0,
-      nextDirX: 0,
-      nextDirY: 0,
-      speed: 2,
-      radius: 8,
-      mouthAngle: 0.2,
-      mouthSpeed: 0.04,
-      mouthMax: 0.35,
-      mouthDir: 1,
-    };
+    const pac = { x: 0, y: 0, dx: 0, dy: 0, ndx: 0, ndy: 0, fx: -1, fy: 0, mouthT: 0, moving: false };
 
     const ghosts = [
-      { name: 'Blinky', color: '#ff0000', startX: 190, startY: 150, startDirX: -1, startDirY: 0, state: 'normal',   houseTimer: 0,   bobDir: 1 },
-      { name: 'Pinky',  color: '#ffb8ff', startX: 190, startY: 190, startDirX: 0,  startDirY: -1, state: 'exiting',  houseTimer: 0,   bobDir: 1 },
-      { name: 'Inky',   color: '#00ffff', startX: 170, startY: 210, startDirX: 0,  startDirY: 1,  state: 'in_house', houseTimer: 180, bobDir: 1 },
-      { name: 'Clyde',  color: '#ffb852', startX: 210, startY: 210, startDirX: 0,  startDirY: 1,  state: 'in_house', houseTimer: 360, bobDir: 1 },
+      { name: 'Blinky', color: '#ff2a2a', glow: 'rgba(255,42,42,0.8)',   homeCol: 9,  scatter: { c: 18, r: -3 }, release: 0 },
+      { name: 'Pinky',  color: '#ffb8ff', glow: 'rgba(255,184,255,0.8)', homeCol: 9,  scatter: { c: 0,  r: -3 }, release: 0 },
+      { name: 'Inky',   color: '#00ffff', glow: 'rgba(0,255,255,0.8)',   homeCol: 8,  scatter: { c: 18, r: 23 }, release: 240, dots: 30 },
+      { name: 'Clyde',  color: '#ffb852', glow: 'rgba(255,184,82,0.8)',  homeCol: 10, scatter: { c: 0,  r: 23 }, release: 480, dots: 60 },
     ];
+    ghosts.forEach((g, i) => { g.idx = i; g.bob = i * 1.7; });
 
-    function applyLevelTheme(lvl) {
-      const theme = levelThemes[lvl - 1];
-      canvas.style.borderColor = theme.wallStroke;
-      canvas.style.boxShadow = `0 0 25px ${theme.canvasGlow}`;
-      document.getElementById('level-display').innerText = `${lvl} / 3`;
+    // =====================================================================
+    //  Параметры уровня (сложность растёт бесконечно)
+    // =====================================================================
+    function levelParams(lvl) {
+      const i = lvl - 1;
+      return {
+        pacSpeed: PAC_SPEED * Math.min(1 + 0.03 * i, 1.12),
+        ghostMult: Math.min(1 + 0.07 * i, 1.4),
+        frightTicks: Math.round(60 * Math.max(1, 6 - 0.9 * i)),
+        elroyDots: i === 0 ? 15 : (i < 3 ? 25 : 35),
+        releaseMult: Math.max(0.35, 1 - 0.2 * i),
+        // секунды: разбегание, погоня, ... последняя фаза — погоня навсегда
+        modes: (i === 0 ? [7, 20, 7, 20, 5, 20, 5] : (i < 4 ? [7, 20, 7, 20, 5, 60, 1] : [5, 20, 5, 20, 5, 60, 1])).map(s => s * 60),
+        fruit: FRUITS[Math.min(i, FRUITS.length - 1)],
+      };
+    }
+    function globalMode() {
+      if (modeIndex >= params.modes.length) return 'chase';
+      return modeIndex % 2 === 0 ? 'scatter' : 'chase';
     }
 
-    function initMap(lvl) {
-      map = JSON.parse(JSON.stringify(maps[lvl - 1]));
-      totalDots = 0;
-      dotsEaten = 0;
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          if (map[r][c] === 2 || map[r][c] === 3) totalDots++;
+    // =====================================================================
+    //  Сетка
+    // =====================================================================
+    const tileOf = v => Math.floor(v / TILE);
+    const wrapCol = c => ((c % COLS) + COLS) % COLS;
+    function tileAt(c, r) {
+      if (r < 0 || r >= ROWS) return 1;
+      return map[r][wrapCol(c)];
+    }
+    function isDoor(c, r) { return wrapCol(c) === DOOR_COL && r === L.doorRow; }
+    function blocked(c, r, who) {
+      if (tileAt(c, r) === 1) return true;
+      if (isDoor(c, r) && !(who && who.mode === 'eaten')) return true;
+      return false;
+    }
+    function inTunnel(e) {
+      const c = wrapCol(tileOf(e.x)), r = tileOf(e.y);
+      return r === L.tunnelRow && (c <= 3 || c >= 15) && (e.x < 4 * TILE || e.x > 15 * TILE);
+    }
+
+    // Универсальное движение по сетке: сущность гарантированно проходит через
+    // каждый центр клетки (снап), при любой скорости — никаких «пропусков» поворотов.
+    function advance(e, dist, decide) {
+      let guard = 0;
+      while (dist > 1e-6 && guard++ < 12) {
+        if (e.dx === 0 && e.dy === 0) {
+          decide(e);
+          if (e.dx === 0 && e.dy === 0) return;
+        }
+        const horiz = e.dx !== 0;
+        const pos = horiz ? e.x : e.y;
+        const dir = horiz ? e.dx : e.dy;
+        const off = (pos - HALF) / TILE;
+        const next = dir > 0
+          ? (Math.floor(off + 1e-7) + 1) * TILE + HALF
+          : (Math.ceil(off - 1e-7) - 1) * TILE + HALF;
+        const toNext = Math.abs(next - pos);
+        if (dist < toNext - 1e-7) {
+          if (horiz) e.x += dir * dist; else e.y += dir * dist;
+          return;
+        }
+        if (horiz) { e.x = next; e.y = tileOf(e.y) * TILE + HALF; }
+        else { e.y = next; e.x = tileOf(e.x) * TILE + HALF; }
+        dist -= toNext;
+        // Тоннель: телепорт за пределами видимой области
+        if (e.x <= -HALF && e.dx < 0) e.x = W + HALF;
+        else if (e.x >= W + HALF && e.dx > 0) e.x = -HALF;
+        decide(e);
+      }
+    }
+
+    // =====================================================================
+    //  Пакман
+    // =====================================================================
+    function pacDecide(p) {
+      const c = tileOf(p.x), r = tileOf(p.y);
+      if ((p.ndx || p.ndy) && !blocked(c + p.ndx, r + p.ndy, p)) {
+        p.dx = p.ndx; p.dy = p.ndy; p.ndx = 0; p.ndy = 0;
+      }
+      if ((p.dx || p.dy) && blocked(c + p.dx, r + p.dy, p)) { p.dx = 0; p.dy = 0; }
+    }
+
+    function applyPacInput() {
+      const p = pac;
+      if (!p.ndx && !p.ndy) return;
+      if (p.dx === p.ndx && p.dy === p.ndy) { p.ndx = p.ndy = 0; return; }
+      if ((p.dx || p.dy) && p.dx === -p.ndx && p.dy === -p.ndy) {
+        // Мгновенный разворот в любой точке коридора
+        p.dx = p.ndx; p.dy = p.ndy; p.ndx = p.ndy = 0;
+        return;
+      }
+      if (!p.dx && !p.dy) return; // стоим в центре — решит pacDecide
+      // Перпендикулярный поворот с допуском (pre-turn / post-turn)
+      const c = Math.round((p.x - HALF) / TILE), r = Math.round((p.y - HALF) / TILE);
+      const cx = c * TILE + HALF, cy = r * TILE + HALF;
+      const d = Math.abs(p.dx ? p.x - cx : p.y - cy);
+      if (d <= PRETURN && !blocked(c + p.ndx, r + p.ndy, p)) {
+        p.x = cx; p.y = cy;
+        p.dx = p.ndx; p.dy = p.ndy; p.ndx = p.ndy = 0;
+      }
+    }
+
+    function setDirection(dx, dy) {
+      pac.ndx = dx; pac.ndy = dy;
+      if (phase === 'play' || phase === 'ready') haptic('select');
+    }
+
+    // =====================================================================
+    //  Призраки
+    // =====================================================================
+    function ghostBaseSpeed() {
+      return Math.min(PAC_SPEED * GHOST_PCT[ghostSpeedLevel] * params.ghostMult, params.pacSpeed * 1.05);
+    }
+    function elroyActive() { return (totalDots - dotsEaten) <= params.elroyDots; }
+
+    function ghostSpeed(g) {
+      if (g.mode === 'eaten') return 4;
+      if (g.mode === 'entering') return 2;
+      const base = ghostBaseSpeed();
+      let s = base;
+      if (g.name === 'Blinky' && elroyActive() && !g.fright) s = Math.min(base * 1.12, params.pacSpeed * 1.08);
+      if (g.fright) s = Math.min(base * 0.65, params.pacSpeed * 0.5);
+      if (inTunnel(g)) s = Math.min(s, base * 0.5);
+      return s;
+    }
+
+    function ghostTarget(g) {
+      if (g.mode === 'eaten') return { c: DOOR_COL, r: L.exitRow };
+      const chase = globalMode() === 'chase' || (g.name === 'Blinky' && elroyActive());
+      if (!chase) return g.scatter;
+      const pc = tileOf(pac.x), pr = tileOf(pac.y);
+      const fx = pac.dx || pac.dy ? pac.dx : pac.fx;
+      const fy = pac.dx || pac.dy ? pac.dy : pac.fy;
+      switch (g.name) {
+        case 'Blinky': return { c: pc, r: pr };
+        case 'Pinky': return { c: pc + 4 * fx, r: pr + 4 * fy };
+        case 'Inky': {
+          const b = ghosts[0];
+          const px = pc + 2 * fx, py = pr + 2 * fy;
+          return { c: 2 * px - tileOf(b.x), r: 2 * py - tileOf(b.y) };
+        }
+        case 'Clyde': {
+          const dc = tileOf(g.x) - pc, dr = tileOf(g.y) - pr;
+          return (dc * dc + dr * dr > 64) ? { c: pc, r: pr } : g.scatter;
         }
       }
-      applyLevelTheme(lvl);
+      return { c: pc, r: pr };
     }
 
-    function resetPositions() {
-      pacman.x = 9 * TILE_SIZE + 10;
-      pacman.y = 16 * TILE_SIZE + 10;
-      pacman.dirX = 0;
-      pacman.dirY = 0;
-      pacman.nextDirX = 0;
-      pacman.nextDirY = 0;
-
-      readyTimer = 90;
-
-      ghosts[0].x = ghosts[0].startX; ghosts[0].y = ghosts[0].startY; ghosts[0].dirX = ghosts[0].startDirX; ghosts[0].dirY = ghosts[0].startDirY; ghosts[0].state = 'normal';
-      ghosts[1].x = ghosts[1].startX; ghosts[1].y = ghosts[1].startY; ghosts[1].dirX = ghosts[1].startDirX; ghosts[1].dirY = ghosts[1].startDirY; ghosts[1].state = 'exiting';
-      ghosts[2].x = ghosts[2].startX; ghosts[2].y = ghosts[2].startY; ghosts[2].dirX = ghosts[2].startDirX; ghosts[2].dirY = ghosts[2].startDirY; ghosts[2].state = 'in_house'; ghosts[2].houseTimer = 180;
-      ghosts[3].x = ghosts[3].startX; ghosts[3].y = ghosts[3].startY; ghosts[3].dirX = ghosts[3].startDirX; ghosts[3].dirY = ghosts[3].startDirY; ghosts[3].state = 'in_house'; ghosts[3].houseTimer = 360;
-    }
-
-    function updateLivesDisplay() {
-      let s = '';
-      for (let i = 0; i < lives; i++) s += '🟡 ';
-      document.getElementById('lives-display').innerText = s;
-    }
-
-    function startGame() {
-      initAudio();
-      currentLevel = 1;
-      score = 0;
-      lives = 3;
-      frightenedTimer = 0;
-      frameCount = 0;
-      document.getElementById('score').innerText = '0';
-      updateLivesDisplay();
-      initMap(currentLevel);
-      resetPositions();
-      document.getElementById('overlay').style.display = 'none';
-      gameRunning = true;
-      requestAnimationFrame(gameLoop);
-    }
-
-    function startNextLevel() {
-      initAudio();
-      currentLevel++;
-      frightenedTimer = 0;
-      frameCount = 0;
-      initMap(currentLevel);
-      resetPositions();
-      document.getElementById('overlay').style.display = 'none';
-      gameRunning = true;
-      requestAnimationFrame(gameLoop);
-    }
-
-    function handleOverlayClick() {
-      if (overlayMode === 'next_level') {
-        startNextLevel();
+    function ghostDecide(g) {
+      if (g.mode !== 'active' && g.mode !== 'eaten') return;
+      const c = tileOf(g.x), r = tileOf(g.y);
+      if (g.mode === 'eaten' && wrapCol(c) === DOOR_COL && r === L.exitRow) {
+        g.mode = 'entering'; g.x = L.doorX; g.dx = 0; g.dy = 0;
+        return;
+      }
+      const opts = [];
+      for (const d of DIRS) {
+        if (d.x === -g.dx && d.y === -g.dy) continue;
+        if (blocked(c + d.x, r + d.y, g)) continue;
+        opts.push(d);
+      }
+      if (!opts.length) { g.dx = -g.dx; g.dy = -g.dy; return; }
+      let pick;
+      if (g.fright) {
+        pick = opts[Math.floor(Math.random() * opts.length)];
       } else {
-        startGame();
+        const t = ghostTarget(g);
+        let best = Infinity;
+        for (const d of opts) {
+          const ex = c + d.x - t.c, ey = r + d.y - t.r;
+          const dist = ex * ex + ey * ey;
+          if (dist < best) { best = dist; pick = d; }
+        }
       }
+      g.dx = pick.x; g.dy = pick.y;
     }
 
-    function isWall(col, row) {
-      if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
-      return map[row][col] === 1;
-    }
-
-    // --- Игровой цикл ---
-    function gameLoop() {
-      if (!gameRunning) return;
-      frameCount++;
-
-      update();
-      draw();
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    function update() {
-      if (readyTimer > 0) {
-        readyTimer--;
-        return;
+    function resetGhost(g) {
+      g.fright = false;
+      g.reverse = false;
+      g.dx = 0; g.dy = 0;
+      if (g.name === 'Blinky') {
+        g.mode = 'active';
+        g.x = L.doorX; g.y = L.exitY; g.dx = -1;
+      } else {
+        g.mode = 'house';
+        g.x = g.homeCol * TILE + HALF;
+        g.y = L.houseY;
+        g.releaseTicks = Math.round(g.release * params.releaseMult);
       }
-
-      // 1. Поворот Пакмана на перекрёстках
-      const isAtPacCenter = (pacman.x - 10) % TILE_SIZE === 0 && (pacman.y - 10) % TILE_SIZE === 0;
-      const curCol = Math.floor(pacman.x / TILE_SIZE);
-      const curRow = Math.floor(pacman.y / TILE_SIZE);
-
-      if (isAtPacCenter && (pacman.nextDirX !== 0 || pacman.nextDirY !== 0)) {
-        if (!isWall(curCol + pacman.nextDirX, curRow + pacman.nextDirY)) {
-          pacman.dirX = pacman.nextDirX;
-          pacman.dirY = pacman.nextDirY;
-          pacman.nextDirX = 0;
-          pacman.nextDirY = 0;
-        }
-      }
-
-      // 2. Движение Пакмана
-      if (!isWall(curCol + pacman.dirX, curRow + pacman.dirY) || !isAtPacCenter) {
-        pacman.x += pacman.dirX * pacman.speed;
-        pacman.y += pacman.dirY * pacman.speed;
-      }
-
-      // Туннели телепортации по бокам
-      if (pacman.x < 0) pacman.x = canvas.width;
-      if (pacman.x > canvas.width) pacman.x = 0;
-
-      // 3. Анимация рта
-      pacman.mouthAngle += pacman.mouthSpeed * pacman.mouthDir;
-      if (pacman.mouthAngle > pacman.mouthMax || pacman.mouthAngle < 0.02) {
-        pacman.mouthDir *= -1;
-      }
-
-      // 4. Поедание точек
-      const tileCol = Math.floor(pacman.x / TILE_SIZE);
-      const tileRow = Math.floor(pacman.y / TILE_SIZE);
-      if (tileCol >= 0 && tileCol < COLS && tileRow >= 0 && tileRow < ROWS) {
-        if (map[tileRow][tileCol] === 2) {
-          map[tileRow][tileCol] = 0;
-          score += 10;
-          dotsEaten++;
-          playSound('waka');
-          if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-        } else if (map[tileRow][tileCol] === 3) {
-          map[tileRow][tileCol] = 0;
-          score += 50;
-          dotsEaten++;
-          frightenedTimer = 350; // ~6 сек
-          ghosts.forEach(g => { if (g.state !== 'eaten' && g.state !== 'in_house' && g.state !== 'exiting') g.state = 'frightened'; });
-          playSound('power');
-          if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
-        }
-      }
-
-      document.getElementById('score').innerText = score;
-      if (score > highScore) {
-        highScore = score;
-        localStorage.setItem('pacman_high', highScore);
-        document.getElementById('high-score').innerText = highScore;
-      }
-
-      // 5. Проверка прохождения уровня
-      if (dotsEaten >= totalDots) {
-        gameRunning = false;
-        playSound('level_clear');
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-
-        if (currentLevel < 3) {
-          overlayMode = 'next_level';
-          const nextLvlTheme = levelThemes[currentLevel];
-          showOverlay(
-            `🌟 УРОВЕНЬ ${currentLevel} ПРОЙДЕН! 🌟`,
-            `Отличная игра! Текущий счёт: ${score}<br><br>Следующий: <b>${nextLvlTheme.title}</b>`,
-            `ВПЕРЁД НА УРОВЕНЬ ${currentLevel + 1} ➔`,
-            false
-          );
-        } else {
-          overlayMode = 'win';
-          showOverlay(
-            `👑 АБСОЛЮТНАЯ ПОБЕДА! 👑`,
-            `Поздравляем! Ты прошёл все 3 уровня Pac-Man!<br>Итоговый счёт: <b>${score}</b>`,
-            `🔄 СЫГРАТЬ СНАЧАЛА`,
-            true
-          );
-        }
-        return;
-      }
-
-      // 6. Таймер испуга призраков
-      if (frightenedTimer > 0) {
-        frightenedTimer--;
-        if (frightenedTimer === 0) {
-          ghosts.forEach(g => { if (g.state === 'frightened') g.state = 'normal'; });
-        }
-      }
-
-      // 7. Обновление призраков
-      ghosts.forEach(ghost => {
-        updateGhost(ghost);
-
-        // Столкновение с Пакманом (только если призрак в лабиринте)
-        if (ghost.state !== 'in_house' && ghost.state !== 'exiting') {
-          const dist = Math.hypot(ghost.x - pacman.x, ghost.y - pacman.y);
-          if (dist < 14) {
-            if (ghost.state === 'frightened') {
-              ghost.state = 'eaten';
-              score += 200;
-              playSound('eat_ghost');
-              if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            } else if (ghost.state === 'normal') {
-              handlePacmanDeath();
-            }
-          }
-        }
-      });
     }
 
     function updateGhost(g) {
-      // 1. Ожидание в домике
-      if (g.state === 'in_house') {
-        g.houseTimer--;
-        g.y += g.bobDir * 0.5;
-        if (g.y > 214) g.bobDir = -1;
-        if (g.y < 206) g.bobDir = 1;
-
-        if (g.houseTimer <= 0) {
-          g.state = 'exiting';
-        }
-        return;
-      }
-
-      // 2. Выход из домика через дверь
-      if (g.state === 'exiting') {
-        if (Math.abs(g.x - 190) > 1) {
-          g.x += g.x < 190 ? 1 : -1;
-        } else {
-          g.x = 190;
-          g.y -= 1.5;
-          if (g.y <= 150) {
-            g.y = 150;
-            g.dirX = -1;
-            g.dirY = 0;
-            g.state = 'normal';
-          }
-        }
-        return;
-      }
-
-      // 3. Возврат съеденных глаз в домик
-      if (g.state === 'eaten') {
-        const targetX = 190;
-        const targetY = 190;
-        if (Math.hypot(g.x - targetX, g.y - targetY) < 6) {
-          g.x = 190;
-          g.y = 190;
-          g.state = 'exiting';
+      switch (g.mode) {
+        case 'house': {
+          g.bob += 0.12;
+          g.y = L.houseY + Math.sin(g.bob) * 3;
+          if (g.releaseTicks > 0) g.releaseTicks--;
+          const dotGate = g.dots ? dotsSinceReset >= Math.round(g.dots * params.releaseMult) : true;
+          if (g.releaseTicks <= 0 || dotGate) g.mode = 'leaving';
           return;
         }
-      }
-
-      // 4. Обычное движение в лабиринте
-      const isAtTileCenter = (g.x - 10) % TILE_SIZE === 0 && (g.y - 10) % TILE_SIZE === 0;
-      const gCol = Math.floor(g.x / TILE_SIZE);
-      const gRow = Math.floor(g.y / TILE_SIZE);
-
-      if (isAtTileCenter) {
-        const allDirs = [
-          { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }
-        ];
-
-        let validDirs = allDirs.filter(d => !isWall(gCol + d.x, gRow + d.y));
-
-        let forwardDirs = validDirs.filter(d => !(d.x === -g.dirX && d.y === -g.dirY));
-        if (forwardDirs.length > 0) {
-          validDirs = forwardDirs;
-        }
-
-        if (validDirs.length > 0) {
-          if (g.state === 'frightened') {
-            const chosen = validDirs[Math.floor(Math.random() * validDirs.length)];
-            g.dirX = chosen.x;
-            g.dirY = chosen.y;
-          } else {
-            let targetX = pacman.x;
-            let targetY = pacman.y;
-
-            if (g.state === 'eaten') {
-              targetX = 190;
-              targetY = 190;
-            } else if (g.name === 'Pinky') {
-              targetX += pacman.dirX * 4 * TILE_SIZE;
-              targetY += pacman.dirY * 4 * TILE_SIZE;
-            } else if (g.name === 'Inky') {
-              targetX += pacman.dirX * 2 * TILE_SIZE;
-              targetY += pacman.dirY * 2 * TILE_SIZE;
-            } else if (g.name === 'Clyde') {
-              if (Math.hypot(g.x - pacman.x, g.y - pacman.y) < 6 * TILE_SIZE) {
-                targetX = 0; targetY = canvas.height;
-              }
-            }
-
-            validDirs.sort((a, b) => {
-              const distA = Math.hypot((gCol + a.x) * TILE_SIZE + 10 - targetX, (gRow + a.y) * TILE_SIZE + 10 - targetY);
-              const distB = Math.hypot((gCol + b.x) * TILE_SIZE + 10 - targetX, (gRow + b.y) * TILE_SIZE + 10 - targetY);
-              return distA - distB;
-            });
-
-            g.dirX = validDirs[0].x;
-            g.dirY = validDirs[0].y;
+        case 'leaving': {
+          if (Math.abs(g.x - L.doorX) > 1) { g.x += g.x < L.doorX ? 1 : -1; g.y += (L.houseY - g.y) * 0.2; return; }
+          g.x = L.doorX;
+          g.y -= 1.2;
+          if (g.y <= L.exitY) {
+            g.y = L.exitY; g.mode = 'active';
+            g.dx = Math.random() < 0.5 ? -1 : 1; g.dy = 0;
           }
-        } else {
-          g.dirX = -g.dirX;
-          g.dirY = -g.dirY;
+          return;
+        }
+        case 'entering': {
+          g.x = L.doorX;
+          g.y += 2;
+          if (g.y >= L.houseY) { g.y = L.houseY; g.mode = 'leaving'; g.fright = false; }
+          return;
+        }
+        default: {
+          if (g.reverse) {
+            g.reverse = false;
+            if (g.dx || g.dy) { g.dx = -g.dx; g.dy = -g.dy; }
+          }
+          advance(g, ghostSpeed(g), ghostDecide);
         }
       }
-
-      // Скорость призраков по ползунку пользователя:
-      let canMoveThisFrame = true;
-      if (g.state === 'normal') {
-        if (ghostSpeedLevel === 1) canMoveThisFrame = (frameCount % 3 === 0);       // 33% (Очень медленно)
-        else if (ghostSpeedLevel === 2) canMoveThisFrame = (frameCount % 2 === 0);  // 50% (Релакс)
-        else if (ghostSpeedLevel === 3) canMoveThisFrame = (frameCount % 4 !== 0);  // 75% (Классика)
-        else if (ghostSpeedLevel === 4) canMoveThisFrame = true;                    // 100% (Хардкор)
-      } else if (g.state === 'frightened') {
-        if (ghostSpeedLevel === 1) canMoveThisFrame = (frameCount % 4 === 0);
-        else canMoveThisFrame = (frameCount % 3 === 0);
-      }
-
-      if (canMoveThisFrame) {
-        const spd = g.state === 'eaten' ? 4 : 2;
-        g.x += g.dirX * spd;
-        g.y += g.dirY * spd;
-      }
-
-      // Туннели
-      if (g.x < 0) g.x = canvas.width;
-      if (g.x > canvas.width) g.x = 0;
     }
 
-    function handlePacmanDeath() {
-      playSound('die');
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    // =====================================================================
+    //  Эффекты
+    // =====================================================================
+    function burst(x, y, color, n, spd) {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, v = (0.4 + Math.random()) * (spd || 1.6);
+        particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 30 + Math.random() * 20, max: 50, color, size: 1 + Math.random() * 1.8 });
+      }
+    }
+    function popup(x, y, text, color) { popups.push({ x, y, text, color: color || '#00ffff', life: 70 }); }
+    function updateEffects() {
+      for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life--; }
+      particles = particles.filter(p => p.life > 0);
+      for (const p of popups) { p.y -= 0.35; p.life--; }
+      popups = popups.filter(p => p.life > 0);
+      if (shake > 0) shake = Math.max(0, shake - 0.25);
+    }
+
+    // =====================================================================
+    //  Уровни и жизненный цикл
+    // =====================================================================
+    function initLevel(lvl) {
+      currentLevel = lvl;
+      mapIdx = (lvl - 1) % maps.length;
+      yOff = mapYOffset[mapIdx];
+      theme = levelThemes[mapIdx];
+      params = levelParams(lvl);
+      computeLayout();
+      map = maps[mapIdx].map(row => row.slice());
+      totalDots = 0; dotsEaten = 0;
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (map[r][c] === 2 || map[r][c] === 3) totalDots++;
+      fruit = null; fruitsSpawned = 0;
+      document.documentElement.style.setProperty('--accent', theme.accent);
+      document.documentElement.style.setProperty('--glow', theme.canvasGlow);
+      buildMazes();
+      resetActors();
+      updateHUD(true);
+    }
+
+    function resetActors() {
+      pac.x = DOOR_COL * TILE + HALF;
+      pac.y = L.pacRow * TILE + HALF;
+      pac.dx = -1; pac.dy = 0; pac.ndx = 0; pac.ndy = 0; pac.fx = -1; pac.fy = 0;
+      pac.mouthT = 0;
+      ghosts.forEach(resetGhost);
+      frightTicks = 0; ghostChain = 0;
+      modeIndex = 0; modeTicks = 0;
+      dotsSinceReset = 0;
+      fruit = null;
+    }
+
+    function startGame() {
+      unlockAudio();
+      score = 0; lives = 3; extraGiven = false;
+      highAtStart = highScore;
+      particles = []; popups = [];
+      initLevel(1);
+      hideOverlay();
+      phase = 'ready'; readyTicks = 150;
+      SFX.jingle();
+      setClosingConfirmation(true);
+    }
+
+    function startNextLevel() {
+      unlockAudio();
+      initLevel(currentLevel + 1);
+      hideOverlay();
+      phase = 'ready'; readyTicks = 90;
+      setClosingConfirmation(true);
+    }
+
+    function addScore(pts) {
+      score += pts;
+      if (!extraGiven && score >= EXTRA_LIFE_SCORE) {
+        extraGiven = true;
+        if (lives < MAX_LIVES) lives++;
+        SFX.extraLife();
+        popup(pac.x, pac.y - 14, '+1 ЖИЗНЬ', '#ffe14d');
+        haptic('notify', 'success');
+      }
+      if (score > highScore) highScore = score;
+      updateHUD();
+    }
+
+    function eatAtPac() {
+      const c = wrapCol(tileOf(pac.x)), r = tileOf(pac.y);
+      if (r < 0 || r >= ROWS) return;
+      const t = map[r][c];
+      if (t === 2) {
+        map[r][c] = 0; dotsEaten++; dotsSinceReset++;
+        addScore(10);
+        SFX.waka();
+      } else if (t === 3) {
+        map[r][c] = 0; dotsEaten++; dotsSinceReset++;
+        addScore(50);
+        SFX.power();
+        haptic('impact', 'medium');
+        burst(c * TILE + HALF, r * TILE + HALF, '#ffcfbf', 14, 1.8);
+        frightTicks = params.frightTicks;
+        ghostChain = 0;
+        ghosts.forEach(g => {
+          if (g.mode === 'eaten' || g.mode === 'entering') return;
+          g.fright = true;
+          if (g.mode === 'active') g.reverse = true;
+        });
+      } else return;
+
+      // Бонусный фрукт на 30% и 70% съеденных точек
+      const th = [Math.floor(totalDots * 0.3), Math.floor(totalDots * 0.7)];
+      if (fruitsSpawned < 2 && dotsEaten >= th[fruitsSpawned]) {
+        fruitsSpawned++;
+        fruit = { x: DOOR_COL * TILE + HALF, y: L.fruitRow * TILE + HALF, ticks: 570, def: params.fruit };
+      }
+    }
+
+    function eatGhost(g) {
+      ghostChain++;
+      const pts = 200 * Math.pow(2, Math.min(ghostChain, 4) - 1);
+      g.mode = 'eaten'; g.fright = false; g.reverse = false;
+      addScore(pts);
+      popup(g.x, g.y - 6, String(pts), '#00ffff');
+      burst(g.x, g.y, g.color, 18, 2);
+      SFX.eatGhost();
+      haptic('notify', 'success');
+      phase = 'freeze'; freezeTicks = 32;
+    }
+
+    function startDying() {
+      phase = 'dying'; dyingTicks = 0;
+      shake = 5;
+      haptic('notify', 'error');
+    }
+
+    function afterDeath() {
       lives--;
-      updateLivesDisplay();
+      updateHUD(true);
+      if (lives <= 0) { gameOver(); return; }
+      resetActors();
+      phase = 'ready'; readyTicks = 110;
+    }
 
-      if (lives <= 0) {
-        gameRunning = false;
-        overlayMode = 'game_over';
-        showOverlay('💀 GAME OVER 💀', `Уровень: ${currentLevel}/3 | Твой итоговый счёт: <b>${score}</b>`, '🔄 СЫГРАТЬ СНОВА', true);
-      } else {
-        resetPositions();
+    function startClearing() {
+      phase = 'clearing'; clearTicks = 0;
+      SFX.levelClear();
+      haptic('notify', 'success');
+      persistHigh();
+    }
+
+    function gameOver() {
+      phase = 'over';
+      setClosingConfirmation(false);
+      persistHigh();
+      const isRecord = score > highAtStart && score > 0;
+      const top = saveTopScore(score, currentLevel);
+      showOverlay({
+        title: '💀 GAME OVER 💀',
+        desc: `Уровень <b>${currentLevel}</b> • Счёт <b>${score}</b>` + (isRecord ? '<br><span class="new-record">🏆 Новый рекорд!</span>' : ''),
+        top,
+        settings: true,
+        primary: '🔄 СЫГРАТЬ СНОВА',
+      });
+    }
+
+    function showLevelDone() {
+      phase = 'level_done';
+      const nextIdx = currentLevel % maps.length;
+      const lap = Math.floor(currentLevel / maps.length) + 1;
+      showOverlay({
+        title: `🌟 УРОВЕНЬ ${currentLevel} ПРОЙДЕН! 🌟`,
+        desc: `Счёт: <b>${score}</b><br><br>Дальше: <b>${levelThemes[nextIdx].title}</b>` + (lap > 1 ? `<br>Круг ${lap} — призраки быстрее!` : ''),
+        settings: false,
+        primary: `ВПЕРЁД НА УРОВЕНЬ ${currentLevel + 1} ➔`,
+      });
+    }
+
+    function pauseGame() {
+      if (!['play', 'ready', 'freeze', 'dying', 'clearing'].includes(phase)) return;
+      pausedFrom = phase;
+      phase = 'paused';
+      persistHigh();
+      showOverlay({
+        title: '⏸ ПАУЗА',
+        desc: `Уровень <b>${currentLevel}</b> • Счёт <b>${score}</b>`,
+        settings: true,
+        primary: '▶ ПРОДОЛЖИТЬ',
+        secondary: 'НАЧАТЬ ЗАНОВО',
+      });
+    }
+    function resumeGame() {
+      if (phase !== 'paused') return;
+      hideOverlay();
+      if (pausedFrom === 'play' || pausedFrom === 'freeze' || pausedFrom === 'ready') {
+        phase = 'ready'; readyTicks = Math.max(readyTicks, 60);
+      } else phase = pausedFrom;
+    }
+
+    // =====================================================================
+    //  Рекорды
+    // =====================================================================
+    function persistHigh() {
+      lsSet('pacman_high', highScore);
+      if (cloudOk()) tgCall(() => tg.CloudStorage.setItem('pacman_high', String(highScore), () => {}));
+    }
+    function loadCloudHigh() {
+      if (!cloudOk()) return;
+      tgCall(() => tg.CloudStorage.getItem('pacman_high', (err, v) => {
+        const n = parseInt(v || '0', 10);
+        if (!err && n > highScore) { highScore = n; highAtStart = Math.max(highAtStart, n); lsSet('pacman_high', n); updateHUD(true); }
+      }));
+    }
+    function saveTopScore(s, lvl) {
+      let list = [];
+      try { list = JSON.parse(lsGet('pacman_top5', '[]')) || []; } catch (e) { list = []; }
+      const entry = { s, l: lvl, t: Date.now() };
+      if (s > 0) list.push(entry);
+      list.sort((a, b) => b.s - a.s);
+      list = list.slice(0, 5);
+      lsSet('pacman_top5', JSON.stringify(list));
+      return { list, entry };
+    }
+
+    // =====================================================================
+    //  Главный тик логики (60 Гц)
+    // =====================================================================
+    function tick() {
+      frame++;
+      updateEffects();
+      switch (phase) {
+        case 'ready':
+          readyTicks--;
+          if (readyTicks <= 0) phase = 'play';
+          break;
+        case 'freeze':
+          freezeTicks--;
+          if (freezeTicks <= 0) phase = 'play';
+          break;
+        case 'dying':
+          dyingTicks++;
+          if (dyingTicks === 36) SFX.die();
+          if (dyingTicks >= 140) afterDeath();
+          break;
+        case 'clearing':
+          clearTicks++;
+          if (clearTicks >= 130) showLevelDone();
+          break;
+        case 'play':
+          playTick();
+          break;
+      }
+      updateSiren();
+    }
+
+    function playTick() {
+      // 1. Пакман
+      applyPacInput();
+      const bx = pac.x, by = pac.y;
+      advance(pac, params.pacSpeed, pacDecide);
+      const moved = Math.abs(pac.x - bx) + Math.abs(pac.y - by);
+      pac.moving = moved > 0.01 && moved < 40;
+      if (pac.moving) pac.mouthT += moved * 0.12;
+      if (pac.dx || pac.dy) { pac.fx = pac.dx; pac.fy = pac.dy; }
+
+      eatAtPac();
+      if (dotsEaten >= totalDots) { startClearing(); return; }
+
+      // 2. Фрукт
+      if (fruit) {
+        fruit.ticks--;
+        if (Math.hypot(pac.x - fruit.x, pac.y - fruit.y) < 10) {
+          addScore(fruit.def.p);
+          popup(fruit.x, fruit.y - 6, String(fruit.def.p), '#ff8fd0');
+          burst(fruit.x, fruit.y, '#ff6fae', 12, 1.5);
+          SFX.fruit();
+          fruit = null;
+        } else if (fruit.ticks <= 0) fruit = null;
+      }
+
+      // 3. Таймер испуга / волны разбегания-погони
+      if (frightTicks > 0) {
+        frightTicks--;
+        if (frightTicks === 0) { ghosts.forEach(g => { g.fright = false; }); ghostChain = 0; }
+      } else if (modeIndex < params.modes.length) {
+        modeTicks++;
+        if (modeTicks >= params.modes[modeIndex]) {
+          modeIndex++; modeTicks = 0;
+          ghosts.forEach(g => { if (g.mode === 'active') g.reverse = true; });
+        }
+      }
+
+      // 4. Призраки + столкновения
+      for (const g of ghosts) {
+        updateGhost(g);
+        if (g.mode !== 'active') continue;
+        let ddx = Math.abs(g.x - pac.x);
+        if (ddx > W / 2) ddx = W + TILE - ddx;
+        if (Math.hypot(ddx, g.y - pac.y) < 12) {
+          if (g.fright) { eatGhost(g); return; }
+          if (!debugInvincible) { startDying(); return; }
+        }
       }
     }
 
-    function showOverlay(title, descHTML, btnText, showSave) {
-      document.getElementById('overlay-title').innerText = title;
-      document.getElementById('overlay-desc').innerHTML = descHTML;
-      document.getElementById('btn-start').innerText = btnText;
-      document.getElementById('btn-send-score').style.display = showSave ? 'inline-block' : 'none';
-      document.getElementById('overlay').style.display = 'flex';
-    }
+    // =====================================================================
+    //  Рендеринг
+    // =====================================================================
+    function buildMaze(target, flash) {
+      target.width = canvas.width; target.height = canvas.height;
+      const c = target.getContext('2d');
+      const s = renderScale;
+      c.setTransform(s, 0, 0, s, 0, 0);
+      // Фон с мягкой виньеткой
+      const bg = c.createRadialGradient(W / 2, H / 2, 30, W / 2, H / 2, W * 0.8);
+      bg.addColorStop(0, flash ? '#1a1a2a' : theme.bgInner);
+      bg.addColorStop(1, '#000');
+      c.fillStyle = bg;
+      c.fillRect(0, 0, W, H);
 
-    function sendScoreToTelegram() {
-      fetch('/api/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0,
-          user_name: tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : 'Игрок',
-          game: 'pacman',
-          score: score
-        })
-      }).catch(err => console.log(err));
-
-      if (tg) tg.close();
-      else alert('Результат ' + score + ' сохранен!');
-    }
-
-    // --- Рендеринг графики ---
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const theme = levelThemes[currentLevel - 1];
-
-      // 1. Стены и точки текущего уровня
+      // Контур стен: линии между центрами соседних клеток-стен + заливка блоков 2x2
+      const path = new Path2D();
+      const blocks = new Path2D();
+      const wall = (cc, rr) => cc >= 0 && cc < COLS && rr >= 0 && rr < ROWS && map[rr][cc] === 1;
       for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const x = c * TILE_SIZE;
-          const y = r * TILE_SIZE;
+        for (let cc = 0; cc < COLS; cc++) {
+          if (!wall(cc, r)) continue;
+          const x = cc * TILE + HALF, y = r * TILE + HALF;
+          path.moveTo(x, y); path.lineTo(x + 0.01, y);
+          if (wall(cc + 1, r)) { path.moveTo(x, y); path.lineTo(x + TILE, y); }
+          if (wall(cc, r + 1)) { path.moveTo(x, y); path.lineTo(x, y + TILE); }
+          if (wall(cc + 1, r) && wall(cc, r + 1) && wall(cc + 1, r + 1)) blocks.rect(x, y, TILE, TILE);
+        }
+      }
+      const stroke = flash ? '#ffffff' : theme.wallStroke;
+      const fill = flash ? '#3a3a55' : theme.wallFill;
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      // внешнее неоновое свечение
+      c.shadowColor = flash ? 'rgba(255,255,255,0.9)' : theme.glow;
+      c.shadowBlur = 9 * s;
+      c.strokeStyle = stroke; c.fillStyle = stroke;
+      c.lineWidth = 14;
+      c.stroke(path); c.fill(blocks);
+      c.shadowBlur = 0;
+      // тёмное тело стены
+      c.strokeStyle = fill; c.fillStyle = fill;
+      c.lineWidth = 10;
+      c.stroke(path); c.fill(blocks);
+    }
+    function buildMazes() {
+      if (!map.length) return;
+      buildMaze(mazeCanvas, false);
+      buildMaze(mazeFlash, true);
+    }
 
-          if (map[r][c] === 1) {
-            ctx.fillStyle = theme.wallFill;
-            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-            ctx.strokeStyle = theme.wallStroke;
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-          } else if (map[r][c] === 2) {
-            ctx.fillStyle = '#ffb8ae';
+    function drawPac(alpha) {
+      const p = pac;
+      const ang = Math.atan2(p.fy, p.fx);
+      let mouth = p.moving || phase !== 'play' ? 0.04 + 0.32 * Math.abs(Math.sin(p.mouthT)) : 0.22;
+      if (phase === 'ready') mouth = 0.22;
+      let r = 8.5;
+      if (phase === 'dying') {
+        if (dyingTicks < 36) mouth = 0.22;
+        else {
+          const k = Math.min(1, (dyingTicks - 36) / 80);
+          mouth = 0.22 + k * (Math.PI - 0.22);
+          if (k >= 1) return;
+        }
+      }
+      let color = '#ffe600', glow = 'rgba(255, 230, 0, 0.55)', blur = 6;
+      if (frightTicks > 0 && phase !== 'dying') {
+        color = '#fff35c'; glow = 'rgba(255, 255, 140, 0.95)'; blur = 12 + 4 * Math.sin(frame * 0.3);
+      }
+      const draw = (x) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = glow; ctx.shadowBlur = blur * renderScale;
+        const grd = ctx.createRadialGradient(x - 3, p.y - 3, 1, x, p.y, r);
+        grd.addColorStop(0, '#fffbc0'); grd.addColorStop(0.45, color); grd.addColorStop(1, '#e0a800');
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        const a0 = phase === 'dying' ? -Math.PI / 2 : ang;
+        ctx.moveTo(x, p.y);
+        ctx.arc(x, p.y, r, a0 + mouth, a0 + Math.PI * 2 - mouth);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      };
+      draw(p.x);
+    }
+
+    function drawGhost(g) {
+      const x = g.x, y = g.y;
+      const eyesOnly = g.mode === 'eaten' || g.mode === 'entering';
+      const flashing = g.fright && frightTicks < 100 && Math.floor(frightTicks / 12) % 2 === 0;
+      if (!eyesOnly) {
+        const body = g.fright ? (flashing ? '#e8e8ff' : '#2333ff') : g.color;
+        ctx.save();
+        ctx.shadowColor = g.fright ? 'rgba(80,100,255,0.9)' : g.glow;
+        ctx.shadowBlur = 8 * renderScale;
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(x, y - 1, 8.5, Math.PI, 0, false);
+        const wave = Math.floor(frame / 8) % 2;
+        const bottom = y + 8, top = y + 5;
+        ctx.lineTo(x + 8.5, bottom);
+        const pts = wave
+          ? [6.4, top, 4.25, bottom, 2.1, top, 0, bottom, -2.1, top, -4.25, bottom, -6.4, top]
+          : [7.1, bottom - 0.5, 5, top, 2.8, bottom, 0, top, -2.8, bottom, -5, top, -7.1, bottom - 0.5];
+        for (let i = 0; i < pts.length; i += 2) ctx.lineTo(x + pts[i], pts[i + 1]);
+        ctx.lineTo(x - 8.5, bottom);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      if (g.fright && !eyesOnly) {
+        // испуганное лицо
+        const face = flashing ? '#ff3030' : '#ffd0b0';
+        ctx.fillStyle = face;
+        ctx.fillRect(x - 4, y - 3, 2.2, 2.2);
+        ctx.fillRect(x + 1.8, y - 3, 2.2, 2.2);
+        ctx.strokeStyle = face; ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(x - 5.5, y + 3.2);
+        for (let i = 1; i <= 6; i++) ctx.lineTo(x - 5.5 + i * 1.83, y + (i % 2 ? 1.8 : 3.2));
+        ctx.stroke();
+        return;
+      }
+      // глаза смотрят по направлению движения
+      let lx = g.dx, ly = g.dy;
+      if (g.mode === 'house' || g.mode === 'leaving' || g.mode === 'entering') { lx = 0; ly = g.mode === 'house' ? (Math.sin(g.bob) > 0 ? 1 : -1) : -1; }
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(x - 3.3 + lx, y - 2 + ly * 0.6, 2.6, 3.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + 3.3 + lx, y - 2 + ly * 0.6, 2.6, 3.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a2bff';
+      ctx.beginPath();
+      ctx.arc(x - 3.3 + lx * 2, y - 2 + ly * 1.8, 1.35, 0, Math.PI * 2);
+      ctx.arc(x + 3.3 + lx * 2, y - 2 + ly * 1.8, 1.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function render() {
+      const s = renderScale;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const ox = shake ? (Math.random() * 2 - 1) * shake : 0;
+      const oy = shake ? (Math.random() * 2 - 1) * shake : 0;
+      if (!map.length) return;
+      const flash = phase === 'clearing' && Math.floor(clearTicks / 13) % 2 === 1;
+      ctx.drawImage(flash ? mazeFlash : mazeCanvas, ox * s, oy * s);
+      ctx.setTransform(s, 0, 0, s, ox * s, oy * s);
+
+      // Дверь домика
+      ctx.fillStyle = theme.door;
+      ctx.shadowColor = theme.door; ctx.shadowBlur = 6 * s;
+      ctx.fillRect(DOOR_COL * TILE - 1, L.doorRow * TILE + HALF - 1.5, TILE + 2, 3);
+      ctx.shadowBlur = 0;
+
+      // Точки и энерджайзеры
+      ctx.fillStyle = '#ffd2c2';
+      const energOn = phase !== 'play' || Math.floor(frame / 12) % 2 === 0;
+      for (let r = 0; r < ROWS; r++) {
+        const row = map[r];
+        for (let c = 0; c < COLS; c++) {
+          const t = row[c];
+          if (t === 2) {
+            ctx.fillRect(c * TILE + HALF - 1.6, r * TILE + HALF - 1.6, 3.2, 3.2);
+          } else if (t === 3 && energOn) {
+            const pr = 5 + Math.sin(frame * 0.15) * 0.9;
+            ctx.save();
+            ctx.shadowColor = 'rgba(255, 200, 180, 0.95)';
+            ctx.shadowBlur = 10 * s;
             ctx.beginPath();
-            ctx.arc(x + 10, y + 10, 2.5, 0, Math.PI * 2);
+            ctx.arc(c * TILE + HALF, r * TILE + HALF, pr, 0, Math.PI * 2);
             ctx.fill();
-          } else if (map[r][c] === 3) {
-            ctx.fillStyle = '#ffb8ae';
-            ctx.beginPath();
-            ctx.arc(x + 10, y + 10, 6, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.restore();
           }
         }
       }
 
-      // Дверь домика призраков
-      ctx.fillStyle = theme.door;
-      ctx.fillRect(9 * TILE_SIZE, 8 * TILE_SIZE + 8, TILE_SIZE, 4);
-
-      // 2. Пакман (с изменением цвета при энерджайзере и 3 морганиями)
-      let pacColor = '#ffff00';
-      let pacGlow = 'rgba(255, 255, 0, 0.5)';
-
-      if (frightenedTimer > 0) {
-        if (frightenedTimer < 90) {
-          const isBlink = Math.floor(frightenedTimer / 15) % 2 === 0;
-          pacColor = isBlink ? '#ffffff' : '#00ffff';
-          pacGlow = isBlink ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 255, 255, 0.9)';
-        } else {
-          pacColor = '#00ffff';
-          pacGlow = 'rgba(0, 255, 255, 0.8)';
+      // Фрукт
+      if (fruit) {
+        const blink = fruit.ticks < 120 && Math.floor(fruit.ticks / 8) % 2 === 0;
+        if (!blink) {
+          ctx.font = '15px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(fruit.def.e, fruit.x, fruit.y + 1 + Math.sin(frame * 0.12) * 1.2);
         }
       }
 
-      ctx.save();
-      ctx.shadowColor = pacGlow;
-      ctx.shadowBlur = frightenedTimer > 0 ? 16 : 4;
-      ctx.fillStyle = pacColor;
-      ctx.beginPath();
-      let angle = 0;
-      if (pacman.dirX === 1) angle = 0;
-      else if (pacman.dirX === -1) angle = Math.PI;
-      else if (pacman.dirY === 1) angle = Math.PI / 2;
-      else if (pacman.dirY === -1) angle = -Math.PI / 2;
+      const hideGhosts = (phase === 'dying' && dyingTicks >= 36) || (phase === 'clearing');
+      if (!hideGhosts) ghosts.forEach(drawGhost);
+      drawPac(phase === 'freeze' ? 0.35 : 1);
 
-      ctx.arc(pacman.x, pacman.y, pacman.radius, angle + pacman.mouthAngle, angle + Math.PI * 2 - pacman.mouthAngle);
-      ctx.lineTo(pacman.x, pacman.y);
-      ctx.fill();
-      ctx.restore();
+      // Частицы
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.life / p.max);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      }
+      ctx.globalAlpha = 1;
 
-      // 3. Призраки
-      ghosts.forEach(g => {
-        let ghostColor = g.color;
-        if (g.state === 'frightened') {
-          ghostColor = (frightenedTimer < 90 && Math.floor(frightenedTimer / 15) % 2 === 0) ? '#ffffff' : '#2121de';
-        }
+      // Всплывающие очки
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const p of popups) {
+        ctx.globalAlpha = Math.min(1, p.life / 25);
+        ctx.font = 'bold 10px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color; ctx.shadowBlur = 6 * s;
+        ctx.fillText(p.text, p.x, p.y);
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
 
-        if (g.state !== 'eaten') {
-          ctx.fillStyle = ghostColor;
-          ctx.beginPath();
-          ctx.arc(g.x, g.y - 2, 8, Math.PI, 0, false);
-          ctx.lineTo(g.x + 8, g.y + 8);
-          ctx.lineTo(g.x + 4, g.y + 5);
-          ctx.lineTo(g.x, g.y + 8);
-          ctx.lineTo(g.x - 4, g.y + 5);
-          ctx.lineTo(g.x - 8, g.y + 8);
-          ctx.closePath();
-          ctx.fill();
-        }
-
-        // Глаза призрака
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(g.x - 3, g.y - 2, 2.5, 0, Math.PI * 2);
-        ctx.arc(g.x + 3, g.y - 2, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#0000ff';
-        ctx.beginPath();
-        ctx.arc(g.x - 3 + g.dirX, g.y - 2 + g.dirY, 1.2, 0, Math.PI * 2);
-        ctx.arc(g.x + 3 + g.dirX, g.y - 2 + g.dirY, 1.2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // 4. Баннер READY!
-      if (readyTimer > 0) {
-        ctx.fillStyle = '#ffff00';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`LVL ${currentLevel} • READY!`, 9 * TILE_SIZE + 10, 11 * TILE_SIZE + 15);
+      // READY!
+      if (phase === 'ready' || (phase === 'paused' && pausedFrom === 'ready')) {
+        const y = L.fruitRow * TILE + HALF;
+        ctx.font = 'bold 15px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = '#ffe600';
+        ctx.shadowColor = 'rgba(255, 230, 0, 0.9)'; ctx.shadowBlur = 10 * s;
+        ctx.fillText('READY!', W / 2, y);
+        ctx.shadowBlur = 0;
       }
     }
 
-    // --- Управление (Жесты, Кнопки, Клавиатура) ---
-    function setDirection(dx, dy) {
-      initAudio();
-      pacman.nextDirX = dx;
-      pacman.nextDirY = dy;
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    // =====================================================================
+    //  Размер холста под экран + HiDPI
+    // =====================================================================
+    const container = document.getElementById('game-container');
+    function resize() {
+      const rect = container.getBoundingClientRect();
+      const availW = Math.max(100, rect.width - 16);
+      const availH = Math.max(100, rect.height - 16);
+      const scale = Math.min(availW / W, availH / H);
+      const cssW = Math.floor(W * scale), cssH = Math.floor(H * scale);
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      renderScale = canvas.width / W;
+      buildMazes();
+      render();
+    }
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+    if (tg && tg.onEvent) tgCall(() => tg.onEvent('viewportChanged', resize));
+
+    // =====================================================================
+    //  HUD и оверлей
+    // =====================================================================
+    let hudCache = {};
+    function updateHUD(force) {
+      if (force || hudCache.score !== score) { document.getElementById('score').textContent = score; hudCache.score = score; }
+      if (force || hudCache.high !== highScore) { document.getElementById('high-score').textContent = highScore; hudCache.high = highScore; }
+      if (force || hudCache.level !== currentLevel) {
+        document.getElementById('level-display').textContent = currentLevel;
+        document.getElementById('level-name').textContent = theme.short;
+        hudCache.level = currentLevel;
+      }
+      if (force || hudCache.lives !== lives) {
+        const el = document.getElementById('lives');
+        el.innerHTML = '';
+        for (let i = 0; i < Math.max(0, lives); i++) { const d = document.createElement('span'); d.className = 'life'; el.appendChild(d); }
+        hudCache.lives = lives;
+      }
     }
 
+    const overlay = document.getElementById('overlay');
+    let overlayPrimary = null, overlaySecondary = null;
+    function showOverlay(o) {
+      document.getElementById('overlay-title').textContent = o.title;
+      document.getElementById('overlay-desc').innerHTML = o.desc;
+      document.getElementById('settings-box').style.display = o.settings ? '' : 'none';
+      document.getElementById('btn-start').textContent = o.primary;
+      const sec = document.getElementById('btn-secondary');
+      sec.style.display = o.secondary ? '' : 'none';
+      if (o.secondary) sec.textContent = o.secondary;
+      document.getElementById('overlay-hint').style.display = phase === 'paused' || phase === 'level_done' ? 'none' : '';
+      const top = document.getElementById('top-scores');
+      if (o.top && o.top.list.length) {
+        top.innerHTML = '<div class="title">ЛУЧШИЕ РЕЗУЛЬТАТЫ</div>' + o.top.list.map((e, i) =>
+          `<div class="row${e === o.top.entry ? ' me' : ''}"><span>${i + 1}. ${Number(e.s)}</span><span>ур. ${Number(e.l)}</span></div>`).join('');
+        top.style.display = '';
+      } else top.style.display = 'none';
+      overlay.style.display = 'flex';
+    }
+    function hideOverlay() { overlay.style.display = 'none'; }
+
+    function onPrimary() {
+      if (phase === 'paused') resumeGame();
+      else if (phase === 'level_done') startNextLevel();
+      else if (phase === 'menu' || phase === 'over') startGame();
+    }
+    function onSecondary() {
+      if (phase === 'paused') { persistHigh(); startGame(); }
+    }
+    document.getElementById('btn-start').addEventListener('click', onPrimary);
+    document.getElementById('btn-secondary').addEventListener('click', onSecondary);
+
+    function updateGhostSpeedUI() {
+      document.getElementById('ghost-speed-val').textContent = ghostSpeedNames[ghostSpeedLevel];
+      for (let i = 1; i <= 4; i++) document.getElementById('g-spd-' + i).classList.toggle('active', i === ghostSpeedLevel);
+    }
+    document.querySelectorAll('.speed-pill').forEach(b => b.addEventListener('click', () => {
+      ghostSpeedLevel = parseInt(b.dataset.speed, 10);
+      lsSet('pacman_ghost_speed', ghostSpeedLevel);
+      updateGhostSpeedUI();
+      haptic('select');
+      SFX.tick();
+    }));
+
+    document.getElementById('btn-pause').addEventListener('click', () => {
+      if (phase === 'paused') resumeGame(); else pauseGame();
+    });
+    document.getElementById('btn-sound').addEventListener('click', () => { unlockAudio(); setSound(!soundOn); });
+
+    // Автопауза при сворачивании Telegram / вкладки
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+    window.addEventListener('pagehide', persistHigh);
+
+    // =====================================================================
+    //  Управление
+    // =====================================================================
     window.addEventListener('keydown', e => {
-      if (['ArrowUp', 'KeyW'].includes(e.code)) setDirection(0, -1);
-      if (['ArrowDown', 'KeyS'].includes(e.code)) setDirection(0, 1);
-      if (['ArrowLeft', 'KeyA'].includes(e.code)) setDirection(-1, 0);
-      if (['ArrowRight', 'KeyD'].includes(e.code)) setDirection(1, 0);
+      const k = e.code;
+      if (['ArrowUp', 'KeyW'].includes(k)) setDirection(0, -1);
+      else if (['ArrowDown', 'KeyS'].includes(k)) setDirection(0, 1);
+      else if (['ArrowLeft', 'KeyA'].includes(k)) setDirection(-1, 0);
+      else if (['ArrowRight', 'KeyD'].includes(k)) setDirection(1, 0);
+      else if (k === 'KeyP' || k === 'Escape') { phase === 'paused' ? resumeGame() : pauseGame(); }
+      else if ((k === 'Enter' || k === 'Space') && overlay.style.display !== 'none') onPrimary();
+      else return;
+      e.preventDefault();
     });
 
-    document.getElementById('btn-up').addEventListener('touchstart', e => { e.preventDefault(); setDirection(0, -1); }, { passive: false });
-    document.getElementById('btn-down').addEventListener('touchstart', e => { e.preventDefault(); setDirection(0, 1); }, { passive: false });
-    document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); setDirection(-1, 0); }, { passive: false });
-    document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); setDirection(1, 0); }, { passive: false });
-    document.getElementById('btn-up').addEventListener('click', () => setDirection(0, -1));
-    document.getElementById('btn-down').addEventListener('click', () => setDirection(0, 1));
-    document.getElementById('btn-left').addEventListener('click', () => setDirection(-1, 0));
-    document.getElementById('btn-right').addEventListener('click', () => setDirection(1, 0));
+    const dpadMap = { 'btn-up': [0, -1], 'btn-down': [0, 1], 'btn-left': [-1, 0], 'btn-right': [1, 0] };
+    Object.keys(dpadMap).forEach(id => {
+      const b = document.getElementById(id);
+      b.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        b.classList.add('pressed');
+        setDirection(dpadMap[id][0], dpadMap[id][1]);
+      });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => b.classList.remove('pressed')));
+    });
 
-    // --- Мгновенное непрерывное жестовое управление пальцем по экрану (Continuous Touch Gesture) ---
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchActive = false;
-
+    // Непрерывные свайпы пальцем по любой области экрана
+    let touchStartX = 0, touchStartY = 0, touchActive = false;
+    function isUiTarget(t) { return t.closest && (t.closest('#overlay') || t.closest('#dpad') || t.closest('button')); }
     window.addEventListener('touchstart', e => {
-      // Разрешаем все взаимодействия с оверлеем, настройками, кнопками и ползунками
-      if (!gameRunning || e.target.closest('#overlay') || e.target.closest('#dpad') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
-        return;
-      }
+      if (isUiTarget(e.target)) return;
       e.preventDefault();
-      const touch = e.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-      touchActive = true;
-      initAudio();
+      const t = e.touches[0];
+      touchStartX = t.clientX; touchStartY = t.clientY; touchActive = true;
     }, { passive: false });
-
     window.addEventListener('touchmove', e => {
-      if (!gameRunning || !touchActive || e.touches.length === 0 || e.target.closest('#overlay')) return;
+      if (!touchActive || !e.touches.length || isUiTarget(e.target)) return;
       e.preventDefault();
-      const touch = e.touches[0];
-      const diffX = touch.clientX - touchStartX;
-      const diffY = touch.clientY - touchStartY;
-      const threshold = 12;
-
-      if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
-        if (Math.abs(diffX) > Math.abs(diffY)) {
-          if (diffX > 0) setDirection(1, 0);
-          else setDirection(-1, 0);
-        } else {
-          if (diffY > 0) setDirection(0, 1);
-          else setDirection(0, -1);
-        }
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
+      const t = e.touches[0];
+      const dx = t.clientX - touchStartX, dy = t.clientY - touchStartY;
+      if (Math.abs(dx) > 14 || Math.abs(dy) > 14) {
+        if (Math.abs(dx) > Math.abs(dy)) setDirection(dx > 0 ? 1 : -1, 0);
+        else setDirection(0, dy > 0 ? 1 : -1);
+        touchStartX = t.clientX; touchStartY = t.clientY;
       }
     }, { passive: false });
-
     window.addEventListener('touchend', e => {
-      if (!gameRunning || e.target.closest('#overlay') || e.target.closest('#dpad') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
-        touchActive = false;
-        return;
-      }
-      e.preventDefault();
       touchActive = false;
+      if (!isUiTarget(e.target)) e.preventDefault();
     }, { passive: false });
+
+    // =====================================================================
+    //  Игровой цикл: фиксированный шаг 60 Гц + аккумулятор
+    // =====================================================================
+    let lastTs = 0, acc = 0;
+    function stepTime(dt) {
+      if (dt > 250) dt = 250;
+      acc += dt;
+      let n = 0;
+      while (acc >= STEP_MS && n < 10) { tick(); acc -= STEP_MS; n++; }
+      if (n >= 10) acc = 0;
+      return n;
+    }
+    function loop(ts) {
+      requestAnimationFrame(loop);
+      if (!lastTs) lastTs = ts;
+      const dt = ts - lastTs;
+      lastTs = ts;
+      if (!manualClock) stepTime(dt);
+      render();
+    }
+
+    // =====================================================================
+    //  Старт
+    // =====================================================================
+    setSound(soundOn);
+    updateGhostSpeedUI();
+    initLevel(1);
+    phase = 'menu';
+    loadCloudHigh();
+    resize();
+    requestAnimationFrame(loop);
+
+    // Хук для автотестов (scripts/test_pacman.js). На игру не влияет.
+    window.__pacman = {
+      get state() {
+        return {
+          phase, currentLevel, score, lives, highScore, totalDots, dotsEaten, frightTicks, ghostChain,
+          modeIndex, mode: params ? globalMode() : null, yOff, layout: Object.assign({}, L),
+          pac: Object.assign({}, pac),
+          ghosts: ghosts.map(g => ({ name: g.name, mode: g.mode, fright: g.fright, x: g.x, y: g.y, dx: g.dx, dy: g.dy })),
+          fruit: fruit ? { x: fruit.x, y: fruit.y } : null,
+        };
+      },
+      maps, get map() { return map; },
+      setManual(v) { manualClock = !!v; },
+      setInvincible(v) { debugInvincible = !!v; },
+      setGhostSpeed(v) { ghostSpeedLevel = v; updateGhostSpeedUI(); },
+      tick(n) { for (let i = 0; i < (n || 1); i++) tick(); },
+      stepTime,
+      startGame, startNextLevel, pauseGame, resumeGame, onPrimary,
+      setDirection,
+      initLevel(lvl) { initLevel(lvl); },
+      blocked: (c, r) => blocked(c, r, null),
+      setGhost(i, o) { Object.assign(ghosts[i], o); },
+      setPac(o) { Object.assign(pac, o); },
+      eatGhost(i) { eatGhost(ghosts[i]); },
+      forcePhase(p) { phase = p; },
+      clearDotsExcept(n) {
+        let left = 0;
+        for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+          if (map[r][c] === 2 || map[r][c] === 3) { if (left < n) left++; else { map[r][c] = 0; dotsEaten++; } }
+        }
+      },
+    };
+  })();
   </script>
 </body>
 </html>
