@@ -70,7 +70,7 @@ function createGameEngine(htmlPath) {
     el.innerHTML = '';
     el.style = {};
     el.dataset = {};
-    el.classList = { add: () => {}, remove: () => {}, contains: () => false };
+    el.classList = { add: () => {}, remove: () => {}, contains: () => false, toggle: () => false };
     el.addEventListener = () => {};
     el.getContext = () => makeStub();
     el.getBoundingClientRect = () => ({ width: 380, height: 340, left: 0, top: 0 });
@@ -134,10 +134,25 @@ function runSingleSimulation(game, {
   });
 
   const state = game.getState();
+  // Воспроизводимость: без «спроса дня» (он зависит от календарной даты)
+  if (typeof game.setDemandOverride === 'function') game.setDemandOverride('none');
   let time = 0;
+  let step = 0;
+  // С версии с ручной подачей блюда разносит игрок. Модель внимательного игрока:
+  // раз в ~0.9 с подаёт блюдо самому нетерпеливому гостю, для которого оно уже на раздаче.
+  const serveEverySteps = Math.max(1, Math.round(0.9 / dt));
 
   while (time < duration) {
     time += dt;
+    step++;
+
+    if (typeof game.serveCafeCustomer === 'function' && step % serveEverySteps === 0) {
+      const plates = game.getReadyPlates();
+      const ready = game.getCustomers()
+        .filter(c => c.state === 'waiting_order' && (!c.isVIP || c.isVipAccepted) && plates.some(p => p.dish.id === c.dish.id))
+        .sort((a, b) => a.patience - b.patience);
+      if (ready[0]) game.serveCafeCustomer(ready[0], false);
+    }
 
     if (acceptGourmet) {
       // Find waiting gourmet who hasn't been accepted yet

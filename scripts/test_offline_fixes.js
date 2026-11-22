@@ -106,6 +106,8 @@ async function runTests() {
     st.expansion = 1;
     st.verandaDecor = 1;
     st.featuredDish = 'coffee';
+    // С версии с ручной подачей кафе зарабатывает в офлайне только с нанятым официантом
+    st.upgrades.waiter = 1;
     if (!st.bakery) {
       st.bakery = {
         unlocked: true,
