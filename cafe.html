@@ -849,7 +849,11 @@
 
     /* --- ИГРОВОЕ ПОЛЕ (ХОЛСТ КАФЕ) --- */
     #cafe-viewport {
-      flex: 1;
+      flex: 1 1 auto;
+      /* Сцене нужно не меньше ~300px высоты, иначе котики и стойка не помещаются.
+         На коротких экранах ниже уменьшается магазин (он прокручивается), а не сцена. */
+      min-height: clamp(220px, 40vh, 300px);
+      min-height: clamp(220px, 40dvh, 300px);
       position: relative;
       background: #fbf5eb;
       overflow: hidden;
@@ -900,7 +904,9 @@
       display: flex;
       flex-direction: column;
       z-index: 10;
-      flex-shrink: 0;
+      flex-shrink: 1;
+      min-height: 52px;
+      overflow: hidden;
       transition: max-height 0.3s cubic-bezier(0.25, 1, 0.5, 1), padding 0.25s ease;
       position: relative;
     }
@@ -984,6 +990,8 @@
     }
 
     .upgrades-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -2165,20 +2173,32 @@
       return `${count.toLocaleString('ru-RU')} ${pluralize(count, 'заказ', 'заказа', 'заказов')}`;
     }
 
+    // Флаги жизненного цикла: приложение свёрнуто / идёт сброс прогресса
+    let isAppHidden = false;
+    let isResettingSave = false;
+
     function saveGame() {
+      // Во время сброса прогресса ничего не сохраняем (иначе visibilitychange при перезагрузке
+      // успеет записать старое состояние обратно в localStorage)
+      if (isResettingSave) return;
       try {
+        repairRuntimeNumbers();
         const now = Date.now();
         // Разделяем сохранение данных и учёт активности:
         // Обновляем отметку времени ТОЛЬКО для активного помещения.
         // Защита от потери оффлайн-дохода: не перезаписываем время активного помещения,
         // пока открыта модалка с невостребованной наградой.
-        if (state.currentVenue === 'cafe') {
-          if (pendingOfflineCoins === 0) {
-            state.lastSavedTime = now;
-          }
-        } else if (state.currentVenue === 'bakery' && state.bakery) {
-          if (pendingBakeryOfflineCoins === 0) {
-            state.bakery.lastSavedTime = now;
+        // Пока приложение свёрнуто, отметку времени не двигаем: время в фоне должно
+        // засчитаться как офлайн-доход при возвращении (см. setupLifecycleHandlers).
+        if (!isAppHidden) {
+          if (state.currentVenue === 'cafe') {
+            if (pendingOfflineCoins === 0) {
+              state.lastSavedTime = now;
+            }
+          } else if (state.currentVenue === 'bakery' && state.bakery) {
+            if (pendingBakeryOfflineCoins === 0) {
+              state.bakery.lastSavedTime = now;
+            }
           }
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -2187,75 +2207,124 @@
       }
     }
 
+    // --- Защита сохранений от NaN / Infinity / мусора ---
+    // JSON.stringify(NaN) === 'null', поэтому одна ошибка в расчётах могла бы
+    // навсегда испортить сохранение. Все числа из localStorage проходят через эти помощники.
+    function finiteNum(v, def) {
+      return (typeof v === 'number' && Number.isFinite(v)) ? v : def;
+    }
+    function finiteNonNeg(v, def) {
+      const n = finiteNum(v, def);
+      return n < 0 ? def : n;
+    }
+    function sanitizeUpgradeLevels(catalog, defaults, saved) {
+      const result = Object.assign({}, defaults);
+      if (!saved || typeof saved !== 'object') return result;
+      catalog.forEach(upg => {
+        const minLvl = defaults[upg.id] === 0 ? 0 : 1;
+        const v = finiteNum(saved[upg.id], null);
+        if (v === null) return;
+        result[upg.id] = Math.max(minLvl, Math.floor(v));
+      });
+      return result;
+    }
+    // Если монеты всё-таки стали NaN во время игры — не даём этому попасть в сохранение
+    function repairRuntimeNumbers() {
+      const fix = (obj, key, def) => {
+        if (obj && !Number.isFinite(obj[key])) {
+          console.error(`Некорректное значение ${key}:`, obj[key], '→ восстановлено', def);
+          obj[key] = def;
+        }
+      };
+      fix(state, 'coins', 0);
+      fix(state, 'totalEarned', finiteNonNeg(state.coins, 0));
+      fix(state, 'ordersServed', 0);
+      if (state.bakery) {
+        fix(state.bakery, 'coins', 0);
+        fix(state.bakery, 'totalEarned', finiteNonNeg(state.bakery.coins, 0));
+        fix(state.bakery, 'ordersServed', 0);
+      }
+    }
+
     function loadGame() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed.coins === 'number') {
+          // Раньше сохранение принималось только при typeof coins === 'number'.
+          // Если монеты однажды стали NaN, в JSON попадал null — и весь прогресс терялся.
+          // Теперь сохранение узнаём по любому из ключевых полей.
+          if (parsed && typeof parsed === 'object' && ('coins' in parsed || 'upgrades' in parsed || 'ordersServed' in parsed)) {
+            const now = Date.now();
             state.saveVersion = 2;
-            state.coins = parsed.coins;
-            state.totalEarned = parsed.totalEarned || parsed.coins;
-            state.ordersServed = parsed.ordersServed || 0;
+            state.coins = finiteNonNeg(parsed.coins, 0);
+            state.totalEarned = finiteNonNeg(parsed.totalEarned, state.coins) || state.coins;
+            state.ordersServed = Math.floor(finiteNonNeg(parsed.ordersServed, 0));
             state.soundEnabled = parsed.soundEnabled !== false;
-            state.lastSavedTime = parsed.lastSavedTime || Date.now();
-            if (parsed.upgrades) {
-              state.upgrades = Object.assign(state.upgrades, parsed.upgrades);
-              if (typeof state.upgrades.helper !== 'number') {
-                state.upgrades.helper = 0;
-              }
+            state.lastSavedTime = finiteNum(parsed.lastSavedTime, now) || now;
+
+            const savedUpgrades = (parsed.upgrades && typeof parsed.upgrades === 'object') ? parsed.upgrades : null;
+            if (savedUpgrades) {
               // Сохранение и защита прогресса игроков:
               // Если в сохранении уровень плиты был > 10 (бывший max 20),
               // фиксируем максимальный 10-й уровень (максимальная скорость готовки),
               // и возвращаем монеты, потраченные впустую на уровни 11..N
-              if (typeof state.upgrades.speed === 'number' && state.upgrades.speed > 10) {
+              const speedUpg = UPGRADES.find(u => u.id === 'speed');
+              const savedSpeed = finiteNum(savedUpgrades.speed, 1);
+              if (speedUpg && savedSpeed > speedUpg.maxLevel) {
                 let refundCoins = 0;
-                for (let lvl = 11; lvl <= state.upgrades.speed; lvl++) {
-                  refundCoins += Math.floor(35 * Math.pow(1.55, lvl - 2));
+                for (let lvl = speedUpg.maxLevel + 1; lvl <= Math.floor(savedSpeed); lvl++) {
+                  // Стоимость покупки уровня lvl = baseCost * costMult^(lvl-2) — та же формула, что в getUpgradeCost
+                  refundCoins += Math.floor(speedUpg.baseCost * Math.pow(speedUpg.costMult, lvl - 2));
                 }
                 state.coins += refundCoins;
                 state.totalEarned += refundCoins;
-                state.upgrades.speed = 10;
+              }
+              state.upgrades = sanitizeUpgradeLevels(UPGRADES, state.upgrades, savedUpgrades);
+              if (speedUpg && state.upgrades.speed > speedUpg.maxLevel) {
+                state.upgrades.speed = speedUpg.maxLevel;
               }
             }
             state.claimedQuests = Array.isArray(parsed.claimedQuests) ? parsed.claimedQuests : [];
-            state.stars = typeof parsed.stars === 'number' ? parsed.stars : 0;
+            state.stars = Math.floor(finiteNonNeg(parsed.stars, 0));
             state.claimedStars = (parsed.claimedStars && typeof parsed.claimedStars === 'object') ? parsed.claimedStars : {};
-            state.expansion = typeof parsed.expansion === 'number' ? parsed.expansion : 0;
-            state.verandaDecor = typeof parsed.verandaDecor === 'number' ? parsed.verandaDecor : 0;
+            state.expansion = Math.floor(finiteNonNeg(parsed.expansion, 0));
+            state.verandaDecor = Math.floor(finiteNonNeg(parsed.verandaDecor, 0));
             state.featuredDish = typeof parsed.featuredDish === 'string' ? parsed.featuredDish : 'coffee';
-            state.gourmetsServed = typeof parsed.gourmetsServed === 'number' ? parsed.gourmetsServed : 0;
-            state.gourmetEarned = typeof parsed.gourmetEarned === 'number' ? parsed.gourmetEarned : 0;
-            state.seenHints = parsed.seenHints || {};
-            state.gourmetEventsCount = typeof parsed.gourmetEventsCount === 'number'
+            state.gourmetsServed = Math.floor(finiteNonNeg(parsed.gourmetsServed, 0));
+            state.gourmetEarned = finiteNonNeg(parsed.gourmetEarned, 0);
+            state.seenHints = (parsed.seenHints && typeof parsed.seenHints === 'object') ? parsed.seenHints : {};
+            state.gourmetEventsCount = (typeof parsed.gourmetEventsCount === 'number' && Number.isFinite(parsed.gourmetEventsCount))
               ? parsed.gourmetEventsCount
               : ((parsed.seenHints && parsed.seenHints.gourmet) ? 1 : 0);
 
             // Миграция и загрузка данных Пекарни
             if (parsed.bakery && typeof parsed.bakery === 'object') {
+              const pb = parsed.bakery;
+              const bakeryCoins = finiteNonNeg(pb.coins, 60);
               state.bakery = {
-                unlocked: !!parsed.bakery.unlocked,
-                coins: typeof parsed.bakery.coins === 'number' ? parsed.bakery.coins : 60,
-                totalEarned: typeof parsed.bakery.totalEarned === 'number' ? parsed.bakery.totalEarned : 60,
-                ordersServed: typeof parsed.bakery.ordersServed === 'number' ? parsed.bakery.ordersServed : 0,
-                lastSavedTime: parsed.bakery.lastSavedTime || Date.now(),
-                stars: typeof parsed.bakery.stars === 'number' ? parsed.bakery.stars : 0,
-                claimedStars: (parsed.bakery.claimedStars && typeof parsed.bakery.claimedStars === 'object') ? parsed.bakery.claimedStars : {},
-                eventsCompleted: typeof parsed.bakery.eventsCompleted === 'number' ? parsed.bakery.eventsCompleted : 0,
-                waiterSpec: (parsed.bakery.waiterSpec === 'speed' || parsed.bakery.waiterSpec === 'hospitality') ? parsed.bakery.waiterSpec : null,
-                lastEventEndedAt: typeof parsed.bakery.lastEventEndedAt === 'number' ? parsed.bakery.lastEventEndedAt : 0,
+                unlocked: !!pb.unlocked,
+                coins: bakeryCoins,
+                totalEarned: finiteNonNeg(pb.totalEarned, bakeryCoins),
+                ordersServed: Math.floor(finiteNonNeg(pb.ordersServed, 0)),
+                lastSavedTime: finiteNum(pb.lastSavedTime, now) || now,
+                stars: Math.floor(finiteNonNeg(pb.stars, 0)),
+                claimedStars: (pb.claimedStars && typeof pb.claimedStars === 'object') ? pb.claimedStars : {},
+                eventsCompleted: Math.floor(finiteNonNeg(pb.eventsCompleted, 0)),
+                waiterSpec: (pb.waiterSpec === 'speed' || pb.waiterSpec === 'hospitality') ? pb.waiterSpec : null,
+                lastEventEndedAt: finiteNonNeg(pb.lastEventEndedAt, 0),
                 activeEvent: null, // не восстанавливаем частично при перезагрузке
-                upgrades: Object.assign({
+                upgrades: sanitizeUpgradeLevels(BAKERY_UPGRADES, {
                   oven: 1,
                   waiter_speed: 1,
                   tables: 1,
                   recipes: 1,
                   baker_helper: 0
-                }, parsed.bakery.upgrades || {}),
-                claimedQuests: Array.isArray(parsed.bakery.claimedQuests) ? parsed.bakery.claimedQuests : [],
-                seenHints: parsed.bakery.seenHints || {}
+                }, pb.upgrades),
+                claimedQuests: Array.isArray(pb.claimedQuests) ? pb.claimedQuests : [],
+                seenHints: (pb.seenHints && typeof pb.seenHints === 'object') ? pb.seenHints : {}
               };
-              if (parsed.bakery.activeEvent) {
+              if (pb.activeEvent) {
                 wasEventAbortedOnReload = true;
               }
             }
@@ -2270,6 +2339,51 @@
       } catch (e) {
         console.error('Ошибка загрузки сохранения:', e);
       }
+    }
+
+    // --- Параметры потока гостей кафе (общие для симуляции и расчёта офлайн-дохода) ---
+    const CAFE_SPAWN_MIN_SEC = 1.2;     // минимальный интервал появления гостя
+    const CAFE_SPAWN_RANGE_SEC = 1.5;   // + случайная добавка 0..1.5 с
+    const CAFE_GUEST_WALK_SPEED = 75;   // px/с — скорость гостя по пути к месту
+    const CAFE_GUEST_EAT_SEC = 1.5;     // сколько гость ест после подачи
+    // Поправка на очереди и простои (подобрана по замерам реальной симуляции, 3 сида × 900 с)
+    const CAFE_OFFLINE_QUEUE_FACTOR = 0.85;
+
+    // Оценка заказов в секунду для офлайн-дохода кафе.
+    // Раньше считалось «повара × 1/(готовка + 2с)»: с помощником офлайн давал до 170% от игры
+    // онлайн (на деле упор в места и поток гостей), без помощника — около 55%.
+    // Теперь берём минимум из трёх ограничений, как в реальной симуляции.
+    function estimateCafeOfflineRate() {
+      const avgCook = Math.max(0.6, getAverageCookTime());
+      const chefCount = 1 + ((state.upgrades.helper || 0) > 0 ? 1 : 0);
+      const seats = getMaxCustomerSeats();
+
+      // Среднее время пути гостя от входа до места
+      let walkSum = 0;
+      for (let i = 0; i < seats; i++) {
+        const pos = getSeatPosition(i);
+        const laneY = Math.min(canvasHeight - 30, pos.y + 40);
+        walkSum += Math.hypot(pos.x + 45, laneY - pos.y) / CAFE_GUEST_WALK_SPEED;
+      }
+      const avgWalk = seats > 0 ? walkSum / seats : 3;
+
+      const arrivalRate = 1 / (CAFE_SPAWN_MIN_SEC + CAFE_SPAWN_RANGE_SEC / 2);
+      const chefRate = chefCount / avgCook;
+      const seatRate = seats / (avgWalk + avgCook + CAFE_GUEST_EAT_SEC);
+      const rawRate = Math.min(arrivalRate, chefRate, seatRate);
+      const bottleneck = rawRate === arrivalRate ? 'guests' : (rawRate === chefRate ? 'chefs' : 'seats');
+
+      return {
+        ordersPerSec: rawRate * CAFE_OFFLINE_QUEUE_FACTOR,
+        arrivalRate,
+        chefRate,
+        seatRate,
+        chefCount,
+        seats,
+        avgCook,
+        avgWalk,
+        bottleneck
+      };
     }
 
     let pendingOfflineCoins = 0;
@@ -2291,22 +2405,14 @@
         // Ограничиваем оффлайн доход первыми 4 часами (14400 сек)
         const cappedSec = Math.min(14400, elapsedSec);
 
-        // 1. Учитываем среднее итоговое время готовки с учетом плиты, перков и минимума 0.6 сек
-        const avgEffectiveCookTime = getAverageCookTime();
-
-        // 2. Количество поваров (Шеф = 1, с помощником = 2 повара)
-        const hasHelper = (state.upgrades.helper || 0) > 0;
-        const chefCount = 1 + (hasHelper ? 1 : 0);
-
-        // 3. Средняя доходность блюда с бонусом соуса (прибыли)
+        // Пропускная способность кафе считается по самому узкому месту
+        // (см. estimateCafeOfflineRate): поток гостей, свободные места или повара.
+        const rate = estimateCafeOfflineRate();
+        const hasHelper = rate.chefCount > 1;
         const avgDishPrice = getAverageDishPrice();
 
-        // Полный цикл выполнения заказа на одного повара:
-        // время готовки блюда + обслуживание и поедание (~2.0 сек)
-        const cycleSec = avgEffectiveCookTime + 2.0;
-
-        // Расчетное число заказов всеми поварами
-        const estimatedOrders = Math.floor((cappedSec / cycleSec) * chefCount);
+        // Расчетное число заказов за время отсутствия
+        const estimatedOrders = Math.floor(cappedSec * rate.ordersPerSec);
 
         // Итоговый доход с 75% оффлайн-эффективностью
         const earned = Math.floor(estimatedOrders * avgDishPrice * 0.75);
@@ -2430,10 +2536,51 @@
     }
 
     function resetSaveData() {
-      if (confirm('Сбросить весь прогресс кафе до начального уровня?')) {
+      const message = 'Сбросить весь прогресс кафе до начального уровня?';
+      const doReset = () => {
+        isResettingSave = true; // блокирует saveGame() до перезагрузки
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
+      };
+      // В Telegram window.confirm работает не на всех клиентах — используем нативный диалог Telegram
+      if (tg && typeof tg.showConfirm === 'function' && (typeof tg.isVersionAtLeast !== 'function' || tg.isVersionAtLeast('6.2'))) {
+        try {
+          tg.showConfirm(message, (ok) => { if (ok) doReset(); });
+          return;
+        } catch (e) {
+          console.warn('Telegram showConfirm недоступен:', e);
+        }
       }
+      if (confirm(message)) doReset();
+    }
+
+    // --- Жизненный цикл: сворачивание и возврат в приложение ---
+    // Раньше офлайн-доход проверялся только при загрузке страницы. Если Telegram свернули
+    // (а не закрыли) на час, при возвращении доход не начислялся, а автосохранение
+    // перезаписывало отметку времени — этот час пропадал.
+    function setupLifecycleHandlers() {
+      const onHidden = () => {
+        if (isAppHidden) return;
+        saveGame();          // фиксируем момент ухода (обновляет lastSavedTime)
+        isAppHidden = true;  // дальше фоновые автосохранения время не двигают
+      };
+      const onVisible = () => {
+        if (!isAppHidden) return;
+        isAppHidden = false;
+        // Если модалка с наградой уже открыта — не пересчитываем, ждём, пока игрок её заберёт
+        if (pendingOfflineCoins === 0 && pendingBakeryOfflineCoins === 0) {
+          checkOfflineEarnings();
+        }
+        // Сбрасываем таймер кадра, чтобы симуляция не «прыгнула»
+        lastFrameTime = performance.now();
+      };
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') onHidden();
+        else onVisible();
+      });
+      // Ориентируемся только на видимость документа: пока страница видима, requestAnimationFrame
+      // продолжает симуляцию и доход идёт «вживую» — офлайн-начисление здесь дало бы двойной доход.
+      window.addEventListener('pagehide', onHidden);
     }
 
     // --- 8. Вычисления улучшений (Upgrades Math) ---
@@ -3340,7 +3487,7 @@
       pendingBakeryEventOffer = null;
 
       state.bakery.lastEventEndedAt = Date.now();
-      bakeryEventOfferTimer = 180 + Math.random() * 120;
+      bakeryEventOfferTimer = 180 + cafeRandom() * 120;
       showToast('Предложение компании котов отложено.');
       saveGame();
     }
@@ -3350,7 +3497,7 @@
       const ev = state.bakery.activeEvent;
       state.bakery.activeEvent = null;
       state.bakery.lastEventEndedAt = Date.now();
-      bakeryEventOfferTimer = 180 + Math.random() * 120;
+      bakeryEventOfferTimer = 180 + cafeRandom() * 120;
 
       if (success) {
         const reward = ev.rewardCoins;
@@ -3469,7 +3616,8 @@
 
     // --- 9. Сущности симуляции (Шеф-кот, Гости, Станция готовки) ---
     const canvas = document.getElementById('cafe-canvas');
-    const ctx = canvas.getContext('2d');
+    // let, а не const: при отрисовке кэш-слоёв сцены ctx временно подменяется (см. ensureSceneLayers)
+    let ctx = canvas.getContext('2d');
 
     let canvasWidth = 380;
     let canvasHeight = 340;
@@ -3767,7 +3915,7 @@
         breed,
         dish: chosenDish,
         eatTimer: 0,
-        eatTotalTime: 1.5,
+        eatTotalTime: CAFE_GUEST_EAT_SEC,
         walkAnim: 0,
         heartAnim: 0
       };
@@ -3869,7 +4017,7 @@
         if (!isGourmetPending) {
           spawnCustomer(false);
         }
-        nextCustomerSpawnTimer = 1.2 + cafeRandom() * 1.5;
+        nextCustomerSpawnTimer = CAFE_SPAWN_MIN_SEC + cafeRandom() * CAFE_SPAWN_RANGE_SEC;
       }
 
       // Обновление посетителей
@@ -3892,8 +4040,11 @@
               c.state = 'waiting_order';
             }
           } else {
-            c.x += (dx / dist) * 75 * dt;
-            c.y += (dy / dist) * 75 * dt;
+            // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+            // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+            const stepLen = Math.min(dist, CAFE_GUEST_WALK_SPEED * dt);
+            c.x += (dx / dist) * stepLen;
+            c.y += (dy / dist) * stepLen;
           }
         } else if (c.state === 'waiting_vip_accept') {
           // Срок принятия особого заказа: 20 секунд
@@ -3961,6 +4112,7 @@
             updateUI();
             saveGame();
 
+            c.paidAt = globalGameTime; // для анимации радостного прыжка
             c.state = 'leaving';
             c.targetX = canvasWidth + 50;
             c.targetY = Math.min(canvasHeight - 30, c.y + 35);
@@ -3972,8 +4124,11 @@
           if (dist < 4 || c.x > canvasWidth + 30) {
             customers.splice(i, 1);
           } else {
-            c.x += (dx / dist) * 85 * dt;
-            c.y += (dy / dist) * 85 * dt;
+            // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+            // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+            const stepLen = Math.min(dist, 85 * dt);
+            c.x += (dx / dist) * stepLen;
+            c.y += (dy / dist) * stepLen;
           }
         }
       }
@@ -4010,7 +4165,8 @@
 
           // Спавн частичек пара/аромата во время готовки
           if (cafeRandom() < 0.15) {
-            addVisualParticle(station.x + (cafeRandom() - 0.5) * 20, station.y - 25, '♨️', '#fff', 'steam');
+            // Пар поднимается от сковородки на плите
+            addVisualParticle(station.x + (cafeRandom() - 0.5) * 16, station.y + 12, '♨️', '#fff', 'steam');
           }
 
           if (station.progress >= 1.0) {
@@ -4116,6 +4272,8 @@
           }
         }
       }
+      // Плавное обновление таймера события в шапке (раньше обновлялся только при оплате заказа)
+      updateEventBar();
 
       // 1. Спавн посетителей пекарни к свободным столикам
       nextBakeryCustomerSpawnTimer -= dt;
@@ -4144,8 +4302,11 @@
               showToast('Компания котов расселась! Время пошло! ⏱️', 2500);
             }
           } else {
-            c.x += (dx / dist) * 80 * dt;
-            c.y += (dy / dist) * 80 * dt;
+            // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+            // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+            const stepLen = Math.min(dist, 80 * dt);
+            c.x += (dx / dist) * stepLen;
+            c.y += (dy / dist) * stepLen;
           }
         } else if (c.state === 'waiting_order') {
           // Ждёт приготовления и доставки официантом
@@ -4168,6 +4329,7 @@
               tbl.servedDish = null;
             }
 
+            c.paidAt = globalGameTime; // для анимации радостного прыжка
             c.state = 'leaving';
             c.targetX = canvasWidth + 50;
             c.targetY = c.y + 15;
@@ -4182,8 +4344,11 @@
           if (dist < 4 || c.x > canvasWidth + 35) {
             bakeryCustomers.splice(i, 1);
           } else {
-            c.x += (dx / dist) * 85 * dt;
-            c.y += (dy / dist) * 85 * dt;
+            // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+            // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+            const stepLen = Math.min(dist, 85 * dt);
+            c.x += (dx / dist) * stepLen;
+            c.y += (dy / dist) * stepLen;
           }
         }
       }
@@ -4296,8 +4461,11 @@
             waiterCat.state = 'idle';
           }
         } else {
-          waiterCat.x += (dx / dist) * waiterSpeed * dt;
-          waiterCat.y += (dy / dist) * waiterSpeed * dt;
+          // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+          // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+          const stepLen = Math.min(dist, waiterSpeed * dt);
+          waiterCat.x += (dx / dist) * stepLen;
+          waiterCat.y += (dy / dist) * stepLen;
         }
       } else if (waiterCat.state === 'carrying_to_table') {
         const dx = waiterCat.targetX - waiterCat.x;
@@ -4323,8 +4491,11 @@
           waiterCat.targetX = canvasWidth * 0.50;
           waiterCat.targetY = getVitrineY() + 25;
         } else {
-          waiterCat.x += (dx / dist) * waiterSpeed * dt;
-          waiterCat.y += (dy / dist) * waiterSpeed * dt;
+          // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+          // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+          const stepLen = Math.min(dist, waiterSpeed * dt);
+          waiterCat.x += (dx / dist) * stepLen;
+          waiterCat.y += (dy / dist) * stepLen;
         }
       } else if (waiterCat.state === 'returning_to_counter') {
         if (readyOrders.length > 0) {
@@ -4347,8 +4518,11 @@
             waiterCat.y = waiterCat.targetY;
             waiterCat.state = 'idle';
           } else {
-            waiterCat.x += (dx / dist) * waiterSpeed * dt;
-            waiterCat.y += (dy / dist) * waiterSpeed * dt;
+            // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
+            // персонаж раньше «перелетал» цель и мог бесконечно качаться вокруг неё
+            const stepLen = Math.min(dist, waiterSpeed * dt);
+            waiterCat.x += (dx / dist) * stepLen;
+            waiterCat.y += (dy / dist) * stepLen;
           }
         }
       }
@@ -4487,657 +4661,1721 @@
         return;
       }
 
-      // 3. Клик по кухне шефа -> мгновенное ускорение готовки
-      const chefStation = cookingStations[0];
-      if (chefStation.isCooking) {
-        chefStation.progress = Math.min(0.98, chefStation.progress + 0.22);
+      // 3. Клик по кухне -> ускорение готовки у ближайшей плиты.
+      // Раньше ускорялся только шеф и от тапа в ЛЮБОМ месте сцены (даже по полу).
+      // Теперь тап должен попасть в зону кухни (выше стойки), и ускоряется та плита,
+      // к которой тапнули ближе — включая плиту су-шефа Мурзика.
+      const counterY = getCounterY();
+      if (clickY > counterY + 6) return;
+      const hasHelper = (state.upgrades.helper || 0) > 0;
+      let bestStation = null;
+      let bestDist = Infinity;
+      cookingStations.forEach(st => {
+        if (st.id === 'helper' && !hasHelper) return;
+        if (!st.isCooking) return;
+        const d = Math.hypot(st.x - clickX, (st.y + 10) - clickY);
+        if (d < bestDist) {
+          bestDist = d;
+          bestStation = st;
+        }
+      });
+      // Радиус зоны: щедрый для одной плиты, поуже — когда плит две
+      const maxDist = hasHelper ? 75 : 110;
+      if (bestStation && bestDist <= maxDist) {
+        bestStation.progress = Math.min(0.98, bestStation.progress + 0.22);
+        bestStation.tapBoostAt = globalGameTime;
         playSound('sizzle');
-        addVisualParticle(chefStation.x, chefStation.y - 40, '⚡ +Ускорение!', '#ffb300', 'text');
+        addVisualParticle(bestStation.x, bestStation.y - 40, '⚡ +Ускорение!', '#ffb300', 'text');
         if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
       }
     }
 
-    // --- 11. Отрисовка Кафе (Canvas Rendering) ---
+    // --- 11. Отрисовка (Canvas Rendering) ---
+    // Сцена рисуется в «логических» координатах: ширина не меньше 375, высота не меньше 300.
+    // Масштаб ОДИНАКОВЫЙ по обеим осям — котики больше никогда не сплющиваются,
+    // а на коротком экране вся сцена просто аккуратно уменьшается целиком.
+    const SCENE_MIN_W = 375;
+    const SCENE_MIN_H = 300;
+    let viewScale = 1;
+    let pixelRatio = 1;
+
+    function applySceneTransform(c) {
+      const k = viewScale * pixelRatio;
+      c.setTransform(k, 0, 0, k, 0, 0);
+    }
+
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
-      canvasWidth = rect.width;
-      canvasHeight = rect.height;
-      canvas.width = canvasWidth * window.devicePixelRatio;
-      canvas.height = canvasHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      if (!rect || rect.width < 2 || rect.height < 2) return;
+      pixelRatio = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+      viewScale = Math.min(rect.width / SCENE_MIN_W, rect.height / SCENE_MIN_H);
+      canvasWidth = rect.width / viewScale;
+      canvasHeight = rect.height / viewScale;
+      const pw = Math.max(1, Math.round(rect.width * pixelRatio));
+      const ph = Math.max(1, Math.round(rect.height * pixelRatio));
+      if (canvas.width !== pw) canvas.width = pw;
+      if (canvas.height !== ph) canvas.height = ph;
+      applySceneTransform(ctx);
+      invalidateSceneCache();
       updateStationPositions();
       updateBakeryPositions();
+      snapSeatedCafeCustomers();
     }
-    window.addEventListener('resize', resizeCanvas);
+
+    // После изменения размеров сцены пересаживаем гостей кафе на их (новые) места
+    function snapSeatedCafeCustomers() {
+      customers.forEach(c => {
+        if (c.state === 'leaving' || typeof c.seatIndex !== 'number') return;
+        const pos = getSeatPosition(c.seatIndex);
+        c.targetX = pos.x;
+        c.targetY = pos.y;
+        if (c.state !== 'walking_to_seat') {
+          c.x = pos.x;
+          c.y = pos.y;
+        }
+      });
+    }
+
+    // Размер canvas отслеживаем по самому элементу, а не только по окну:
+    // сцена меняет высоту, когда заполняется/сворачивается магазин, а window.resize при этом не срабатывает.
+    function setupCanvasResizeObserver() {
+      if (typeof ResizeObserver === 'function') {
+        // Колбэк вызывается после раскладки, но до отрисовки кадра — без «растянутого» промежуточного кадра
+        new ResizeObserver(() => resizeCanvas()).observe(canvas);
+      }
+      let scheduled = false;
+      const schedule = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+          scheduled = false;
+          resizeCanvas();
+        });
+      };
+      window.addEventListener('resize', schedule);
+      window.addEventListener('orientationchange', schedule);
+      if (tg && typeof tg.onEvent === 'function') {
+        try { tg.onEvent('viewportChanged', schedule); } catch (e) {}
+      }
+    }
+
+    // --- 11.0. Кэш статичных слоёв сцены ---
+    // Стены, пол, окно, стойка, свет ламп и виньетка рисуются ОДИН раз в отдельные canvas
+    // и копируются на экран одним drawImage за кадр. Поэтому на детали и градиенты можно не скупиться.
+    const sceneLayers = { bg: null, fg: null, key: '' };
+
+    function invalidateSceneCache() {
+      sceneLayers.key = '';
+    }
+
+    function ensureSceneLayers(key, paintBg, paintFg) {
+      if (!sceneLayers.bg) {
+        sceneLayers.bg = document.createElement('canvas');
+        sceneLayers.fg = document.createElement('canvas');
+      }
+      const fullKey = `${key}|${canvas.width}x${canvas.height}|${canvasWidth.toFixed(1)}x${canvasHeight.toFixed(1)}`;
+      if (sceneLayers.key === fullKey) return;
+      [[sceneLayers.bg, paintBg], [sceneLayers.fg, paintFg]].forEach(([layer, paint]) => {
+        if (layer.width !== canvas.width) layer.width = canvas.width;
+        if (layer.height !== canvas.height) layer.height = canvas.height;
+        const layerCtx = layer.getContext('2d');
+        layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+        layerCtx.clearRect(0, 0, layer.width, layer.height);
+        applySceneTransform(layerCtx);
+        const mainCtx = ctx;
+        ctx = layerCtx; // все функции рисования пишут в глобальный ctx — временно подменяем его
+        try {
+          paint();
+        } catch (e) {
+          console.error('Ошибка отрисовки слоя сцены:', e);
+        } finally {
+          ctx = mainCtx;
+        }
+      });
+      sceneLayers.key = fullKey;
+    }
+
+    function blitLayer(layer) {
+      if (!layer) return;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(layer, 0, 0);
+      ctx.restore();
+    }
+
+    // Час суток игрока: за окном кафе меняется небо (утро / день / вечер / ночь)
+    function getDayPhase() {
+      const h = new Date().getHours();
+      if (h >= 22 || h < 6) return 'night';
+      if (h < 9) return 'morning';
+      if (h < 18) return 'day';
+      return 'evening';
+    }
+
+    // --- 11.0.1. Графические помощники ---
+    const gfxColorCache = new Map();
+    function gfxParseHex(hex) {
+      let h = String(hex || '').replace('#', '');
+      if (h.length === 3) h = h.split('').map(ch => ch + ch).join('');
+      const n = parseInt(h, 16);
+      if (h.length !== 6 || !Number.isFinite(n)) return [150, 150, 150];
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    // amt > 0 — светлее (к белому), amt < 0 — темнее (к чёрному)
+    function gfxShade(hex, amt) {
+      const key = `${hex}|${amt}`;
+      const cached = gfxColorCache.get(key);
+      if (cached) return cached;
+      const [r, g, b] = gfxParseHex(hex);
+      const target = amt < 0 ? 0 : 255;
+      const p = Math.min(1, Math.abs(amt));
+      const mix = v => Math.round(v + (target - v) * p);
+      const res = `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+      gfxColorCache.set(key, res);
+      return res;
+    }
+    function gfxAlpha(hex, a) {
+      const [r, g, b] = gfxParseHex(hex);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    function gfxLuma(hex) {
+      const [r, g, b] = gfxParseHex(hex);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    }
+    function gfxRoundRect(c, x, y, w, h, r) {
+      c.beginPath();
+      if (c.roundRect) c.roundRect(x, y, w, h, r);
+      else c.rect(x, y, w, h);
+    }
+    // Мягкая тень на полу (эллипс с размытым краем)
+    function gfxGroundShadow(x, y, rx, ry, alpha = 0.22) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(1, ry / rx);
+      const g = ctx.createRadialGradient(0, 0, rx * 0.15, 0, 0, rx);
+      g.addColorStop(0, `rgba(60, 28, 10, ${alpha})`);
+      g.addColorStop(0.65, `rgba(60, 28, 10, ${alpha * 0.7})`);
+      g.addColorStop(1, 'rgba(60, 28, 10, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, rx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function gfxHeart(x, y, size, color = '#e53950') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(size / 20, size / 20);
+      ctx.beginPath();
+      ctx.moveTo(0, 7);
+      ctx.bezierCurveTo(-11, -1, -9.5, -11, -4.8, -11);
+      ctx.bezierCurveTo(-1.8, -11, 0, -8.6, 0, -6.6);
+      ctx.bezierCurveTo(0, -8.6, 1.8, -11, 4.8, -11);
+      ctx.bezierCurveTo(9.5, -11, 11, -1, 0, 7);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = gfxShade(color, -0.4);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.ellipse(-4.6, -6.6, 2.3, 1.4, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function gfxStar(x, y, r, fill = '#ffca28', stroke = '#c66900') {
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const ang = -Math.PI / 2 + i * Math.PI / 5;
+        const rad = i % 2 === 0 ? r : r * 0.46;
+        const px = x + Math.cos(ang) * rad;
+        const py = y + Math.sin(ang) * rad;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(0.8, r * 0.2);
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+      ctx.restore();
+    }
+    function gfxSparkle(x, y, r, color = '#fff3b0') {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x, y - r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.quadraticCurveTo(x, y, x, y + r);
+      ctx.quadraticCurveTo(x, y, x - r, y);
+      ctx.quadraticCurveTo(x, y, x, y - r);
+      ctx.fill();
+      ctx.restore();
+    }
+    function gfxCrown(x, y, s = 1) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+      ctx.beginPath();
+      ctx.moveTo(-10, 4);
+      ctx.lineTo(-11.5, -6);
+      ctx.lineTo(-5, -0.5);
+      ctx.lineTo(0, -9.5);
+      ctx.lineTo(5, -0.5);
+      ctx.lineTo(11.5, -6);
+      ctx.lineTo(10, 4);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(0, -9, 0, 4);
+      g.addColorStop(0, '#fff59d');
+      g.addColorStop(1, '#f9a825');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = '#a15c00';
+      ctx.stroke();
+      ctx.fillStyle = '#e53935';
+      ctx.beginPath();
+      ctx.arc(0, 0.5, 1.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#42a5f5';
+      ctx.beginPath();
+      ctx.arc(-6, 1.6, 1.3, 0, Math.PI * 2);
+      ctx.arc(6, 1.6, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function gfxBolt(x, y, s = 1) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+      ctx.beginPath();
+      ctx.moveTo(1.5, -7);
+      ctx.lineTo(-4, 1);
+      ctx.lineTo(0, 1);
+      ctx.lineTo(-1.5, 7);
+      ctx.lineTo(4, -1);
+      ctx.lineTo(0, -1);
+      ctx.closePath();
+      ctx.fillStyle = '#ffd54f';
+      ctx.fill();
+      ctx.lineWidth = 1.1;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#b26a00';
+      ctx.stroke();
+      ctx.restore();
+    }
+    function drawVignette(strength = 0.32) {
+      const W = canvasWidth;
+      const H = canvasHeight;
+      const g = ctx.createRadialGradient(W / 2, H * 0.48, Math.min(W, H) * 0.38, W / 2, H * 0.5, Math.max(W, H) * 0.8);
+      g.addColorStop(0, 'rgba(45, 20, 6, 0)');
+      g.addColorStop(1, `rgba(45, 20, 6, ${strength})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
+    // Подвесная лампа с тёплым конусом света
+    function drawPendantLamp(lx, cordTop, cordLen, color = '#ffb74d') {
+      const H = canvasHeight;
+      const shadeY = cordTop + cordLen;
+      ctx.save();
+      const light = ctx.createRadialGradient(lx, shadeY + 10, 4, lx, shadeY + 90, 170);
+      light.addColorStop(0, 'rgba(255, 216, 150, 0.30)');
+      light.addColorStop(0.45, 'rgba(255, 205, 135, 0.13)');
+      light.addColorStop(1, 'rgba(255, 195, 120, 0)');
+      ctx.fillStyle = light;
+      ctx.beginPath();
+      ctx.moveTo(lx - 12, shadeY + 10);
+      ctx.lineTo(lx + 12, shadeY + 10);
+      ctx.lineTo(lx + 105, H);
+      ctx.lineTo(lx - 105, H);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#4e342e';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(lx, cordTop);
+      ctx.lineTo(lx, shadeY);
+      ctx.stroke();
+
+      const sg = ctx.createLinearGradient(lx - 13, 0, lx + 13, 0);
+      sg.addColorStop(0, gfxShade(color, -0.25));
+      sg.addColorStop(0.4, gfxShade(color, 0.25));
+      sg.addColorStop(1, gfxShade(color, -0.35));
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.moveTo(lx - 13, shadeY + 10);
+      ctx.quadraticCurveTo(lx - 12, shadeY - 1, lx, shadeY - 1);
+      ctx.quadraticCurveTo(lx + 12, shadeY - 1, lx + 13, shadeY + 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = gfxShade(color, -0.55);
+      ctx.stroke();
+
+      const bulb = ctx.createRadialGradient(lx, shadeY + 10, 0, lx, shadeY + 10, 12);
+      bulb.addColorStop(0, 'rgba(255, 250, 225, 0.95)');
+      bulb.addColorStop(1, 'rgba(255, 230, 170, 0)');
+      ctx.fillStyle = bulb;
+      ctx.beginPath();
+      ctx.arc(lx, shadeY + 10, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Круглый индикатор готовки: иконка блюда в кольце прогресса
+    function drawProgressBadge(x, y, progress, icon, ringColor = '#43a047') {
+      ctx.save();
+      const r = 13;
+      ctx.fillStyle = 'rgba(62, 32, 15, 0.18)';
+      ctx.beginPath();
+      ctx.arc(x + 1, y + 2, r + 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fffaf3';
+      ctx.beginPath();
+      ctx.arc(x, y, r + 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#c4a995';
+      ctx.stroke();
+      ctx.lineWidth = 3.6;
+      ctx.strokeStyle = 'rgba(120, 90, 70, 0.16)';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      const p = Math.max(0.001, Math.min(1, progress));
+      ctx.strokeStyle = ringColor;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
+      ctx.stroke();
+      ctx.font = '15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, x, y + 1);
+      ctx.restore();
+    }
+
+    // --- 11.0.2. Единая отрисовка котика ---
+    // Обводка, объём (радиальный градиент), окрас по породе, моргание, румянец, усы,
+    // подпрыгивание и сжатие при радости. Используется для ВСЕХ котиков в обоих заведениях.
+    // o: { x, y, s, fur, ear, eye, stripe, breedId, seed, squash, tail, tailSide, outfit, happy, crown }
+    function drawCatFigure(o) {
+      const s = o.s || 1;
+      const x = o.x;
+      const y = o.y;
+      const fur = o.fur || '#ff9800';
+      const isLight = gfxLuma(fur) > 0.82;
+      const isDark = gfxLuma(fur) < 0.3;
+      const outline = isLight ? '#a8988c' : gfxShade(fur, -0.5);
+      const t = globalGameTime;
+      const seed = o.seed || 0;
+
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      if (o.squash) {
+        const q = o.squash;
+        ctx.translate(x, y + 19 * s);
+        ctx.scale(1 + q * 0.14, 1 - q * 0.14);
+        ctx.translate(-x, -(y + 19 * s));
+      }
+
+      // Хвост
+      if (o.tail !== false) {
+        const side = o.tailSide || -1;
+        const wag = Math.sin(t * 4 + seed) * 3.5;
+        ctx.beginPath();
+        ctx.moveTo(x + side * 14 * s, y + 9 * s);
+        ctx.quadraticCurveTo(x + side * 28 * s, y + 3 * s, x + side * 23 * s, y - 9 * s + wag * s);
+        ctx.strokeStyle = outline;
+        ctx.lineWidth = 7.6 * s;
+        ctx.stroke();
+        ctx.strokeStyle = fur;
+        ctx.lineWidth = 4.6 * s;
+        ctx.stroke();
+      }
+
+      // Ушки
+      const earTwitch = (Math.sin(t * 1.3 + seed * 2.1) > 0.985) ? 1.5 * s : 0;
+      ctx.fillStyle = fur;
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2 * s;
+      [-1, 1].forEach(dir => {
+        ctx.beginPath();
+        ctx.moveTo(x + dir * 17 * s, y - 6 * s);
+        ctx.lineTo(x + dir * (14 * s + (dir > 0 ? earTwitch : 0)), y - 24 * s);
+        ctx.lineTo(x + dir * 3 * s, y - 15 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+      ctx.fillStyle = o.ear || '#ffab91';
+      [-1, 1].forEach(dir => {
+        ctx.beginPath();
+        ctx.moveTo(x + dir * 14.5 * s, y - 9.5 * s);
+        ctx.lineTo(x + dir * (13 * s + (dir > 0 ? earTwitch : 0)), y - 20 * s);
+        ctx.lineTo(x + dir * 6.5 * s, y - 14 * s);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Тело-голова с объёмом
+      const bodyGrad = ctx.createRadialGradient(x - 8 * s, y - 9 * s, 2 * s, x, y, 25 * s);
+      bodyGrad.addColorStop(0, gfxShade(fur, isDark ? 0.3 : 0.5));
+      bodyGrad.addColorStop(0.45, fur);
+      bodyGrad.addColorStop(1, gfxShade(fur, isLight ? -0.12 : -0.25));
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 22 * s, 19 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Окрас (рисуем внутри силуэта)
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(x, y, 22 * s, 19 * s, 0, 0, Math.PI * 2);
+      ctx.clip();
+      const stripe = o.stripe || fur;
+      const breed = o.breedId || '';
+      if (breed === 'orange' || breed === 'group_cat') {
+        ctx.strokeStyle = gfxAlpha(stripe, 0.55);
+        ctx.lineWidth = 2.2 * s;
+        [-5, 0, 5].forEach(dx => {
+          ctx.beginPath();
+          ctx.moveTo(x + dx * s, y - 18 * s);
+          ctx.lineTo(x + dx * 0.8 * s, y - 12 * s);
+          ctx.stroke();
+        });
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          ctx.moveTo(x + dir * 22 * s, y - 2 * s);
+          ctx.lineTo(x + dir * 16 * s, y - 1 * s);
+          ctx.moveTo(x + dir * 22 * s, y + 4 * s);
+          ctx.lineTo(x + dir * 17 * s, y + 4 * s);
+          ctx.stroke();
+        });
+      } else if (breed === 'calico') {
+        ctx.fillStyle = gfxAlpha('#e67e22', 0.85);
+        ctx.beginPath();
+        ctx.ellipse(x + 12 * s, y - 12 * s, 11 * s, 8 * s, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = gfxAlpha('#4e342e', 0.85);
+        ctx.beginPath();
+        ctx.ellipse(x - 15 * s, y - 6 * s, 8 * s, 7 * s, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (breed === 'siamese') {
+        const mask = ctx.createRadialGradient(x, y + 3 * s, 1, x, y + 3 * s, 12 * s);
+        mask.addColorStop(0, gfxAlpha(stripe, 0.75));
+        mask.addColorStop(1, gfxAlpha(stripe, 0));
+        ctx.fillStyle = mask;
+        ctx.beginPath();
+        ctx.ellipse(x, y + 3 * s, 13 * s, 11 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Светлая мордочка
+      if (!isLight) {
+        ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 5 * s, 11 * s, 7.5 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.lineWidth = 2 * s;
+      ctx.strokeStyle = outline;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 22 * s, 19 * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Одежда, которая лежит на теле (фартук, манишка)
+      if (o.outfit === 'chef' || o.outfit === 'baker') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(x, y, 21 * s, 18 * s, 0, 0, Math.PI * 2);
+        ctx.clip();
+        const apron = ctx.createLinearGradient(0, y + 2 * s, 0, y + 19 * s);
+        apron.addColorStop(0, '#ffffff');
+        apron.addColorStop(1, '#e8e0da');
+        ctx.fillStyle = apron;
+        ctx.beginPath();
+        ctx.ellipse(x, y + 13 * s, 15 * s, 9 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1.2 * s;
+        ctx.strokeStyle = o.outfit === 'chef' ? '#e65100' : '#bcaaa4';
+        ctx.stroke();
+        ctx.restore();
+      } else if (o.outfit === 'waiter') {
+        // Манишка и бабочка — ниже мордочки, чтобы не читались как открытый рот
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(x, y, 21 * s, 18 * s, 0, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = '#f5f5f5';
+        ctx.beginPath();
+        ctx.moveTo(x - 7 * s, y + 12.5 * s);
+        ctx.lineTo(x + 7 * s, y + 12.5 * s);
+        ctx.lineTo(x + 4 * s, y + 20 * s);
+        ctx.lineTo(x - 4 * s, y + 20 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        const bowY = y + 13.5 * s;
+        ctx.fillStyle = '#e53935';
+        ctx.strokeStyle = '#8e0000';
+        ctx.lineWidth = 0.9 * s;
+        ctx.beginPath();
+        ctx.moveTo(x, bowY);
+        ctx.lineTo(x - 6 * s, bowY - 3 * s);
+        ctx.lineTo(x - 6 * s, bowY + 3 * s);
+        ctx.closePath();
+        ctx.moveTo(x, bowY);
+        ctx.lineTo(x + 6 * s, bowY - 3 * s);
+        ctx.lineTo(x + 6 * s, bowY + 3 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, bowY, 1.8 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Глазки: обычные с бликами, моргание, «счастливые» дуги
+      const blinkPhase = (t + seed * 0.77) % 4.3;
+      const isBlink = blinkPhase < 0.13;
+      const eyeY = y - 3 * s;
+      const eyeDX = 7.5 * s;
+      const eyeColor = o.eye || '#3e2723';
+      if (o.happy || isBlink) {
+        ctx.strokeStyle = isDark ? '#ffe082' : '#3e2723';
+        ctx.lineWidth = 1.6 * s;
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          if (o.happy) ctx.arc(x + dir * eyeDX, eyeY + 1.2 * s, 2.8 * s, Math.PI * 1.1, Math.PI * 1.9);
+          else {
+            ctx.moveTo(x + dir * eyeDX - 2.8 * s, eyeY);
+            ctx.lineTo(x + dir * eyeDX + 2.8 * s, eyeY);
+          }
+          ctx.stroke();
+        });
+      } else {
+        [-1, 1].forEach(dir => {
+          const ex = x + dir * eyeDX;
+          ctx.fillStyle = eyeColor;
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY, 3.2 * s, 3.8 * s, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#1b0f0a';
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY + 0.3 * s, 1.5 * s, 2.7 * s, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex - 1.1 * s, eyeY - 1.4 * s, 1.15 * s, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(ex + 1.2 * s, eyeY + 1.3 * s, 0.55 * s, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      // Румянец
+      ctx.fillStyle = isDark ? 'rgba(255, 120, 150, 0.32)' : 'rgba(255, 105, 135, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x - 12.5 * s, y + 4 * s, 4 * s, 2.4 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + 12.5 * s, y + 4 * s, 4 * s, 2.4 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Носик и ротик «w»
+      ctx.fillStyle = '#ff8a80';
+      ctx.beginPath();
+      ctx.moveTo(x - 2.2 * s, y + 1 * s);
+      ctx.lineTo(x + 2.2 * s, y + 1 * s);
+      ctx.lineTo(x, y + 3.2 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.55)' : gfxAlpha('#5d4037', 0.7);
+      ctx.lineWidth = 1 * s;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 3.2 * s);
+      ctx.quadraticCurveTo(x - 1.5 * s, y + 5.6 * s, x - 3.4 * s, y + 4.4 * s);
+      ctx.moveTo(x, y + 3.2 * s);
+      ctx.quadraticCurveTo(x + 1.5 * s, y + 5.6 * s, x + 3.4 * s, y + 4.4 * s);
+      ctx.stroke();
+
+      // Усы
+      ctx.strokeStyle = isLight ? 'rgba(110, 85, 70, 0.45)' : 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 0.9 * s;
+      ctx.beginPath();
+      [-1, 1].forEach(dir => {
+        ctx.moveTo(x + dir * 9 * s, y + 2 * s);
+        ctx.lineTo(x + dir * 21 * s, y + 0 * s);
+        ctx.moveTo(x + dir * 9 * s, y + 4.5 * s);
+        ctx.lineTo(x + dir * 20 * s, y + 5.5 * s);
+      });
+      ctx.stroke();
+
+      // Головные уборы
+      if (o.outfit === 'chef' || o.outfit === 'baker') {
+        const tall = o.outfit === 'chef' ? 1 : 0.85;
+        const hatGrad = ctx.createLinearGradient(x - 14 * s, 0, x + 14 * s, 0);
+        hatGrad.addColorStop(0, '#ffffff');
+        hatGrad.addColorStop(1, '#e3dad3');
+        ctx.fillStyle = hatGrad;
+        ctx.strokeStyle = '#b9a99c';
+        ctx.lineWidth = 1.4 * s;
+        gfxRoundRect(ctx, x - 13 * s, y - 22 * s, 26 * s, 9 * s, 2 * s);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x - 8.5 * s, y - 27 * s * tall - 1, 8.5 * s, 0, Math.PI * 2);
+        ctx.arc(x, y - 31 * s * tall - 1, 10.5 * s, 0, Math.PI * 2);
+        ctx.arc(x + 8.5 * s, y - 27 * s * tall - 1, 8.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = hatGrad;
+        ctx.fillRect(x - 12 * s, y - 24 * s, 24 * s, 3 * s);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        ctx.arc(x - 3 * s, y - 35 * s * tall, 3 * s, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (o.outfit === 'helper') {
+        ctx.fillStyle = '#ff80ab';
+        ctx.strokeStyle = '#c2185b';
+        ctx.lineWidth = 1.2 * s;
+        ctx.beginPath();
+        ctx.moveTo(x - 17 * s, y - 9 * s);
+        ctx.quadraticCurveTo(x, y - 26 * s, x + 17 * s, y - 9 * s);
+        ctx.quadraticCurveTo(x, y - 14 * s, x - 17 * s, y - 9 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        [[-6, -15], [2, -18], [9, -13]].forEach(([dx, dy]) => {
+          ctx.beginPath();
+          ctx.arc(x + dx * s, y + dy * s, 1.2 * s, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.fillStyle = '#ff80ab';
+        ctx.beginPath();
+        ctx.ellipse(x + 18 * s, y - 10 * s, 3 * s, 2 * s, 0.6, 0, Math.PI * 2);
+        ctx.ellipse(x + 19 * s, y - 6 * s, 3 * s, 2 * s, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      if (o.crown) {
+        gfxCrown(x, y - 24 * s, 0.95 * s);
+        const sp = (Math.sin(t * 5 + seed) + 1) / 2;
+        gfxSparkle(x - 20 * s, y - 14 * s + sp * 3, 3.5 * s * (0.6 + sp * 0.5), '#fff59d');
+        gfxSparkle(x + 21 * s, y - 20 * s - sp * 2, 2.6 * s * (1.1 - sp * 0.5), '#ffffff');
+      }
+      ctx.restore();
+    }
+
+    // Подпрыгивание и сжатие котика после оплаты (по отметке времени paidAt)
+    function getPayHop(c) {
+      if (typeof c.paidAt !== 'number') return { dy: 0, squash: 0 };
+      const since = globalGameTime - c.paidAt;
+      if (since < 0 || since > 0.5) return { dy: 0, squash: 0 };
+      const k = since / 0.5;
+      return { dy: -Math.sin(k * Math.PI) * 8, squash: k < 0.12 ? 0.6 : -Math.sin(k * Math.PI) * 0.4 };
+    }
+
+    // --- 11.1. Отрисовка Кафе ---
+    function getCafeSceneKey() {
+      const up = state.upgrades || {};
+      return [
+        'cafe',
+        (state.expansion || 0) >= 1 ? 1 : 0,
+        (state.verandaDecor || 0) >= 1 ? 1 : 0,
+        state.stars || 0,
+        getMaxCustomerSeats(),
+        (up.helper || 0) > 0 ? 1 : 0,
+        up.menu || 1,
+        up.profit || 1,
+        state.featuredDish || '',
+        getDayPhase()
+      ].join('|');
+    }
 
     function renderScene() {
+      ensureSceneLayers(getCafeSceneKey(), drawCafeEnvironment, drawCafeForeground);
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-      // 1. Уютные деревянные обои и пол кафе
-      drawCafeEnvironment();
-
-      // 2. Кухонная зона и повара
+      blitLayer(sceneLayers.bg);
+      drawCafeAmbient();
       drawKitchenAndChefs();
-
-      // 3. Барная стойка и столики
-      drawCounterAndTables();
-
-      // 4. Посетители котики
       drawCustomers();
-
-      // 5. Всплывающие частицы
+      blitLayer(sceneLayers.fg);
       drawParticles();
     }
 
     function drawCozyRug(cx, cy, w, h) {
       ctx.save();
-      ctx.fillStyle = '#eddcd2';
-      ctx.strokeStyle = '#ddbea9';
-      ctx.lineWidth = 2;
+      gfxGroundShadow(cx, cy + 3, w / 2 + 2, h / 2 + 1, 0.12);
+      const g = ctx.createRadialGradient(cx, cy - h * 0.2, 2, cx, cy, w / 2);
+      g.addColorStop(0, '#f6e7dc');
+      g.addColorStop(1, '#e4cbb9');
+      ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, Math.round(w / 2), Math.round(h / 2), 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#c98f7a';
+      ctx.stroke();
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = 'rgba(180, 110, 90, 0.55)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w / 2 - 6, Math.max(2, h / 2 - 5), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Перспективный пол из досок (доски сходятся вдаль, стыки вразбежку)
+    function drawPlankFloor(top, colTop, colBottom, plankW = 42) {
+      const W = canvasWidth;
+      const H = canvasHeight;
+      const g = ctx.createLinearGradient(0, top, 0, H);
+      g.addColorStop(0, colTop);
+      g.addColorStop(1, colBottom);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, top, W, H - top);
+
+      const vx = W / 2;
+      const vy = top - 240;
+      const xAt = (bx, y) => vx + (bx - vx) * (y - vy) / (H - vy);
+      const nCols = Math.ceil(W / plankW) + 8;
+      // Чередование оттенков досок
+      for (let i = -nCols; i < nCols; i++) {
+        if (i % 2 === 0) continue;
+        const b0 = vx + i * plankW;
+        const b1 = b0 + plankW;
+        ctx.fillStyle = 'rgba(90, 50, 25, 0.05)';
+        ctx.beginPath();
+        ctx.moveTo(xAt(b0, top), top);
+        ctx.lineTo(xAt(b1, top), top);
+        ctx.lineTo(b1, H);
+        ctx.lineTo(b0, H);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Продольные щели
+      ctx.strokeStyle = 'rgba(80, 45, 22, 0.24)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = -nCols; i <= nCols; i++) {
+        const bx = vx + i * plankW;
+        ctx.moveTo(xAt(bx, top), top);
+        ctx.lineTo(bx, H);
+      }
+      ctx.stroke();
+      // Поперечные стыки досок вразбежку
+      let y = top;
+      let step = 7;
+      let row = 0;
+      ctx.beginPath();
+      while (y < H) {
+        const y2 = Math.min(H, y + step);
+        for (let i = -nCols; i < nCols; i++) {
+          if (((i * 7 + row * 3) % 4 + 4) % 4 !== 0) continue;
+          const b0 = vx + i * plankW;
+          const b1 = b0 + plankW;
+          ctx.moveTo(xAt(b0, y2), y2);
+          ctx.lineTo(xAt(b1, y2), y2);
+        }
+        y = y2;
+        step *= 1.24;
+        row++;
+      }
+      ctx.stroke();
+      // Затенение у стены (ambient occlusion)
+      const ao = ctx.createLinearGradient(0, top, 0, top + 16);
+      ao.addColorStop(0, 'rgba(60, 30, 12, 0.28)');
+      ao.addColorStop(1, 'rgba(60, 30, 12, 0)');
+      ctx.fillStyle = ao;
+      ctx.fillRect(0, top, W, 16);
+    }
+
+    function drawStripedAwning(height, stripeW, colA, colB) {
+      const W = canvasWidth;
+      const shadow = ctx.createLinearGradient(0, height, 0, height + stripeW);
+      shadow.addColorStop(0, 'rgba(110, 50, 15, 0.22)');
+      shadow.addColorStop(1, 'rgba(110, 50, 15, 0)');
+      ctx.fillStyle = shadow;
+      ctx.fillRect(0, height, W, stripeW);
+      for (let x = 0, i = 0; x < W; x += stripeW, i++) {
+        const col = i % 2 === 0 ? colA : colB;
+        const g = ctx.createLinearGradient(0, 0, 0, height + stripeW / 2);
+        g.addColorStop(0, gfxShade(col, 0.15));
+        g.addColorStop(0.65, col);
+        g.addColorStop(1, gfxShade(col, -0.14));
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.rect(x, 0, stripeW, height);
+        ctx.arc(x + stripeW / 2, height, stripeW / 2, 0, Math.PI, false);
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(120, 45, 15, 0.32)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += stripeW) {
+        ctx.beginPath();
+        ctx.arc(x + stripeW / 2, height, stripeW / 2, 0, Math.PI, false);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#7b5444';
+      ctx.fillRect(0, 0, W, 3);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+      ctx.fillRect(0, 3, W, 1);
+    }
+
+    function drawCafeWindow(x, y, w, h) {
+      const phase = getDayPhase();
+      const skies = {
+        morning: ['#ffd8b5', '#fff3e0'],
+        day: ['#81c7f5', '#e3f4ff'],
+        evening: ['#ff9e7a', '#ffd7a8'],
+        night: ['#1c2a55', '#3c4f86']
+      };
+      const [skyTop, skyBottom] = skies[phase] || skies.day;
+      ctx.save();
+      // Рама
+      ctx.fillStyle = 'rgba(60, 30, 12, 0.18)';
+      gfxRoundRect(ctx, x + 2, y + 3, w, h, 4);
+      ctx.fill();
+      ctx.fillStyle = '#8d6e63';
+      gfxRoundRect(ctx, x, y, w, h, 4);
+      ctx.fill();
+      // Небо
+      const g = ctx.createLinearGradient(0, y + 4, 0, y + h - 4);
+      g.addColorStop(0, skyTop);
+      g.addColorStop(1, skyBottom);
+      ctx.fillStyle = g;
+      ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x + 4, y + 4, w - 8, h - 8);
+      ctx.clip();
+      if (phase === 'night') {
+        ctx.fillStyle = '#fffde7';
+        ctx.beginPath();
+        ctx.arc(x + w * 0.7, y + h * 0.3, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = skyTop;
+        ctx.beginPath();
+        ctx.arc(x + w * 0.7 + 3, y + h * 0.3 - 2, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        [[0.2, 0.25], [0.35, 0.6], [0.55, 0.18], [0.85, 0.62], [0.15, 0.75]].forEach(([fx, fy]) => {
+          ctx.fillRect(x + w * fx, y + h * fy, 1.4, 1.4);
+        });
+      } else {
+        ctx.fillStyle = phase === 'evening' ? '#ffcc80' : '#fff59d';
+        ctx.beginPath();
+        ctx.arc(x + w * 0.72, y + h * 0.3, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        [[0.25, 0.45, 7], [0.36, 0.42, 6], [0.3, 0.38, 6]].forEach(([fx, fy, r]) => {
+          ctx.beginPath();
+          ctx.arc(x + w * fx, y + h * fy, r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+      // Крыши домов вдали
+      ctx.fillStyle = phase === 'night' ? '#2a2f4a' : '#b0a3b5';
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x, y + h * 0.78);
+      ctx.lineTo(x + w * 0.2, y + h * 0.7);
+      ctx.lineTo(x + w * 0.38, y + h * 0.78);
+      ctx.lineTo(x + w * 0.38, y + h * 0.66);
+      ctx.lineTo(x + w * 0.62, y + h * 0.66);
+      ctx.lineTo(x + w * 0.62, y + h * 0.75);
+      ctx.lineTo(x + w * 0.8, y + h * 0.68);
+      ctx.lineTo(x + w, y + h * 0.76);
+      ctx.lineTo(x + w, y + h);
+      ctx.closePath();
+      ctx.fill();
+      if (phase === 'night' || phase === 'evening') {
+        ctx.fillStyle = '#ffe082';
+        ctx.fillRect(x + w * 0.45, y + h * 0.72, 2.5, 3);
+        ctx.fillRect(x + w * 0.52, y + h * 0.72, 2.5, 3);
+        ctx.fillRect(x + w * 0.86, y + h * 0.8, 2.5, 3);
+      }
+      // Блик на стекле
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.12, y + h);
+      ctx.lineTo(x + w * 0.42, y);
+      ctx.lineTo(x + w * 0.52, y);
+      ctx.lineTo(x + w * 0.22, y + h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      // Переплёт
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(x + w / 2 - 1.5, y + 4, 3, h - 8);
+      ctx.fillRect(x + 4, y + h * 0.45, w - 8, 3);
+      // Шторки
+      ['left', 'right'].forEach(side => {
+        const cx0 = side === 'left' ? x - 4 : x + w + 4;
+        const dir = side === 'left' ? 1 : -1;
+        const cg = ctx.createLinearGradient(cx0, 0, cx0 + dir * 16, 0);
+        cg.addColorStop(0, '#e57373');
+        cg.addColorStop(1, '#ffcdd2');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.moveTo(cx0, y - 3);
+        ctx.lineTo(cx0 + dir * 15, y - 3);
+        ctx.quadraticCurveTo(cx0 + dir * 7, y + h * 0.45, cx0 + dir * 12, y + h + 2);
+        ctx.lineTo(cx0, y + h + 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(140, 40, 40, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+      ctx.fillStyle = '#6d4c41';
+      ctx.fillRect(x - 7, y - 5, w + 14, 3);
+      // Подоконник
+      ctx.fillStyle = '#a1887f';
+      gfxRoundRect(ctx, x - 5, y + h - 1, w + 10, 5, 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawMenuBoard(x, y, w, h) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(60, 30, 12, 0.2)';
+      gfxRoundRect(ctx, x + 2, y + 3, w, h, 4);
+      ctx.fill();
+      ctx.fillStyle = '#8d6e63';
+      gfxRoundRect(ctx, x, y, w, h, 4);
+      ctx.fill();
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, '#3b4a46');
+      g.addColorStop(1, '#2a3633');
+      ctx.fillStyle = g;
+      ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.fillRect(x + 6, y + 6, w - 20, 3);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f5f1e6';
+      ctx.font = 'bold 9px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('МЕНЮ', x + w / 2, y + 12);
+      ctx.strokeStyle = 'rgba(245, 241, 230, 0.4)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x + 12, y + 18);
+      ctx.lineTo(x + w - 12, y + 18);
+      ctx.stroke();
+      // Блюда сеткой 2×2: иконка + цена (у фирменного блюда цена золотая)
+      const dishes = getAvailableDishes().slice(0, 4);
+      const cols = dishes.length > 1 ? 2 : 1;
+      const rows = Math.ceil(dishes.length / cols);
+      const cellW = (w - 10) / cols;
+      const cellH = Math.min(14, (h - 24) / Math.max(1, rows));
+      dishes.forEach((dish, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const cx = x + 5 + col * cellW;
+        const cy = y + 26 + row * cellH;
+        const isFeat = dish.id === state.featuredDish;
+        ctx.textAlign = 'left';
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(dish.icon, cx + 1, cy);
+        ctx.font = 'bold 8px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = isFeat ? '#ffe082' : '#e0e7e4';
+        ctx.fillText(`${calculateDishPayout(dish, false)}`, cx + 13, cy + 0.5);
+      });
+      // Звёзды кафе над доской
+      const stars = Math.min(3, state.stars || 0);
+      for (let i = 0; i < stars; i++) {
+        gfxStar(x + w / 2 + (i - (stars - 1) / 2) * 12, y - 1, 5);
+      }
+      ctx.restore();
+    }
+
+    function drawPottedPlant(x, baseY, withFlowers, flip = 1) {
+      ctx.save();
+      ctx.translate(x, baseY);
+      ctx.scale(flip, 1);
+      gfxGroundShadow(0, 0, 10, 2.5, 0.25);
+      const leaves = [[-7, -16, -0.7], [6, -18, 0.6], [0, -22, 0], [-10, -9, -1.2], [10, -10, 1.1]];
+      leaves.forEach(([lx, ly, rot]) => {
+        ctx.save();
+        ctx.translate(lx * 0.6, ly * 0.6 - 4);
+        ctx.rotate(rot);
+        const lg = ctx.createLinearGradient(0, -9, 0, 9);
+        lg.addColorStop(0, '#81c784');
+        lg.addColorStop(1, '#2e7d32');
+        ctx.fillStyle = lg;
+        ctx.beginPath();
+        ctx.ellipse(0, -5, 4, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(27, 94, 32, 0.6)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(0, 3);
+        ctx.lineTo(0, -12);
+        ctx.stroke();
+        ctx.restore();
+      });
+      if (withFlowers) {
+        [[-6, -21, '#f06292'], [6, -23, '#ffb74d'], [0, -28, '#ba68c8']].forEach(([fx, fy, col]) => {
+          ctx.fillStyle = col;
+          for (let k = 0; k < 5; k++) {
+            const a = k * Math.PI * 2 / 5;
+            ctx.beginPath();
+            ctx.arc(fx + Math.cos(a) * 2.6, fy + Math.sin(a) * 2.6, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = '#fff59d';
+          ctx.beginPath();
+          ctx.arc(fx, fy, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+      const pg = ctx.createLinearGradient(-8, 0, 8, 0);
+      pg.addColorStop(0, '#bf5b3a');
+      pg.addColorStop(0.5, '#e0855f');
+      pg.addColorStop(1, '#a14a2d');
+      ctx.fillStyle = pg;
+      ctx.beginPath();
+      ctx.moveTo(-8, -10);
+      ctx.lineTo(8, -10);
+      ctx.lineTo(6, 0);
+      ctx.lineTo(-6, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c96a48';
+      ctx.fillRect(-9, -12, 18, 3);
+      ctx.restore();
+    }
+
+    function drawLeafGarland(y, withFlowers) {
+      const W = canvasWidth;
+      const pegStep = Math.max(70, W / 5);
+      ctx.save();
+      ctx.strokeStyle = '#6d8b3a';
+      ctx.lineWidth = 1.4;
+      for (let x0 = -pegStep / 2; x0 < W; x0 += pegStep) {
+        const x1 = x0 + pegStep;
+        const sag = 8;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.quadraticCurveTo((x0 + x1) / 2, y + sag * 2, x1, y);
+        ctx.stroke();
+        for (let k = 1; k < 6; k++) {
+          const tt = k / 6;
+          const px = x0 + (x1 - x0) * tt;
+          const py = y + 4 * sag * tt * (1 - tt);
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate((k % 2 ? 0.7 : -0.7));
+          ctx.fillStyle = k % 2 ? '#66bb6a' : '#43a047';
+          ctx.beginPath();
+          ctx.ellipse(0, 3, 2.4, 4.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          if (withFlowers && k % 2 === 0) {
+            ctx.fillStyle = k % 4 === 0 ? '#f48fb1' : '#fff176';
+            ctx.beginPath();
+            ctx.arc(px, py + 1, 2.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(px, py + 1, 0.9, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawFoodBowl(x, y) {
+      gfxGroundShadow(x, y + 5, 13, 3.5, 0.25);
+      ctx.save();
+      const g = ctx.createLinearGradient(0, y - 4, 0, y + 6);
+      g.addColorStop(0, '#64b5f6');
+      g.addColorStop(1, '#1e88e5');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - 12, y - 2);
+      ctx.quadraticCurveTo(x - 11, y + 6, x, y + 6);
+      ctx.quadraticCurveTo(x + 11, y + 6, x + 12, y - 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#8d6e63';
+      ctx.beginPath();
+      ctx.ellipse(x, y - 2, 11, 3.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#a1887f';
+      [[-5, -3], [0, -2.5], [5, -3], [-2, -3.6], [3, -3.8]].forEach(([dx, dy]) => {
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.strokeStyle = '#bbdefb';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(x, y - 2, 12, 3.6, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
 
-    function drawCafeEnvironment() {
-      const counterY = getCounterY();
-      const wallH = counterY - 25;
-
-      // Стена кафе (пастельно-кремовая с деревянной планкой)
-      ctx.fillStyle = '#fff6ea';
-      ctx.fillRect(0, 0, canvasWidth, wallH);
-
-      // Декоративный навес кафе (Awning 🎪)
-      const awningHeight = 22;
-      const stripeWidth = 26;
-      const isExpanded = (state.expansion || 0) >= 1;
-      for (let x = 0; x < canvasWidth; x += stripeWidth) {
-        ctx.fillStyle = (Math.floor(x / stripeWidth) % 2 === 0) 
-          ? (isExpanded ? '#e65100' : '#ff7043') 
-          : (isExpanded ? '#f1f8e9' : '#fff3e0');
-        ctx.beginPath();
-        ctx.rect(x, 0, stripeWidth, awningHeight);
-        ctx.arc(x + stripeWidth / 2, awningHeight, stripeWidth / 2, 0, Math.PI, false);
-        ctx.fill();
-      }
-
-      // Гирлянда листьев и цветов при расширении кафе (Веранда)
-      const hasDecor = (state.verandaDecor || 0) >= 1;
-      if (isExpanded) {
-        ctx.font = '13px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🌿 🌸 🌿 🌸 🌿 🌸 🌿 🌸 🌿', canvasWidth / 2, awningHeight + 12);
-        if (hasDecor) {
-          ctx.font = '12px sans-serif';
-          ctx.fillText('🌸 🌺 🌷 🌼 🌸 🌺 🌷 🌼 🌸', canvasWidth / 2, awningHeight + 23);
-        }
-      }
-
-      // Звёзды кафе на козырьке
-      const cafeStars = state.stars || 0;
-      if (cafeStars > 0) {
-        ctx.save();
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff8f00';
-        ctx.fillText('⭐'.repeat(cafeStars), canvasWidth / 2, isExpanded ? (hasDecor ? awningHeight + 35 : awningHeight + 24) : awningHeight + 14);
-        ctx.restore();
-      }
-
-      // Деревянный теплый пол
-      ctx.fillStyle = isExpanded ? '#cfd8dc' : '#d7ccc8';
-      ctx.fillRect(0, wallH, canvasWidth, canvasHeight - wallH);
-      ctx.strokeStyle = '#bcaaa4';
+    function drawYarnBall(x, y) {
+      gfxGroundShadow(x, y + 8, 12, 3, 0.25);
+      ctx.save();
+      const g = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, 10);
+      g.addColorStop(0, '#ff8a80');
+      g.addColorStop(1, '#c62828');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255, 220, 220, 0.55)';
       ctx.lineWidth = 1;
-      for (let y = wallH; y < canvasHeight; y += 26) {
+      for (let k = -2; k <= 2; k++) {
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvasWidth, y);
+        ctx.ellipse(x + k * 3, y, 3, 10, 0.5, 0, Math.PI * 2);
         ctx.stroke();
       }
-
-      // Коврик под стульями посетителей
-      drawCozyRug(canvasWidth * 0.5, counterY + 52, canvasWidth * 0.88, 44);
-
-      // Декоративные картины с рыбкой и кофейной чашкой на стене
-      drawPictureFrame(45, Math.round(wallH * 0.45), isExpanded ? (hasDecor ? '🌸' : '🌿') : '🐟');
-      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.45), isExpanded ? '✨' : '☕');
-
-      // Растения в горшочках на веранде (+ Цветочный уголок)
-      if (isExpanded) {
-        ctx.font = '22px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🪴', 24, counterY - 14);
-        if (hasDecor) {
-          ctx.fillText('💐', 46, counterY - 14);
-          ctx.fillText('🌺', canvasWidth - 24, counterY - 14);
-          // Анимированная порхающая бабочка над цветами веранды
-          const bX = 52 + Math.sin(globalGameTime * 2.5) * 14;
-          const bY = counterY - 32 + Math.cos(globalGameTime * 3) * 6;
-          ctx.font = '14px sans-serif';
-          ctx.fillText('🦋', bX, bY);
-          ctx.fillText('✨', canvasWidth - 36 + Math.sin(globalGameTime * 3.5) * 4, counterY - 26);
-        }
-      }
-
-      // Мисочка с водой/кормом и клубок ниток на полу (убирают пустоту пола)
-      ctx.font = '22px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🥣', 32, canvasHeight - 16);
-      ctx.fillText('🧶', canvasWidth - 32, canvasHeight - 16);
-    }
-
-    function drawPictureFrame(x, y, icon) {
-      ctx.save();
-      ctx.fillStyle = '#8d6e63';
-      ctx.fillRect(x - 14, y - 14, 28, 28);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x - 11, y - 11, 22, 22);
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(icon, x, y);
+      ctx.restore();
+      ctx.strokeStyle = '#c62828';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x - 7, y + 6);
+      ctx.quadraticCurveTo(x - 16, y + 9, x - 22, y + 6);
+      ctx.stroke();
       ctx.restore();
     }
 
+    // Статичный фон кафе (рисуется в кэш-слой)
+    function drawCafeEnvironment() {
+      const W = canvasWidth;
+      const H = canvasHeight;
+      const counterY = getCounterY();
+      const wallH = counterY - 25;
+      const wainTop = wallH - 22;
+      const isExpanded = (state.expansion || 0) >= 1;
+      const hasDecor = (state.verandaDecor || 0) >= 1;
+
+      // 1. Стена: тёплый градиент + обои в мягкую полоску
+      let g = ctx.createLinearGradient(0, 0, 0, wallH);
+      g.addColorStop(0, isExpanded ? '#fbfff4' : '#fff9f0');
+      g.addColorStop(1, isExpanded ? '#e7f0d8' : '#f5dbc0');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, wallH);
+      ctx.fillStyle = isExpanded ? 'rgba(150, 185, 120, 0.12)' : 'rgba(214, 160, 120, 0.12)';
+      for (let x = 4; x < W; x += 16) ctx.fillRect(x, 0, 5, wainTop);
+
+      // 2. Кухонная плитка за поварами
+      const tileL = Math.max(96, W * 0.25);
+      const tileR = Math.min(W - 96, W * 0.75);
+      const tileTop = 46;
+      if (tileR - tileL > 40) {
+        ctx.fillStyle = '#eef6f7';
+        ctx.fillRect(tileL, tileTop, tileR - tileL, wainTop - tileTop);
+        ctx.strokeStyle = 'rgba(120, 160, 170, 0.35)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        for (let tx = tileL; tx <= tileR; tx += 11) {
+          ctx.moveTo(tx, tileTop);
+          ctx.lineTo(tx, wainTop);
+        }
+        for (let ty = tileTop; ty <= wainTop; ty += 11) {
+          ctx.moveTo(tileL, ty);
+          ctx.lineTo(tileR, ty);
+        }
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillRect(tileL, tileTop, tileR - tileL, 2);
+        ctx.fillStyle = '#90a4ae';
+        ctx.fillRect(tileL - 2, tileTop - 3, tileR - tileL + 4, 3);
+      }
+
+      // 3. Окно слева и доска меню справа
+      const sideW = 66;
+      const boxTop = 44;
+      const boxH = Math.max(36, Math.min(58, wainTop - boxTop - 6));
+      drawCafeWindow(16, boxTop, sideW, boxH);
+      drawMenuBoard(W - 16 - sideW, boxTop, sideW, boxH);
+
+      // 4. Деревянная панель внизу стены
+      g = ctx.createLinearGradient(0, wainTop, 0, wallH);
+      g.addColorStop(0, '#b4896a');
+      g.addColorStop(1, '#8a6347');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, wainTop, W, wallH - wainTop);
+      ctx.fillStyle = 'rgba(60, 32, 15, 0.22)';
+      for (let x = 0; x < W; x += 22) ctx.fillRect(x, wainTop, 1.5, wallH - wainTop);
+      ctx.fillStyle = '#dcb894';
+      ctx.fillRect(0, wainTop - 3, W, 3);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fillRect(0, wainTop - 3, W, 1);
+
+      // 5. Навес и гирлянда
+      drawStripedAwning(22, 26, isExpanded ? '#e65100' : '#ff7043', isExpanded ? '#f1f8e9' : '#fff3e0');
+      if (isExpanded) drawLeafGarland(37, hasDecor);
+
+      // 6. Пол
+      drawPlankFloor(wallH,
+        isExpanded ? '#cfc4b8' : '#c9a98c',
+        isExpanded ? '#9c8f83' : '#98755b');
+
+      // 7. Коврик под стульями гостей
+      drawCozyRug(W * 0.5, counterY + 56, W * 0.9, 40);
+
+      // 8. Барная стойка
+      g = ctx.createLinearGradient(0, counterY + 24, 0, counterY + 38);
+      g.addColorStop(0, 'rgba(60, 28, 10, 0.3)');
+      g.addColorStop(1, 'rgba(60, 28, 10, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(16, counterY + 24, W - 32, 14);
+      g = ctx.createLinearGradient(0, counterY, 0, counterY + 24);
+      g.addColorStop(0, '#8d6e63');
+      g.addColorStop(1, '#5a3d31');
+      ctx.fillStyle = g;
+      ctx.fillRect(18, counterY, W - 36, 24);
+      const panelW = 46;
+      const panelCount = Math.max(1, Math.floor((W - 44) / (panelW + 8)));
+      const panelsStart = (W - (panelCount * panelW + (panelCount - 1) * 8)) / 2;
+      for (let i = 0; i < panelCount; i++) {
+        const px = panelsStart + i * (panelW + 8);
+        gfxRoundRect(ctx, px, counterY + 6, panelW, 13, 3);
+        ctx.strokeStyle = 'rgba(35, 18, 8, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.beginPath();
+        ctx.moveTo(px + 3, counterY + 20);
+        ctx.lineTo(px + panelW - 3, counterY + 20);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(35, 18, 8, 0.35)';
+      ctx.fillRect(18, counterY + 2, W - 36, 3);
+      g = ctx.createLinearGradient(0, counterY - 7, 0, counterY + 2);
+      g.addColorStop(0, '#e2c4a6');
+      g.addColorStop(1, '#a37a5b');
+      ctx.fillStyle = g;
+      gfxRoundRect(ctx, 12, counterY - 7, W - 24, 9, 3);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fillRect(16, counterY - 6, W - 32, 1.4);
+
+      // 9. Растения на концах стойки (веранда)
+      if (isExpanded) {
+        drawPottedPlant(26, counterY - 7, hasDecor, 1);
+        if (hasDecor) drawPottedPlant(W - 26, counterY - 7, true, -1);
+      }
+
+      // 10. Барные стулья с мягкими сиденьями
+      const maxSeats = getMaxCustomerSeats();
+      for (let i = 0; i < maxSeats; i++) {
+        const pos = getSeatPosition(i);
+        gfxGroundShadow(pos.x, pos.y + 37, 16, 4.5, 0.28);
+        g = ctx.createLinearGradient(pos.x - 3, 0, pos.x + 3, 0);
+        g.addColorStop(0, '#4e342e');
+        g.addColorStop(1, '#8d6e63');
+        ctx.fillStyle = g;
+        ctx.fillRect(pos.x - 2.5, pos.y + 17, 5, 20);
+        ctx.strokeStyle = '#6d4c41';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(pos.x, pos.y + 29, 8, 2.4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath();
+        ctx.ellipse(pos.x, pos.y + 18.5, 15, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        g = ctx.createLinearGradient(0, pos.y + 10, 0, pos.y + 20);
+        g.addColorStop(0, '#ef5350');
+        g.addColorStop(1, '#a31515');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(pos.x, pos.y + 15.5, 14, 5.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(pos.x - 4, pos.y + 13.6, 5, 1.6, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 11. Мисочка и клубок на полу
+      drawFoodBowl(30, H - 18);
+      drawYarnBall(W - 34, H - 20);
+    }
+
+    // Передний статичный слой кафе: лампы с тёплым светом + виньетка
+    function drawCafeForeground() {
+      const W = canvasWidth;
+      const hasHelper = (state.upgrades.helper || 0) > 0;
+      const lamps = hasHelper ? [W * 0.5] : [W * 0.29, W * 0.71];
+      lamps.forEach(lx => drawPendantLamp(lx, 3, 26));
+      drawVignette(0.3);
+    }
+
+    // Анимированные мелочи поверх фона (бабочка у цветов, искорки)
+    function drawCafeAmbient() {
+      if ((state.verandaDecor || 0) < 1) return;
+      const counterY = getCounterY();
+      const t = globalGameTime;
+      const bx = 44 + Math.sin(t * 1.3) * 16;
+      const by = counterY - 40 + Math.sin(t * 2.6) * 6;
+      const flap = Math.abs(Math.sin(t * 14));
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.fillStyle = '#ba68c8';
+      ctx.strokeStyle = '#6a1b9a';
+      ctx.lineWidth = 0.8;
+      [-1, 1].forEach(dir => {
+        ctx.beginPath();
+        ctx.ellipse(dir * 3.2 * (0.35 + flap * 0.65), -1.5, 3.2 * (0.35 + flap * 0.65), 3.6, dir * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(dir * 2.4 * (0.35 + flap * 0.65), 2.5, 2.3 * (0.35 + flap * 0.65), 2.4, -dir * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.fillStyle = '#4a148c';
+      ctx.fillRect(-0.6, -4, 1.2, 8);
+      ctx.restore();
+      const sp = (Math.sin(t * 3.5) + 1) / 2;
+      gfxSparkle(canvasWidth - 38, counterY - 30 - sp * 4, 2.5 + sp * 2, '#fff59d');
+    }
+
     function drawKitchenAndChefs() {
-      // 1. Главный Шеф-повар Барсик
+      const hasHelper = (state.upgrades.helper || 0) > 0;
       const chefStation = cookingStations[0];
       drawChefCat(chefStation.x, chefStation.y, 'Барсик', chefStation.isCooking);
       drawCookingStation(chefStation);
-
-      // 2. Су-шеф Мурзик (если разблокирован)
-      const hasHelper = (state.upgrades.helper || 0) > 0;
       if (hasHelper) {
         const helperStation = cookingStations[1];
         drawHelperCat(helperStation.x, helperStation.y, helperStation.isCooking);
         drawCookingStation(helperStation);
       }
+      // Индикаторы готовки поверх всего кухонного блока
+      drawCookingProgress(chefStation, 1.08);
+      if (hasHelper) drawCookingProgress(cookingStations[1], 0.92);
     }
 
     function drawChefCat(x, y, name, isCooking) {
-      ctx.save();
-      const bob = Math.sin(globalGameTime * 5) * 2;
-      const cy = y + bob;
-
-      // Тело котика-повара (увеличено для отличной видимости!)
-      ctx.fillStyle = '#ff9800';
-      ctx.beginPath();
-      ctx.ellipse(x, cy, 24, 21, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Белый фартучек шефа
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.ellipse(x, cy + 5, 15, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#e65100';
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-
-      // Ушки
-      ctx.fillStyle = '#ff9800';
-      ctx.beginPath();
-      ctx.moveTo(x - 18, cy - 10);
-      ctx.lineTo(x - 8, cy - 26);
-      ctx.lineTo(x - 1, cy - 12);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + 18, cy - 10);
-      ctx.lineTo(x + 8, cy - 26);
-      ctx.lineTo(x + 1, cy - 12);
-      ctx.fill();
-
-      // Розовые серединки ушек
-      ctx.fillStyle = '#ffab91';
-      ctx.beginPath();
-      ctx.moveTo(x - 16, cy - 11);
-      ctx.lineTo(x - 8, cy - 22);
-      ctx.lineTo(x - 3, cy - 12);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + 16, cy - 11);
-      ctx.lineTo(x + 8, cy - 22);
-      ctx.lineTo(x + 3, cy - 12);
-      ctx.fill();
-
-      // Глазки с бликами
-      ctx.fillStyle = '#3e2723';
-      ctx.beginPath();
-      ctx.arc(x - 8, cy - 4, 2.8, 0, Math.PI * 2);
-      ctx.arc(x + 8, cy - 4, 2.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(x - 9, cy - 5, 1.0, 0, Math.PI * 2);
-      ctx.arc(x + 7, cy - 5, 1.0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Розовый носик и щечки
-      ctx.fillStyle = '#ff7043';
-      ctx.beginPath();
-      ctx.arc(x, cy, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Усики
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x - 10, cy); ctx.lineTo(x - 22, cy - 2);
-      ctx.moveTo(x - 10, cy + 3); ctx.lineTo(x - 20, cy + 4);
-      ctx.moveTo(x + 10, cy); ctx.lineTo(x + 22, cy - 2);
-      ctx.moveTo(x + 10, cy + 3); ctx.lineTo(x + 20, cy + 4);
-      ctx.stroke();
-
-      // Колпак шеф-повара (Toque Blanche 👨‍🍳 - хорошо заметный!)
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#d7ccc8';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.rect(x - 15, cy - 22, 30, 9);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x - 9, cy - 28, 9, 0, Math.PI * 2);
-      ctx.arc(x, cy - 32, 11, 0, Math.PI * 2);
-      ctx.arc(x + 9, cy - 28, 9, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Лопатка / сковорода при готовке
-      if (isCooking) {
-        ctx.font = '20px sans-serif';
-        ctx.textAlign = 'center';
-        const spatulaSway = Math.sin(globalGameTime * 12) * 4;
-        ctx.fillText('🍳', x + 20, cy + spatulaSway);
-      }
-
-      ctx.restore();
+      const bob = Math.sin(globalGameTime * 5) * 1.6;
+      drawCatFigure({
+        x, y: y + bob, s: 1.08,
+        fur: '#ff9800', ear: '#ffab91', eye: '#2e7d32', stripe: '#e65100',
+        breedId: 'orange', seed: 1, outfit: 'chef', tail: false,
+        happy: isCooking && Math.sin(globalGameTime * 2) > 0.92
+      });
     }
 
     function drawHelperCat(x, y, isCooking) {
+      const bob = Math.sin(globalGameTime * 6 + 1) * 1.6;
+      drawCatFigure({
+        x, y: y + bob, s: 0.92,
+        fur: '#ffffff', ear: '#f8bbd0', eye: '#1e88e5', stripe: '#f5f5f5',
+        breedId: 'white', seed: 2, outfit: 'helper', tail: false
+      });
+    }
+
+    function drawFryingPan(x, y, shake, isHelper) {
       ctx.save();
-      const bob = Math.sin(globalGameTime * 6 + 1) * 2;
-      const cy = y + bob;
-
-      // Белый котик-помощник (увеличен)
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.ellipse(x, cy, 20, 17, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#e0e0e0';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Розовая косынка поваренка
-      ctx.fillStyle = '#ff80ab';
-      ctx.beginPath();
-      ctx.ellipse(x, cy - 10, 15, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Ушки
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.moveTo(x - 15, cy - 8);
-      ctx.lineTo(x - 6, cy - 21);
-      ctx.lineTo(x - 1, cy - 10);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + 15, cy - 8);
-      ctx.lineTo(x + 6, cy - 21);
-      ctx.lineTo(x + 1, cy - 10);
-      ctx.fill();
-
-      // Розовые серединки ушек
-      ctx.fillStyle = '#f8bbd0';
-      ctx.beginPath();
-      ctx.moveTo(x - 13, cy - 9);
-      ctx.lineTo(x - 6, cy - 18);
-      ctx.lineTo(x - 3, cy - 10);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + 13, cy - 9);
-      ctx.lineTo(x + 6, cy - 18);
-      ctx.lineTo(x + 3, cy - 10);
-      ctx.fill();
-
-      // Глазки
-      ctx.fillStyle = '#1e88e5';
-      ctx.beginPath();
-      ctx.arc(x - 6, cy - 3, 2.5, 0, Math.PI * 2);
-      ctx.arc(x + 6, cy - 3, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(x - 7, cy - 4, 0.9, 0, Math.PI * 2);
-      ctx.arc(x + 5, cy - 4, 0.9, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Розовый носик
-      ctx.fillStyle = '#ff80ab';
-      ctx.beginPath();
-      ctx.arc(x, cy + 1, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      if (isCooking) {
-        ctx.font = '18px sans-serif';
-        ctx.fillText('🥄', x + 18, cy + Math.sin(globalGameTime * 10) * 3);
+      ctx.translate(x, y + shake);
+      ctx.lineCap = 'round';
+      if (isHelper) {
+        // Кастрюлька с супом
+        ctx.fillStyle = '#b0bec5';
+        ctx.strokeStyle = '#546e7a';
+        ctx.lineWidth = 1.2;
+        gfxRoundRect(ctx, -9, -7, 18, 9, 3);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffb74d';
+        ctx.beginPath();
+        ctx.ellipse(0, -7, 8.5, 2.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#546e7a';
+        ctx.beginPath();
+        ctx.moveTo(-9, -5);
+        ctx.lineTo(-13, -6);
+        ctx.moveTo(9, -5);
+        ctx.lineTo(13, -6);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#4e342e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(7, -1);
+        ctx.lineTo(19, -5);
+        ctx.stroke();
+        ctx.fillStyle = '#263238';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 10, 4.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#455a64';
+        ctx.beginPath();
+        ctx.ellipse(0, -0.8, 8.4, 3.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(-0.5, -1.2, 5, 2.3, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffb300';
+        ctx.beginPath();
+        ctx.arc(0.3, -1.5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
       }
-
       ctx.restore();
     }
 
     function drawCookingStation(station) {
       const sx = station.x;
       const sy = station.y + 26;
-
-      // Плита / кухонный блок
+      const cooking = station.isCooking;
       ctx.save();
-      ctx.fillStyle = '#546e7a';
-      ctx.fillRect(sx - 24, sy - 14, 48, 24);
-      ctx.fillStyle = '#37474f';
-      ctx.fillRect(sx - 22, sy - 12, 44, 20);
-
-      // Конфорка
-      ctx.fillStyle = station.isCooking ? '#ff5722' : '#78909c';
-      ctx.beginPath();
-      ctx.arc(sx, sy - 2, 8, 0, Math.PI * 2);
+      gfxGroundShadow(sx, sy + 13, 32, 5, 0.3);
+      let g = ctx.createLinearGradient(0, sy - 14, 0, sy + 13);
+      g.addColorStop(0, '#90a4ae');
+      g.addColorStop(1, '#455a64');
+      ctx.fillStyle = g;
+      gfxRoundRect(ctx, sx - 27, sy - 14, 54, 27, 4);
       ctx.fill();
-
-      // Прогресс приготовления над плитой
-      if (station.isCooking && station.dish) {
-        const barW = 54;
-        const barH = 8;
-        const bx = sx - barW / 2;
-        const by = sy - 52;
-
-        // Фон шкалы
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = '#263238';
+      ctx.stroke();
+      ctx.fillStyle = '#263238';
+      gfxRoundRect(ctx, sx - 23, sy - 11, 46, 8, 2);
+      ctx.fill();
+      ctx.fillStyle = '#37474f';
+      gfxRoundRect(ctx, sx - 16, sy, 32, 10, 2);
+      ctx.fill();
+      ctx.fillStyle = cooking ? 'rgba(255, 160, 70, 0.55)' : 'rgba(144, 164, 174, 0.45)';
+      gfxRoundRect(ctx, sx - 12, sy + 2.5, 24, 5, 1.5);
+      ctx.fill();
+      ctx.fillStyle = '#cfd8dc';
+      [-21, 21].forEach(dx => {
         ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 4);
-        } else {
-          ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
-        }
+        ctx.arc(sx + dx, sy + 5, 2.3, 0, Math.PI * 2);
         ctx.fill();
-
-        // Заполнение шкалы
-        ctx.fillStyle = '#4caf50';
+      });
+      // Конфорка и свечение огня
+      if (cooking) {
+        const pulse = 0.65 + 0.35 * Math.sin(globalGameTime * 7 + sx);
+        g = ctx.createRadialGradient(sx, sy - 7, 1, sx, sy - 7, 18);
+        g.addColorStop(0, `rgba(255, 140, 50, ${0.55 * pulse})`);
+        g.addColorStop(1, 'rgba(255, 120, 40, 0)');
+        ctx.fillStyle = g;
         ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx, by, barW * station.progress, barH, 3);
-        } else {
-          ctx.rect(bx, by, barW * station.progress, barH);
-        }
+        ctx.arc(sx, sy - 7, 18, 0, Math.PI * 2);
         ctx.fill();
-
-        // Крупная иконка готовящегося блюда (22px)
-        ctx.font = '22px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(station.dish.icon, sx, by - 6);
+      }
+      ctx.strokeStyle = cooking ? '#ff6d00' : '#90a4ae';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 7, 9, 2.8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Посуда на плите
+      if (cooking) {
+        const shake = Math.sin(globalGameTime * 12 + sx) * 1.2;
+        drawFryingPan(sx, sy - 10, shake, station.id === 'helper');
+      }
+      // Вспышка от тапа-ускорения
+      if (station.tapBoostAt && globalGameTime - station.tapBoostAt < 0.35) {
+        const k = (globalGameTime - station.tapBoostAt) / 0.35;
+        ctx.strokeStyle = `rgba(255, 200, 60, ${1 - k})`;
+        ctx.lineWidth = 3 * (1 - k) + 1;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy - 7, 12 + k * 26, 4 + k * 9, 0, 0, Math.PI * 2);
+        ctx.stroke();
       }
       ctx.restore();
     }
 
-    function drawCounterAndTables() {
-      const counterY = getCounterY();
-      ctx.save();
-
-      // Барная деревянная стойка кафе
-      ctx.fillStyle = '#795548';
-      ctx.fillRect(18, counterY, canvasWidth - 36, 24);
-
-      // Верхняя полированная доска стойки
-      ctx.fillStyle = '#a1887f';
-      ctx.fillRect(14, counterY - 6, canvasWidth - 28, 8);
-      ctx.fillStyle = '#d7ccc8';
-      ctx.fillRect(14, counterY - 6, canvasWidth - 28, 2);
-
-      // Стульчики у стойки
-      const maxSeats = getMaxCustomerSeats();
-      for (let i = 0; i < maxSeats; i++) {
-        const pos = getSeatPosition(i);
-        ctx.fillStyle = '#8d6e63';
-        ctx.beginPath();
-        ctx.ellipse(pos.x, pos.y + 16, 15, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(pos.x - 2.5, pos.y + 16, 5, 20);
-      }
-      ctx.restore();
+    function drawCookingProgress(station, s) {
+      if (!station.isCooking || !station.dish) return;
+      drawProgressBadge(station.x - 38 * s, station.y - 16, station.progress, station.dish.icon, station.isFeaturedOrder ? '#ff9800' : '#43a047');
     }
 
     function drawCustomers() {
       const counterY = getCounterY();
-      customers.forEach(c => {
-        ctx.save();
-        const walkBob = (c.state === 'walking_to_seat' || c.state === 'leaving') 
-          ? Math.sin(c.walkAnim) * 3 
-          : 0;
+      // Сортировка по глубине: кто ниже на экране — тот ближе к зрителю
+      const list = customers.slice().sort((a, b) => a.y - b.y);
+      list.forEach(c => {
+        const moving = c.state === 'walking_to_seat' || c.state === 'leaving';
+        const hop = getPayHop(c);
+        const walkBob = moving ? -Math.abs(Math.sin(c.walkAnim)) * 3 : 0;
+        const idle = moving ? 0 : Math.sin(globalGameTime * 2.2 + c.id) * 0.7;
         const cx = c.x;
-        const cy = c.y + walkBob;
-
-        // Хвостик котика
-        ctx.strokeStyle = c.breed.fur;
-        ctx.lineWidth = 4.5;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(cx - 12, cy + 7);
-        ctx.quadraticCurveTo(cx - 18, cy, cx - 16, cy - 9 + Math.sin(globalGameTime * 5) * 3);
-        ctx.stroke();
-
-        // Тело котика (увеличено!)
-        ctx.fillStyle = c.breed.fur;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, 22, 19, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Ушки
-        ctx.beginPath();
-        ctx.moveTo(cx - 15, cy - 7);
-        ctx.lineTo(cx - 6, cy - 21);
-        ctx.lineTo(cx - 1, cy - 10);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(cx + 15, cy - 7);
-        ctx.lineTo(cx + 6, cy - 21);
-        ctx.lineTo(cx + 1, cy - 10);
-        ctx.fill();
-
-        // Розовые внутренние ушки
-        ctx.fillStyle = c.breed.ear;
-        ctx.beginPath();
-        ctx.moveTo(cx - 13, cy - 8);
-        ctx.lineTo(cx - 6, cy - 18);
-        ctx.lineTo(cx - 3, cy - 10);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(cx + 13, cy - 8);
-        ctx.lineTo(cx + 6, cy - 18);
-        ctx.lineTo(cx + 3, cy - 10);
-        ctx.fill();
-
-        // Глазки с бликами
-        ctx.fillStyle = c.breed.eye;
-        ctx.beginPath();
-        ctx.arc(cx - 6, cy - 3, 2.8, 0, Math.PI * 2);
-        ctx.arc(cx + 6, cy - 3, 2.8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(cx - 7, cy - 4, 1.0, 0, Math.PI * 2);
-        ctx.arc(cx + 5, cy - 4, 1.0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Носик
-        ctx.fillStyle = c.breed.ear;
-        ctx.beginPath();
-        ctx.arc(cx, cy + 1, 2.0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Усики
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx - 8, cy + 1); ctx.lineTo(cx - 18, cy);
-        ctx.moveTo(cx - 8, cy + 4); ctx.lineTo(cx - 16, cy + 5);
-        ctx.moveTo(cx + 8, cy + 1); ctx.lineTo(cx + 18, cy);
-        ctx.moveTo(cx + 8, cy + 4); ctx.lineTo(cx + 16, cy + 5);
-        ctx.stroke();
-
-        // Корона и блеск для кота-гурмана
-        if (c.isVIP) {
-          ctx.font = '16px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('👑', cx, cy - 20);
-          ctx.font = '11px sans-serif';
-          ctx.fillText('✨', cx - 18 + Math.sin(globalGameTime * 6) * 3, cy - 10);
-        }
+        const cy = c.y + walkBob + idle + hop.dy;
+        if (moving) gfxGroundShadow(cx, c.y + 20, 17, 4.5, 0.22);
 
         const isFeatured = !!c.isFeaturedOrder;
-        // Облачко заказа над посетителем (Thought Bubble 💭 крупно!)
-        if (c.state === 'waiting_vip_accept') {
-          // Золотое облачко ожидания принятия VIP заказа с обратным отсчетом 20с
-          drawThoughtBubble(cx, cy - 36, c.dish.icon, true, false, 0, 1, c.vipAcceptTimer, c.totalVipAcceptTimer, isFeatured);
-        } else if (c.state === 'waiting_order') {
-          // Обычное облачко или VIP с таймером приготовления
-          drawThoughtBubble(cx, cy - 36, c.dish.icon, c.isVIP, c.isVIP && c.isVipAccepted, c.vipTimer, c.totalVipTimer, 0, 20, isFeatured);
-        } else if (c.state === 'eating') {
-          // Сердечко восторга от еды (золотое у гурмана)
-          ctx.font = '22px sans-serif';
+        const isEating = c.state === 'eating';
+        const justPaid = typeof c.paidAt === 'number' && globalGameTime - c.paidAt < 1.2;
+
+        // Блюдо на стойке перед котиком
+        if (isEating) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(60, 30, 12, 0.2)';
+          ctx.beginPath();
+          ctx.ellipse(cx + 1, counterY - 4, 13, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#cfc2b8';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(cx, counterY - 6, 12, 3.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.font = '20px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(c.isVIP ? '💛' : '❤️', cx, cy - 36);
-          // Блюдо на стойке перед котиком (крупно 22px!)
-          ctx.fillText(c.dish.icon, cx, counterY - 4);
+          ctx.textBaseline = 'middle';
+          ctx.fillText(c.dish.icon, cx, counterY - 14);
+          ctx.restore();
         }
 
-        ctx.restore();
+        drawCatFigure({
+          x: cx, y: cy, s: 1,
+          fur: c.breed.fur, ear: c.breed.ear, eye: c.breed.eye, stripe: c.breed.stripe,
+          breedId: c.isVIP ? 'royal' : c.breed.id,
+          seed: c.id * 1.7,
+          squash: hop.squash,
+          crown: !!c.isVIP,
+          happy: isEating || justPaid
+        });
+
+        // Облачко заказа над посетителем
+        if (c.state === 'waiting_vip_accept') {
+          drawThoughtBubble(cx, cy - 36, c.dish.icon, true, false, 0, 1, c.vipAcceptTimer, c.totalVipAcceptTimer, isFeatured);
+        } else if (c.state === 'waiting_order') {
+          drawThoughtBubble(cx, cy - 36, c.dish.icon, c.isVIP, c.isVIP && c.isVipAccepted, c.vipTimer, c.totalVipTimer, 0, 20, isFeatured);
+        } else if (isEating) {
+          const beat = 1 + Math.max(0, Math.sin(globalGameTime * 8)) * 0.15;
+          gfxHeart(cx, cy - 38, 20 * beat, c.isVIP ? '#ffc107' : '#e53950');
+        }
       });
     }
 
     function drawThoughtBubble(x, y, icon, isVIP = false, showCookingTimer = false, vipTimer = 0, totalVipTimer = 1, vipAcceptTimer = 20, totalAcceptTimer = 20, isFeatured = false) {
       ctx.save();
-      // Хвостик облачка
-      ctx.fillStyle = isVIP ? '#fffde7' : '#ffffff';
-      ctx.strokeStyle = isVIP ? '#fbc02d' : '#bcaaa4';
-      ctx.lineWidth = isVIP ? 2 : 1.4;
+      const edge = isVIP ? '#e0a800' : '#c7b2a3';
+      const breathe = 1 + Math.sin(globalGameTime * 3 + x * 0.05) * 0.025;
+      const r = 22 * breathe;
 
+      // Тень облачка
+      ctx.fillStyle = 'rgba(70, 35, 15, 0.14)';
       ctx.beginPath();
-      ctx.arc(x - 5, y + 14, 3.5, 0, Math.PI * 2);
-      ctx.arc(x - 2, y + 8, 4.5, 0, Math.PI * 2);
+      ctx.arc(x + 2, y - 6, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
 
-      // Круглое крупное облачко
+      // Хвостик из пузырьков
+      ctx.fillStyle = isVIP ? '#fff8dc' : '#ffffff';
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1.3;
+      [[x - 5, y + 15, 3.2], [x - 2, y + 9, 4.4]].forEach(([bx, by, br]) => {
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Само облачко с мягким объёмом
+      const g = ctx.createRadialGradient(x - 8, y - 17, 3, x, y - 8, r + 2);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(1, isVIP ? '#ffefb0' : '#f2eae4');
+      ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(x, y - 8, 22, 0, Math.PI * 2);
+      ctx.arc(x, y - 8, r, 0, Math.PI * 2);
       ctx.fill();
+      ctx.lineWidth = isVIP ? 2.2 : 1.5;
       ctx.stroke();
-
-      // Золотое сияние для VIP
       if (isVIP) {
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = 1.5;
+        const glow = 0.45 + 0.35 * Math.sin(globalGameTime * 6);
+        ctx.strokeStyle = `rgba(255, 213, 79, ${glow})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y - 8, r + 3.5, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      // Иконка желаемого блюда (крупно 24px)
+      // Иконка блюда
       ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(icon, x, y - 8);
+      ctx.fillText(icon, x, y - 7);
 
-      // Значок ⭐ фирменного блюда
-      if (isFeatured) {
-        ctx.font = '12px sans-serif';
-        ctx.fillText('⭐', x + 15, y - 20);
-      }
+      if (isFeatured) gfxStar(x + 15, y - 22, 5.5);
 
-      // Плашка "ТАП! 👑" и обратный отсчёт принятия заказа
+      const drawTimerBar = (progress, colorFn, label) => {
+        const barW = 46;
+        const barH = 6;
+        const bx = x - barW / 2;
+        const by = y - 37;
+        ctx.fillStyle = 'rgba(45, 25, 12, 0.7)';
+        gfxRoundRect(ctx, bx - 1.5, by - 1.5, barW + 3, barH + 3, 4);
+        ctx.fill();
+        const p = Math.max(0, Math.min(1, progress));
+        const col = colorFn(p);
+        const fg = ctx.createLinearGradient(0, by, 0, by + barH);
+        fg.addColorStop(0, gfxShade(col, 0.3));
+        fg.addColorStop(1, col);
+        ctx.fillStyle = fg;
+        gfxRoundRect(ctx, bx, by, Math.max(0.1, barW * p), barH, 3);
+        ctx.fill();
+        ctx.font = 'bold 9px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(45, 25, 12, 0.75)';
+        ctx.strokeText(label, x, by - 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(label, x, by - 6);
+      };
+
+      // VIP: плашка «ТАП!» и таймер принятия заказа
       if (isVIP && !showCookingTimer) {
         const secLeft = Math.ceil(Math.max(0, vipAcceptTimer));
         const btnW = 64;
-        ctx.fillStyle = '#fbc02d';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(x - btnW / 2, y + 15, btnW, 15, 7);
-        } else {
-          ctx.rect(x - btnW / 2, y + 15, btnW, 15);
-        }
+        const pulse = 1 + Math.max(0, Math.sin(globalGameTime * 6)) * 0.06;
+        ctx.save();
+        ctx.translate(x, y + 22);
+        ctx.scale(pulse, pulse);
+        const bg = ctx.createLinearGradient(0, -8, 0, 8);
+        bg.addColorStop(0, '#ffe082');
+        bg.addColorStop(1, '#f9a825');
+        ctx.fillStyle = bg;
+        gfxRoundRect(ctx, -btnW / 2, -8, btnW, 16, 8);
         ctx.fill();
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = '#a15c00';
+        ctx.stroke();
+        gfxCrown(-btnW / 2 + 10, 0.5, 0.5);
         ctx.fillStyle = '#3e2723';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.fillText(`ТАП! 👑 ${secLeft}с`, x, y + 23);
-
-        // Полоса и таймер принятия заказа над облачком
-        const barW = 46;
-        const barH = 5;
-        const bx = x - barW / 2;
-        const by = y - 36;
-        const acceptProgress = Math.max(0, Math.min(1, vipAcceptTimer / (totalAcceptTimer || 20)));
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 3);
-        } else {
-          ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
-        }
-        ctx.fill();
-
-        ctx.fillStyle = acceptProgress < 0.25 ? '#f44336' : (acceptProgress < 0.5 ? '#ff9800' : '#ffd700');
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx, by, barW * acceptProgress, barH, 2);
-        } else {
-          ctx.rect(bx, by, barW * acceptProgress, barH);
-        }
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.fillText(`⏳ ${secLeft}с`, x, by - 5);
+        ctx.font = 'bold 9px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`ТАП! ${secLeft}с`, -btnW / 2 + 18, 0.5);
+        ctx.textAlign = 'center';
+        ctx.restore();
+        drawTimerBar(vipAcceptTimer / (totalAcceptTimer || 20),
+          p => (p < 0.25 ? '#e53935' : (p < 0.5 ? '#fb8c00' : '#fdd835')),
+          `${secLeft}с`);
       }
 
-      // Видимый таймер приготовления над облачком (после принятия заказа)
+      // VIP: таймер приготовления после принятия заказа
       if (isVIP && showCookingTimer) {
-        const barW = 46;
-        const barH = 5;
-        const bx = x - barW / 2;
-        const by = y - 36;
-        const progress = Math.max(0, Math.min(1, vipTimer / (totalVipTimer || 1)));
-
-        // Фон таймера
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 3);
-        } else {
-          ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
-        }
-        ctx.fill();
-
-        // Заполнение полосы таймера (зеленый -> оранжевый -> красный)
-        let barColor = '#4caf50';
-        if (progress < 0.3) barColor = '#f44336';
-        else if (progress < 0.6) barColor = '#ff9800';
-
-        ctx.fillStyle = barColor;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(bx, by, barW * progress, barH, 2);
-        } else {
-          ctx.rect(bx, by, barW * progress, barH);
-        }
-        ctx.fill();
-
-        // Текст секунд
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.fillText(`⏳ ${Math.ceil(vipTimer)}с`, x, by - 5);
+        drawTimerBar(vipTimer / (totalVipTimer || 1),
+          p => (p < 0.3 ? '#e53935' : (p < 0.6 ? '#fb8c00' : '#43a047')),
+          `${Math.ceil(Math.max(0, vipTimer))}с`);
       }
 
       ctx.restore();
@@ -5146,607 +6384,946 @@
     function drawParticles() {
       visualParticles.forEach(p => {
         if (state.currentVenue === 'bakery' && p.type === 'steam' && p.y <= 46) return;
+        const a = Math.max(0, p.life / p.maxLife);
         ctx.save();
-        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-        ctx.font = 'bold 14px sans-serif';
-        ctx.fillStyle = p.color;
+        if (p.type === 'steam') {
+          // Пар — мягкие клубы вместо эмодзи
+          const k = 1 - a;
+          ctx.globalAlpha = a * 0.5;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3 + k * 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+        if (p.text === '❤️' || p.text === '💛') {
+          ctx.globalAlpha = a;
+          gfxHeart(p.x, p.y, 14 + (1 - a) * 6, p.text === '💛' ? '#ffc107' : '#e53950');
+          ctx.restore();
+          return;
+        }
+        ctx.globalAlpha = a;
+        // Короткое «выпрыгивание» текста в начале жизни
+        const pop = a > 0.8 ? 1 + (a - 0.8) * 1.5 : 1;
+        ctx.font = `bold ${Math.round(14 * pop)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(60, 28, 10, 0.75)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = p.color;
         ctx.fillText(p.text, p.x, p.y);
         ctx.restore();
       });
     }
 
-    // --- 11.1. Отрисовка Пекарни (Bakery Scene Rendering) ---
+    // --- 11.2. Отрисовка Пекарни ---
+    function getBakerySceneKey() {
+      const b = state.bakery || {};
+      const up = b.upgrades || {};
+      return [
+        'bakery',
+        b.stars || 0,
+        getBakeryMaxTables(),
+        (up.baker_helper || 0) > 0 ? 1 : 0,
+        getDayPhase()
+      ].join('|');
+    }
+
     function renderBakeryScene() {
+      ensureSceneLayers(getBakerySceneKey(), drawBakeryEnvironment, drawBakeryForeground);
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-      drawBakeryEnvironment();
+      blitLayer(sceneLayers.bg);
       drawBakeryOven();
       drawBakeryVitrine();
       drawBakeryCustomers();
       drawBakeryTables();
       drawBakeryWaiter();
+      blitLayer(sceneLayers.fg);
       drawParticles();
     }
 
-    function drawBakeryEnvironment() {
-      const vy = getVitrineY();
-      const wallH = vy - 10;
+    function getBakeryOvenRect() {
+      const st = bakeryOvenStations[0];
+      const hasPushok = (state.bakery?.upgrades?.baker_helper || 0) > 0;
+      const ow = hasPushok ? 122 : 100;
+      const oh = 48;
+      const ovenX = canvasWidth * 0.5;
+      const ovenY = st.y + 10;
+      return { ovenX, ovenY, ow, oh, left: ovenX - ow / 2, top: ovenY - oh / 2 };
+    }
 
-      // Теплая стена пекарни с мягким пастельным кремовым фоном
-      ctx.fillStyle = '#fff8e7';
-      ctx.fillRect(0, 0, canvasWidth, wallH);
-
-      // Верхний декоративный бордюр пекарни с козырьком (компактный и аккуратный)
-      const awningH = 12;
-      const stripeW = 20;
-      for (let x = 0; x < canvasWidth; x += stripeW) {
-        ctx.fillStyle = (Math.floor(x / stripeW) % 2 === 0) ? '#d87d4a' : '#ffe8d6';
-        ctx.beginPath();
-        ctx.rect(x, 0, stripeW, awningH);
-        ctx.arc(x + stripeW / 2, awningH, stripeW / 2, 0, Math.PI, false);
-        ctx.fill();
-      }
-
-      // Вывеска пекарни на аккуратной деревянной табличке (чистый зазор ниже козырька)
-      const signW = Math.min(270, canvasWidth * 0.76);
-      const signH = 17;
-      const signX = (canvasWidth - signW) / 2;
-      const signY = 25;
-      ctx.fillStyle = 'rgba(255, 248, 238, 0.94)';
-      ctx.strokeStyle = '#c7a793';
-      ctx.lineWidth = 1.2;
+    function drawBrickPattern(x, y, w, h, base, brickW = 16, brickH = 7) {
+      ctx.save();
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(signX, signY, signW, signH, 6);
-      else ctx.rect(signX, signY, signW, signH);
-      ctx.fill();
-      ctx.stroke();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+      ctx.fillStyle = '#e7cdb4';
+      ctx.fillRect(x, y, w, h);
+      let row = 0;
+      for (let by = y; by < y + h; by += brickH, row++) {
+        const offset = row % 2 ? brickW / 2 : 0;
+        for (let bx = x - offset; bx < x + w; bx += brickW) {
+          const n = Math.abs(Math.sin(bx * 12.9898 + by * 78.233)) % 1;
+          ctx.fillStyle = gfxShade(base, (n - 0.5) * 0.22);
+          ctx.fillRect(bx + 0.8, by + 0.8, brickW - 1.6, brickH - 1.6);
+        }
+      }
+      ctx.restore();
+    }
 
-      const bakeryStars = state.bakery?.stars || 0;
-      const starsStr = bakeryStars > 0 ? ` ${'⭐'.repeat(bakeryStars)}` : '';
-      ctx.font = 'bold 10px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#6d4c41';
-      ctx.fillText(`🥖 КОШАЧЬЯ ПЕКАРНЯ${starsStr} 🥐`, canvasWidth / 2, signY + Math.round(signH / 2));
-
-      // Праздничные флажки и искры при 3-й звезде пекарни
-      if (bakeryStars >= 3) {
-        const flagColors = ['#e91e63', '#ffeb3b', '#2196f3', '#4caf50', '#ff9800'];
-        const flagW = 14;
-        for (let x = 6; x < canvasWidth - 6; x += flagW) {
-          const colIdx = Math.floor(x / flagW) % flagColors.length;
-          ctx.fillStyle = flagColors[colIdx];
+    function drawStringLights(y, sag) {
+      const W = canvasWidth;
+      const pegStep = Math.max(90, W / 4);
+      const colors = ['#ffd54f', '#ff8a65', '#fff59d', '#ffb74d'];
+      let bulbIndex = 0;
+      ctx.save();
+      for (let x0 = 6; x0 < W - 6; x0 += pegStep) {
+        const x1 = Math.min(W - 6, x0 + pegStep);
+        ctx.strokeStyle = '#5d4037';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.quadraticCurveTo((x0 + x1) / 2, y + sag * 2, x1, y);
+        ctx.stroke();
+        const count = Math.max(2, Math.round((x1 - x0) / 22));
+        for (let k = 1; k < count; k++) {
+          const tt = k / count;
+          const px = x0 + (x1 - x0) * tt;
+          const py = y + 4 * sag * tt * (1 - tt);
+          const col = colors[bulbIndex++ % colors.length];
+          const glow = ctx.createRadialGradient(px, py + 4, 0, px, py + 4, 9);
+          glow.addColorStop(0, gfxAlpha(col, 0.55));
+          glow.addColorStop(1, gfxAlpha(col, 0));
+          ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.moveTo(x, awningH);
-          ctx.lineTo(x + flagW, awningH);
-          ctx.lineTo(x + flagW / 2, awningH + 8);
+          ctx.arc(px, py + 4, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#6d4c41';
+          ctx.fillRect(px - 1.2, py, 2.4, 2);
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.ellipse(px, py + 4.2, 2.2, 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawBreadShelf(x, y, w, items) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(60, 30, 12, 0.18)';
+      ctx.fillRect(x + 2, y + 3, w, 4);
+      const g = ctx.createLinearGradient(0, y, 0, y + 5);
+      g.addColorStop(0, '#a1887f');
+      g.addColorStop(1, '#6d4c41');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w, 5);
+      ctx.fillStyle = '#5d4037';
+      ctx.beginPath();
+      ctx.moveTo(x + 6, y + 5);
+      ctx.lineTo(x + 6, y + 11);
+      ctx.lineTo(x + 12, y + 5);
+      ctx.moveTo(x + w - 6, y + 5);
+      ctx.lineTo(x + w - 6, y + 11);
+      ctx.lineTo(x + w - 12, y + 5);
+      ctx.fill();
+      items.forEach((type, i) => {
+        const ix = x + (i + 0.5) * (w / items.length);
+        if (type === 'loaf') {
+          const lg = ctx.createRadialGradient(ix - 3, y - 7, 1, ix, y - 4, 10);
+          lg.addColorStop(0, '#f6c27a');
+          lg.addColorStop(1, '#b86b2a');
+          ctx.fillStyle = lg;
+          ctx.beginPath();
+          ctx.ellipse(ix, y - 4, 9, 5.5, 0, Math.PI, 0);
+          ctx.lineTo(ix + 9, y);
+          ctx.lineTo(ix - 9, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 235, 200, 0.8)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(ix - 4, y - 7);
+          ctx.lineTo(ix - 1, y - 4);
+          ctx.moveTo(ix + 1, y - 8);
+          ctx.lineTo(ix + 4, y - 5);
+          ctx.stroke();
+        } else if (type === 'baguette') {
+          ctx.save();
+          ctx.translate(ix, y - 3);
+          ctx.rotate(-0.15);
+          const bg = ctx.createLinearGradient(0, -3, 0, 3);
+          bg.addColorStop(0, '#f2b96b');
+          bg.addColorStop(1, '#b0662a');
+          ctx.fillStyle = bg;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 12, 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 235, 200, 0.85)';
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          [-6, -1, 4].forEach(dx => {
+            ctx.moveTo(dx, -1.8);
+            ctx.lineTo(dx + 3, 0.2);
+          });
+          ctx.stroke();
+          ctx.restore();
+        } else if (type === 'jar') {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+          gfxRoundRect(ctx, ix - 4.5, y - 11, 9, 11, 2);
+          ctx.fill();
+          ctx.fillStyle = '#e57373';
+          ctx.fillRect(ix - 4, y - 7, 8, 6.5);
+          ctx.fillStyle = '#8d6e63';
+          ctx.fillRect(ix - 5, y - 13, 10, 3);
+        }
+      });
+      ctx.restore();
+    }
+
+    function drawBreadBasket(x, y) {
+      gfxGroundShadow(x, y + 7, 16, 4, 0.28);
+      ctx.save();
+      ['#e0a35c', '#c98a43'].forEach((col, i) => {
+        ctx.save();
+        ctx.translate(x - 3 + i * 6, y - 8);
+        ctx.rotate(-0.5 + i * 0.9);
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.ellipse(0, -4, 3.2, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      const g = ctx.createLinearGradient(0, y - 4, 0, y + 7);
+      g.addColorStop(0, '#c58b4c');
+      g.addColorStop(1, '#8a5a2b');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - 14, y - 4);
+      ctx.lineTo(x + 14, y - 4);
+      ctx.lineTo(x + 11, y + 7);
+      ctx.lineTo(x - 11, y + 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(90, 55, 20, 0.6)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      for (let k = -10; k <= 10; k += 4) {
+        ctx.moveTo(x + k, y - 4);
+        ctx.lineTo(x + k * 0.8, y + 7);
+      }
+      ctx.moveTo(x - 13, y + 1);
+      ctx.lineTo(x + 13, y + 1);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawWheatSheaf(x, y) {
+      gfxGroundShadow(x, y + 7, 11, 3, 0.25);
+      ctx.save();
+      for (let k = -2; k <= 2; k++) {
+        const ang = k * 0.18;
+        const tipX = x + Math.sin(ang) * 22;
+        const tipY = y - Math.cos(ang) * 22;
+        ctx.strokeStyle = '#c9a227';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 6);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+        ctx.fillStyle = '#e6be45';
+        for (let j = 0; j < 4; j++) {
+          const gx = x + Math.sin(ang) * (12 + j * 3.2);
+          const gy = y - Math.cos(ang) * (12 + j * 3.2);
+          ctx.beginPath();
+          ctx.ellipse(gx - 1.6, gy, 1.3, 2.3, -0.5, 0, Math.PI * 2);
+          ctx.ellipse(gx + 1.6, gy, 1.3, 2.3, 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = '#a1887f';
+      ctx.fillRect(x - 5, y - 1, 10, 3);
+      ctx.restore();
+    }
+
+    // Перспективный пол из терракотовой плитки
+    function drawTileFloor(top) {
+      const W = canvasWidth;
+      const H = canvasHeight;
+      const vx = W / 2;
+      const vy = top - 220;
+      const xAt = (bx, y) => vx + (bx - vx) * (y - vy) / (H - vy);
+      const tileW = 34;
+      const nCols = Math.ceil(W / tileW) + 8;
+      let y = top;
+      let step = 9;
+      let row = 0;
+      while (y < H) {
+        const y2 = Math.min(H, y + step);
+        for (let i = -nCols; i < nCols; i++) {
+          const b0 = vx + i * tileW;
+          const b1 = b0 + tileW;
+          ctx.fillStyle = (i + row) % 2 === 0 ? '#ecccab' : '#d9ad86';
+          ctx.beginPath();
+          ctx.moveTo(xAt(b0, y), y);
+          ctx.lineTo(xAt(b1, y), y);
+          ctx.lineTo(xAt(b1, y2), y2);
+          ctx.lineTo(xAt(b0, y2), y2);
           ctx.closePath();
           ctx.fill();
         }
+        y = y2;
+        step *= 1.22;
+        row++;
+      }
+      const g = ctx.createLinearGradient(0, top, 0, H);
+      g.addColorStop(0, 'rgba(255, 240, 225, 0.12)');
+      g.addColorStop(1, 'rgba(110, 55, 25, 0.2)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, top, W, H - top);
+      const ao = ctx.createLinearGradient(0, top, 0, top + 14);
+      ao.addColorStop(0, 'rgba(70, 32, 12, 0.28)');
+      ao.addColorStop(1, 'rgba(70, 32, 12, 0)');
+      ctx.fillStyle = ao;
+      ctx.fillRect(0, top, W, 14);
+    }
+
+    // Статичный фон пекарни (рисуется в кэш-слой)
+    function drawBakeryEnvironment() {
+      const W = canvasWidth;
+      const H = canvasHeight;
+      const vy = getVitrineY();
+      const wallH = vy - 10;
+      const brickTop = Math.max(70, wallH - 30);
+
+      // 1. Стена
+      let g = ctx.createLinearGradient(0, 0, 0, wallH);
+      g.addColorStop(0, '#fff7e8');
+      g.addColorStop(1, '#f2d4b0');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, wallH);
+      ctx.fillStyle = 'rgba(205, 150, 105, 0.1)';
+      for (let x = 4; x < W; x += 14) ctx.fillRect(x, 0, 4, brickTop);
+
+      // 2. Кирпичная кладка в нижней части стены
+      drawBrickPattern(0, brickTop, W, wallH - brickTop, '#c8734c', 18, 8);
+      ctx.fillStyle = '#d9b48f';
+      ctx.fillRect(0, brickTop - 3, W, 3);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fillRect(0, brickTop - 3, W, 1);
+
+      // 3. Полки с хлебом
+      drawBreadShelf(10, 64, 60, ['loaf', 'jar', 'loaf']);
+      drawBreadShelf(W - 70, 64, 60, ['baguette', 'loaf']);
+
+      // 4. Навес
+      drawStripedAwning(12, 20, '#d87d4a', '#ffe8d6');
+
+      // 5. Вывеска
+      const bakeryStars = state.bakery?.stars || 0;
+      const signW = Math.min(250, W * 0.68);
+      const signH = 18;
+      const signX = (W - signW) / 2;
+      const signY = 24;
+      ctx.fillStyle = 'rgba(60, 30, 12, 0.2)';
+      gfxRoundRect(ctx, signX + 2, signY + 3, signW, signH, 6);
+      ctx.fill();
+      g = ctx.createLinearGradient(0, signY, 0, signY + signH);
+      g.addColorStop(0, '#a47551');
+      g.addColorStop(1, '#7a5034');
+      ctx.fillStyle = g;
+      gfxRoundRect(ctx, signX, signY, signW, signH, 6);
+      ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#5d3a22';
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.fillRect(signX + 6, signY + 2, signW - 12, 1.5);
+      ctx.fillStyle = '#5d3a22';
+      [signX + 6, signX + signW - 6].forEach(nx => {
+        ctx.beginPath();
+        ctx.arc(nx, signY + signH / 2, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.font = 'bold 10px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const title = 'КОШАЧЬЯ ПЕКАРНЯ';
+      const starsW = bakeryStars > 0 ? bakeryStars * 11 + 4 : 0;
+      const textW = ctx.measureText(title).width;
+      const textX = W / 2 - starsW / 2;
+      ctx.fillStyle = '#fff3e0';
+      ctx.fillText(title, textX, signY + signH / 2 + 0.5);
+      for (let i = 0; i < bakeryStars; i++) {
+        gfxStar(textX + textW / 2 + 9 + i * 11, signY + signH / 2, 4.6);
+      }
+
+      // 6. Гирлянда-лампочки
+      drawStringLights(46, 5);
+
+      // 7. Праздничные флажки на 3-й звезде
+      if (bakeryStars >= 3) {
+        const flagColors = ['#e91e63', '#ffeb3b', '#2196f3', '#4caf50', '#ff9800'];
+        ctx.strokeStyle = '#8d6e63';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 13);
+        ctx.lineTo(W, 13);
+        ctx.stroke();
+        let k = 0;
+        for (let x = 6; x < W - 6; x += 14, k++) {
+          ctx.fillStyle = flagColors[k % flagColors.length];
+          ctx.beginPath();
+          ctx.moveTo(x, 13);
+          ctx.lineTo(x + 11, 13);
+          ctx.lineTo(x + 5.5, 21);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // 8. Пол
+      drawTileFloor(wallH);
+
+      // 9. Печь (корпус), витрина, коврики и стулья у столиков
+      drawBakeryOvenBody();
+      drawBakeryVitrineCounter();
+      const maxTables = getBakeryMaxTables();
+      for (let i = 0; i < maxTables; i++) {
+        const t = bakeryTables[i];
+        drawCozyRug(t.x, t.y + 6, 66, 30);
+        gfxGroundShadow(t.x, t.y + 19, 24, 6, 0.3);
+        // Спинка стула позади гостя
         ctx.save();
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('✨', 24 + Math.sin(globalGameTime * 2.5) * 4, 30);
-        ctx.fillText('✨', canvasWidth - 24 + Math.sin(globalGameTime * 3) * 4, 30);
+        const cg = ctx.createLinearGradient(0, t.y - 42, 0, t.y - 6);
+        cg.addColorStop(0, '#a1887f');
+        cg.addColorStop(1, '#6d4c41');
+        ctx.fillStyle = cg;
+        gfxRoundRect(ctx, t.x - 17, t.y - 42, 34, 36, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#4e342e';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+        gfxRoundRect(ctx, t.x - 11, t.y - 38, 22, 4, 2);
+        ctx.fill();
         ctx.restore();
       }
 
-      // Теплый терракотовый пол пекарни
-      ctx.fillStyle = '#eddcd2';
-      ctx.fillRect(0, wallH, canvasWidth, canvasHeight - wallH);
-      ctx.strokeStyle = '#ddbea9';
-      ctx.lineWidth = 1;
-      for (let y = wallH; y < canvasHeight; y += 26) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvasWidth, y);
-        ctx.stroke();
-      }
-
-      // Декоративные рамки на стене
-      drawPictureFrame(45, Math.round(wallH * 0.50), '🥐');
-      drawPictureFrame(canvasWidth - 45, Math.round(wallH * 0.50), '🥧');
-
-      // Корзинка с багетами и колоски на полу
-      ctx.font = '22px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🥖', 30, canvasHeight - 16);
-      ctx.fillText('🌾', canvasWidth - 30, canvasHeight - 16);
+      // 10. Корзинка с хлебом и колоски на полу
+      drawBreadBasket(30, H - 20);
+      drawWheatSheaf(W - 30, H - 18);
     }
 
-    function drawBakeryOven() {
-      const ovenStation = bakeryOvenStations[0];
-      const ovenX = canvasWidth * 0.50;
-      const ovenY = ovenStation.y + 10;
-      const hasPushok = (state.bakery?.upgrades?.baker_helper || 0) > 0;
+    function drawBakeryForeground() {
+      const r = getBakeryOvenRect();
+      const g = ctx.createRadialGradient(r.ovenX, r.ovenY + 12, 10, r.ovenX, r.ovenY + 40, 190);
+      g.addColorStop(0, 'rgba(255, 170, 80, 0.16)');
+      g.addColorStop(1, 'rgba(255, 170, 80, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      drawVignette(0.3);
+    }
 
-      // Кирпичный фасад печи
+    function drawBakeryOvenBody() {
+      const { ovenX, ovenY, ow, oh, left, top } = getBakeryOvenRect();
       ctx.save();
-      const ow = hasPushok ? 116 : 94;
-      const oh = 44;
-      ctx.fillStyle = '#a1887f';
-      ctx.fillRect(ovenX - ow / 2, ovenY - oh / 2, ow, oh);
-      ctx.fillStyle = '#8d6e63';
-      ctx.fillRect(ovenX - ow / 2 + 2, ovenY - oh / 2 + 2, ow - 4, oh - 4);
-
-      // Свод арки печи
-      ctx.fillStyle = '#3e2723';
-      ctx.beginPath();
-      ctx.arc(ovenX, ovenY + 5, 20, Math.PI, 0, false);
-      ctx.rect(ovenX - 20, ovenY + 5, 40, 14);
+      // Тень
+      ctx.fillStyle = 'rgba(60, 25, 10, 0.22)';
+      gfxRoundRect(ctx, left + 3, top + 5, ow, oh, 14);
       ctx.fill();
-
-      // Живое пламя внутри печи
-      const flameFlicker = Math.sin(globalGameTime * 10) * 3;
-      ctx.fillStyle = '#ff5722';
-      ctx.beginPath();
-      ctx.arc(ovenX, ovenY + 11 + flameFlicker, 13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffeb3b';
-      ctx.beginPath();
-      ctx.arc(ovenX, ovenY + 13 + flameFlicker, 7, 0, Math.PI * 2);
-      ctx.fill();
-
       // Дымоход
-      ctx.fillStyle = '#6d4c41';
-      ctx.fillRect(ovenX - 10, ovenY - oh / 2 - 10, 20, 10);
+      drawBrickPattern(ovenX - 11, top - 16, 22, 18, '#9e4a2c', 11, 6);
+      ctx.fillStyle = '#5d4037';
+      gfxRoundRect(ctx, ovenX - 14, top - 19, 28, 5, 2);
+      ctx.fill();
+      // Кирпичный купол
+      ctx.save();
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(left, top, ow, oh, [18, 18, 4, 4]);
+      else ctx.rect(left, top, ow, oh);
+      ctx.clip();
+      drawBrickPattern(left, top, ow, oh, '#b85a35', 16, 7);
+      const shade = ctx.createLinearGradient(left, 0, left + ow, 0);
+      shade.addColorStop(0, 'rgba(40, 15, 5, 0.3)');
+      shade.addColorStop(0.35, 'rgba(255, 220, 180, 0.08)');
+      shade.addColorStop(1, 'rgba(40, 15, 5, 0.35)');
+      ctx.fillStyle = shade;
+      ctx.fillRect(left, top, ow, oh);
+      ctx.restore();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#6d2d16';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(left, top, ow, oh, [18, 18, 4, 4]);
+      else ctx.rect(left, top, ow, oh);
+      ctx.stroke();
+      // Устье печи (арка)
+      ctx.fillStyle = '#e3b48b';
+      ctx.beginPath();
+      ctx.arc(ovenX, ovenY + 6, 24, Math.PI, 0, false);
+      ctx.lineTo(ovenX + 24, ovenY + oh / 2);
+      ctx.lineTo(ovenX - 24, ovenY + oh / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#2a120a';
+      ctx.beginPath();
+      ctx.arc(ovenX, ovenY + 6, 20, Math.PI, 0, false);
+      ctx.lineTo(ovenX + 20, ovenY + oh / 2);
+      ctx.lineTo(ovenX - 20, ovenY + oh / 2);
+      ctx.closePath();
+      ctx.fill();
+      // Каменное основание
+      const base = ctx.createLinearGradient(0, ovenY + oh / 2 - 2, 0, ovenY + oh / 2 + 8);
+      base.addColorStop(0, '#bcaaa4');
+      base.addColorStop(1, '#8d7b75');
+      ctx.fillStyle = base;
+      gfxRoundRect(ctx, left - 5, ovenY + oh / 2 - 2, ow + 10, 9, 3);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBakeryVitrineCounter() {
+      const W = canvasWidth;
+      const vy = getVitrineY();
+      const barW = W * 0.88;
+      const bx = (W - barW) / 2;
+      ctx.save();
+      let g = ctx.createLinearGradient(0, vy + 14, 0, vy + 26);
+      g.addColorStop(0, 'rgba(60, 28, 10, 0.3)');
+      g.addColorStop(1, 'rgba(60, 28, 10, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(bx, vy + 14, barW, 12);
+      g = ctx.createLinearGradient(0, vy - 12, 0, vy + 14);
+      g.addColorStop(0, '#8d6e63');
+      g.addColorStop(1, '#4e342e');
+      ctx.fillStyle = g;
+      ctx.fillRect(bx, vy - 12, barW, 26);
+      ctx.strokeStyle = 'rgba(30, 14, 6, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, vy - 11.5, barW - 1, 25);
+      // Стеклянная полка с бликом
+      g = ctx.createLinearGradient(0, vy - 19, 0, vy - 9);
+      g.addColorStop(0, 'rgba(235, 248, 255, 0.85)');
+      g.addColorStop(1, 'rgba(180, 215, 235, 0.45)');
+      ctx.fillStyle = g;
+      gfxRoundRect(ctx, bx - 4, vy - 19, barW + 8, 8, 3);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(120, 160, 180, 0.6)';
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillRect(bx + 4, vy - 17.5, barW - 8, 1.2);
+      ctx.font = 'bold 8.5px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255, 236, 214, 0.9)';
+      ctx.fillText('ВИТРИНА ГОТОВОЙ ВЫПЕЧКИ', W / 2, vy + 4);
+      ctx.restore();
+    }
+
+    // Живая часть печи: огонь и отсветы (каждый кадр)
+    function drawBakeryOven() {
+      const { ovenX, ovenY, oh } = getBakeryOvenRect();
+      const t = globalGameTime;
+      const hasPushok = (state.bakery?.upgrades?.baker_helper || 0) > 0;
+      const anyBaking = bakeryOvenStations.some((s, i) => s.isBaking && (i === 0 || hasPushok));
+      const intensity = anyBaking ? 1 : 0.6;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(ovenX, ovenY + 6, 20, Math.PI, 0, false);
+      ctx.lineTo(ovenX + 20, ovenY + oh / 2);
+      ctx.lineTo(ovenX - 20, ovenY + oh / 2);
+      ctx.closePath();
+      ctx.clip();
+      const glow = ctx.createRadialGradient(ovenX, ovenY + 20, 2, ovenX, ovenY + 12, 26);
+      glow.addColorStop(0, `rgba(255, 200, 90, ${0.95 * intensity})`);
+      glow.addColorStop(0.6, `rgba(255, 100, 30, ${0.6 * intensity})`);
+      glow.addColorStop(1, 'rgba(120, 30, 10, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(ovenX - 22, ovenY - 16, 44, 44);
+      // Языки пламени
+      [[-8, 0.0, '#ff7043'], [8, 1.7, '#ff7043'], [0, 0.8, '#ffca28'], [-3, 2.4, '#fff59d']].forEach(([dx, ph, col], i) => {
+        const fl = Math.sin(t * 9 + ph) * 2.5 + Math.sin(t * 13.7 + ph * 2) * 1.5;
+        const hgt = (i === 3 ? 8 : 13) * intensity + fl;
+        const baseY = ovenY + oh / 2 - 6;
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(ovenX + dx - 5, baseY);
+        ctx.quadraticCurveTo(ovenX + dx - 6, baseY - hgt * 0.6, ovenX + dx + fl * 0.3, baseY - hgt);
+        ctx.quadraticCurveTo(ovenX + dx + 6, baseY - hgt * 0.6, ovenX + dx + 5, baseY);
+        ctx.closePath();
+        ctx.fill();
+      });
+      // Поленья
+      ctx.fillStyle = '#4e2a16';
+      gfxRoundRect(ctx, ovenX - 13, ovenY + oh / 2 - 7, 26, 4, 2);
+      ctx.fill();
       ctx.restore();
 
-      // Отрисовка шеф-пекаря Коржика (слева)
-      drawBakerCat(bakeryOvenStations[0].x, bakeryOvenStations[0].y, 'Коржик', bakeryOvenStations[0].isBaking, '#ffb74d');
-      drawBakeryStationProgress(bakeryOvenStations[0]);
+      // Отсвет огня на полу перед печью
+      const pulse = 0.75 + Math.sin(t * 8) * 0.12 + Math.sin(t * 13) * 0.08;
+      const floorGlow = ctx.createRadialGradient(ovenX, ovenY + oh / 2 + 6, 2, ovenX, ovenY + oh / 2 + 6, 40);
+      floorGlow.addColorStop(0, `rgba(255, 150, 60, ${0.28 * pulse * intensity})`);
+      floorGlow.addColorStop(1, 'rgba(255, 150, 60, 0)');
+      ctx.fillStyle = floorGlow;
+      ctx.beginPath();
+      ctx.ellipse(ovenX, ovenY + oh / 2 + 6, 40, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Отрисовка второго пекаря Пушка (справа, если нанят)
+      // Пекари перед печью
+      drawBakerCat(bakeryOvenStations[0].x, bakeryOvenStations[0].y, 'Коржик', bakeryOvenStations[0].isBaking, '#ffb74d');
       if (hasPushok) {
         drawBakerCat(bakeryOvenStations[1].x, bakeryOvenStations[1].y, 'Пушок', bakeryOvenStations[1].isBaking, '#ffffff');
-        drawBakeryStationProgress(bakeryOvenStations[1]);
       }
+      drawBakeryStationProgress(bakeryOvenStations[0]);
+      if (hasPushok) drawBakeryStationProgress(bakeryOvenStations[1]);
     }
 
     function drawBakerCat(x, y, name, isBaking, furColor) {
-      ctx.save();
-      const bob = Math.sin(globalGameTime * 6 + (name === 'Пушок' ? 1.5 : 0)) * 2;
+      const isPushok = name === 'Пушок';
+      const bob = Math.sin(globalGameTime * 6 + (isPushok ? 1.5 : 0)) * 1.6;
       const cy = y + bob;
-
-      // Тело пекаря (пропорциональное 19x19)
-      ctx.fillStyle = furColor;
-      ctx.beginPath();
-      ctx.ellipse(x, cy, 19, 19, 0, 0, Math.PI * 2);
-      ctx.fill();
-      if (furColor === '#ffffff') {
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-
-      // Белый фартук пекаря
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.ellipse(x, cy + 3, 12, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#d7ccc8';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Ушки
-      ctx.fillStyle = furColor;
-      ctx.beginPath();
-      ctx.moveTo(x - 14, cy - 7); ctx.lineTo(x - 6, cy - 20); ctx.lineTo(x - 1, cy - 9);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + 14, cy - 7); ctx.lineTo(x + 6, cy - 20); ctx.lineTo(x + 1, cy - 9);
-      ctx.fill();
-
-      // Внутренние ушки
-      ctx.fillStyle = '#ffab91';
-      ctx.beginPath();
-      ctx.moveTo(x - 12, cy - 8); ctx.lineTo(x - 6, cy - 17); ctx.lineTo(x - 3, cy - 9);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + 12, cy - 8); ctx.lineTo(x + 6, cy - 17); ctx.lineTo(x + 3, cy - 9);
-      ctx.fill();
-
-      // Глазки
-      ctx.fillStyle = '#3e2723';
-      ctx.beginPath();
-      ctx.arc(x - 6, cy - 3, 2.5, 0, Math.PI * 2);
-      ctx.arc(x + 6, cy - 3, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(x - 7, cy - 4, 0.9, 0, Math.PI * 2);
-      ctx.arc(x + 5, cy - 4, 0.9, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Носик
-      ctx.fillStyle = '#ff7043';
-      ctx.beginPath();
-      ctx.arc(x, cy, 1.9, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Усики
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x - 8, cy); ctx.lineTo(x - 17, cy - 2);
-      ctx.moveTo(x + 8, cy); ctx.lineTo(x + 17, cy - 2);
-      ctx.stroke();
-
-      // Высокий белый колпак пекаря
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#d7ccc8';
-      ctx.lineWidth = 1.3;
-      ctx.beginPath();
-      ctx.rect(x - 11, cy - 19, 22, 7);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x - 6, cy - 23, 7, 0, Math.PI * 2);
-      ctx.arc(x, cy - 27, 8, 0, Math.PI * 2);
-      ctx.arc(x + 6, cy - 23, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Лопатка пекаря с выпечкой
+      drawCatFigure({
+        x, y: cy, s: 0.86,
+        fur: furColor, ear: '#ffab91', eye: isPushok ? '#1e88e5' : '#5d4037',
+        stripe: isPushok ? '#eeeeee' : '#e08e2b',
+        breedId: isPushok ? 'white' : 'orange',
+        seed: isPushok ? 4 : 3, outfit: 'baker', tail: false
+      });
+      // Деревянная лопата с выпечкой
       if (isBaking) {
-        ctx.font = '18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🥖', x + 16, cy + Math.sin(globalGameTime * 10) * 3);
+        const sway = Math.sin(globalGameTime * 8 + (isPushok ? 1 : 0)) * 2;
+        ctx.save();
+        ctx.translate(x + 15, cy + 6 + sway);
+        ctx.rotate(-0.35);
+        ctx.strokeStyle = '#8d6e63';
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-4, 4);
+        ctx.lineTo(10, -2);
+        ctx.stroke();
+        ctx.fillStyle = '#bc8f6a';
+        ctx.strokeStyle = '#6d4c41';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(16, -4.5, 7, 3.4, -0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#d98b3a';
+        ctx.beginPath();
+        ctx.ellipse(16, -6.5, 4.2, 2.6, -0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
-
-      ctx.restore();
     }
 
     function drawBakeryStationProgress(station) {
       if (!station.isBaking || !station.dish) return;
-      ctx.save();
-      const sx = station.x;
-      const barW = 44;
-      const barH = 6;
-      const bx = sx - barW / 2;
-      const by = station.y - 25;
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 3);
-      else ctx.rect(bx - 1, by - 1, barW + 2, barH + 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#ff9800';
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx, by, barW * station.progress, barH, 2);
-      else ctx.rect(bx, by, barW * station.progress, barH);
-      ctx.fill();
-
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(station.dish.icon, sx, by - 4);
-      ctx.restore();
+      drawProgressBadge(station.x - 32, station.y - 12, station.progress, station.dish.icon, '#fb8c00');
     }
 
     function drawBakeryVitrine() {
-      const vy = getVitrineY();
-      ctx.save();
-
-      // Барная стойка витрины
-      const barW = canvasWidth * 0.88;
-      const bx = (canvasWidth - barW) / 2;
-
-      ctx.fillStyle = '#6d4c41';
-      ctx.fillRect(bx, vy - 12, barW, 26);
-
-      // Стеклянная полка
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.fillRect(bx - 4, vy - 14, barW + 8, 5);
-      ctx.fillStyle = '#d7ccc8';
-      ctx.fillRect(bx - 4, vy - 16, barW + 8, 2);
-
-      // Текст витрины
-      ctx.font = 'bold 9px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#d7ccc8';
-      ctx.fillText('ВИТРИНА ГОТОВОЙ ВЫПЕЧКИ', canvasWidth / 2, vy + 9);
-
-      // Отрисовка готовых заказов на витрине
       readyOrders.forEach(o => {
         const ox = o.x;
         const oy = o.y - 6;
-
-        // Тарелочка
+        ctx.save();
+        if (o.isPriority) {
+          const pulse = Math.sin(globalGameTime * 8) * 2;
+          const g = ctx.createRadialGradient(ox, oy, 4, ox, oy, 22 + pulse);
+          g.addColorStop(0, 'rgba(255, 215, 0, 0.45)');
+          g.addColorStop(1, 'rgba(255, 215, 0, 0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(ox, oy, 22 + pulse, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(60, 30, 12, 0.18)';
+        ctx.beginPath();
+        ctx.ellipse(ox + 1, oy + 6, 14, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#d7ccc8';
+        ctx.strokeStyle = '#cdbfb4';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.ellipse(ox, oy + 4, 14, 7, 0, 0, Math.PI * 2);
+        ctx.ellipse(ox, oy + 4, 14, 6, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-
-        // Выпечка
+        ctx.strokeStyle = 'rgba(205, 191, 180, 0.6)';
+        ctx.beginPath();
+        ctx.ellipse(ox, oy + 4, 9, 3.6, 0, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(o.dish.icon, ox, oy);
 
-        // ЗОЛОТАЯ ПОДСВЕТКА И ЗВЕЗДА ПРИОРИТЕТА
         if (o.isPriority) {
           const pulse = Math.sin(globalGameTime * 8) * 2;
-          ctx.strokeStyle = '#ffd700';
-          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#ffc400';
+          ctx.lineWidth = 2.2;
           ctx.beginPath();
           ctx.ellipse(ox, oy, 17 + pulse, 13 + pulse, 0, 0, Math.PI * 2);
           ctx.stroke();
-
-          ctx.font = '13px sans-serif';
-          ctx.fillText('⭐', ox + 13, oy - 13);
-
-          // Плашка приоритета
-          ctx.fillStyle = '#ffd700';
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(ox - 22, oy + 12, 44, 12, 4);
-          else ctx.rect(ox - 22, oy + 12, 44, 12);
+          gfxStar(ox + 13, oy - 13, 5.5);
+          const bg = ctx.createLinearGradient(0, oy + 12, 0, oy + 24);
+          bg.addColorStop(0, '#ffe082');
+          bg.addColorStop(1, '#f9a825');
+          ctx.fillStyle = bg;
+          gfxRoundRect(ctx, ox - 23, oy + 12, 46, 12, 5);
           ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#a15c00';
+          ctx.stroke();
           ctx.fillStyle = '#3e2723';
-          ctx.font = 'bold 8px sans-serif';
-          ctx.fillText('ПРИОРИТЕТ', ox, oy + 18);
+          ctx.font = 'bold 8px -apple-system, "Segoe UI", Roboto, sans-serif';
+          ctx.fillText('ПРИОРИТЕТ', ox, oy + 18.5);
         } else if (o.isGroupOrder) {
-          ctx.font = '12px sans-serif';
-          ctx.fillText('👥', ox + 12, oy - 12);
+          ctx.fillStyle = '#1565c0';
+          ctx.beginPath();
+          ctx.arc(ox + 12, oy - 12, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 7px -apple-system, "Segoe UI", Roboto, sans-serif';
+          ctx.fillText('3', ox + 12, oy - 11.5);
+        }
+        ctx.restore();
+      });
+    }
+
+    function drawFlowerVase(x, y, isTulip) {
+      ctx.save();
+      ctx.strokeStyle = '#558b2f';
+      ctx.lineWidth = 1.1;
+      [[-4, -12], [0, -15], [4, -12]].forEach(([dx, dy]) => {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 3);
+        ctx.lineTo(x + dx, y + dy);
+        ctx.stroke();
+      });
+      [[-4, -12, isTulip ? '#e91e63' : '#ffeb3b'], [0, -15, isTulip ? '#ff7043' : '#ffffff'], [4, -12, isTulip ? '#ab47bc' : '#ffeb3b']].forEach(([dx, dy, col]) => {
+        ctx.fillStyle = col;
+        if (isTulip) {
+          ctx.beginPath();
+          ctx.moveTo(x + dx - 2.6, y + dy);
+          ctx.lineTo(x + dx - 2.6, y + dy - 3.5);
+          ctx.lineTo(x + dx - 1, y + dy - 2);
+          ctx.lineTo(x + dx, y + dy - 4);
+          ctx.lineTo(x + dx + 1, y + dy - 2);
+          ctx.lineTo(x + dx + 2.6, y + dy - 3.5);
+          ctx.lineTo(x + dx + 2.6, y + dy);
+          ctx.quadraticCurveTo(x + dx, y + dy + 2.5, x + dx - 2.6, y + dy);
+          ctx.fill();
+        } else {
+          for (let k = 0; k < 5; k++) {
+            const a = k * Math.PI * 2 / 5;
+            ctx.beginPath();
+            ctx.arc(x + dx + Math.cos(a) * 2, y + dy + Math.sin(a) * 2, 1.7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = '#ff9800';
+          ctx.beginPath();
+          ctx.arc(x + dx, y + dy, 1.2, 0, Math.PI * 2);
+          ctx.fill();
         }
       });
-
+      const g = ctx.createLinearGradient(x - 4, 0, x + 4, 0);
+      g.addColorStop(0, '#4fc3f7');
+      g.addColorStop(1, '#0277bd');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - 3, y - 5);
+      ctx.quadraticCurveTo(x - 6, y + 1, x - 3, y + 3);
+      ctx.lineTo(x + 3, y + 3);
+      ctx.quadraticCurveTo(x + 6, y + 1, x + 3, y - 5);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
 
     function drawBakeryTables() {
       const maxTables = getBakeryMaxTables();
+      const isTulip = (state.bakery?.stars || 0) >= 3;
       ctx.save();
       for (let i = 0; i < maxTables; i++) {
         const t = bakeryTables[i];
         const tx = t.x;
         const ty = t.y;
-
-        // Коврик под столиком и стулом
-        drawCozyRug(tx, ty + 2, 58, 38);
-
-        // Ножка столика и основание
-        ctx.fillStyle = '#8d6e63';
+        // Ножка и основание
+        let g = ctx.createLinearGradient(tx - 3, 0, tx + 3, 0);
+        g.addColorStop(0, '#5d4037');
+        g.addColorStop(1, '#8d6e63');
+        ctx.fillStyle = g;
         ctx.fillRect(tx - 3, ty + 4, 6, 14);
+        ctx.fillStyle = '#5d4037';
         ctx.beginPath();
-        ctx.ellipse(tx, ty + 18, 11, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(tx, ty + 18, 11, 3.8, 0, 0, Math.PI * 2);
         ctx.fill();
-
-        // Столешница (круглая деревянная)
+        // Толщина столешницы
+        ctx.fillStyle = '#6d4c41';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 4.5, 25, 12.5, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = '#8d6e63';
         ctx.beginPath();
-        ctx.ellipse(tx, ty + 2, 25, 13, 0, 0, Math.PI * 2);
+        ctx.ellipse(tx, ty + 2, 25, 12.5, 0, 0, Math.PI * 2);
         ctx.fill();
-
-        // Круглая скатерть в теплых кремовых тонах с каймой
-        ctx.fillStyle = '#fff8e7';
+        // Скатерть
+        g = ctx.createRadialGradient(tx - 6, ty - 3, 2, tx, ty + 1, 24);
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(1, '#f3e2d1');
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.ellipse(tx, ty + 1, 21, 10, 0, 0, Math.PI * 2);
+        ctx.ellipse(tx, ty + 1, 22, 10.5, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#e0cfc1';
-        ctx.lineWidth = 1;
+        ctx.setLineDash([2.5, 2.5]);
+        ctx.strokeStyle = '#e57373';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 1, 19, 8.5, 0, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.setLineDash([]);
 
-        // Сервированное блюдо на столе (тарелочка и выпечка)
         if (t.servedDish) {
+          ctx.fillStyle = 'rgba(60, 30, 12, 0.15)';
+          ctx.beginPath();
+          ctx.ellipse(tx + 1, ty + 3, 13, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
           ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#cdbfb4';
+          ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.ellipse(tx, ty + 1, 13, 5.5, 0, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#d7ccc8';
-          ctx.lineWidth = 1;
           ctx.stroke();
-
           ctx.font = '18px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(t.servedDish.icon, tx, ty - 1);
-        } else {
-          // Вазочка с цветочком (тюльпаны 🌷 при 3-й звезде)
-          const flower = (state.bakery?.stars || 0) >= 3 ? '🌷' : '🌼';
-          ctx.font = '12px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(flower, tx, ty);
+          ctx.fillText(t.servedDish.icon, tx, ty - 2);
         }
+        // Маленькая вазочка сбоку стола — не закрывает мордочку гостя
+        ctx.save();
+        ctx.translate(tx + 15, ty + 4);
+        ctx.scale(0.72, 0.72);
+        drawFlowerVase(0, 0, isTulip);
+        ctx.restore();
 
         // Лапки сидящего котика на краю стола
         if (t.customer && t.customer.state !== 'walking_to_table' && t.customer.state !== 'leaving') {
-          ctx.fillStyle = t.customer.breed.fur;
-          ctx.beginPath();
-          ctx.ellipse(tx - 9, ty - 3, 3.5, 2.5, 0, 0, Math.PI * 2);
-          ctx.ellipse(tx + 9, ty - 3, 3.5, 2.5, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#d7ccc8';
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
+          const fur = t.customer.breed.fur;
+          ctx.fillStyle = fur;
+          ctx.strokeStyle = gfxLuma(fur) > 0.82 ? '#a8988c' : gfxShade(fur, -0.5);
+          ctx.lineWidth = 1;
+          [-10, 10].forEach(dx => {
+            ctx.beginPath();
+            ctx.ellipse(tx + dx, ty - 4, 4, 2.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          });
         }
       }
       ctx.restore();
     }
 
     function drawBakeryCustomers() {
-      bakeryCustomers.forEach(c => {
-        ctx.save();
-        const walkBob = (c.state === 'walking_to_table' || c.state === 'leaving') ? Math.sin(c.walkAnim) * 3 : 0;
+      const list = bakeryCustomers.slice().sort((a, b) => a.y - b.y);
+      list.forEach(c => {
+        const moving = c.state === 'walking_to_table' || c.state === 'leaving';
+        const hop = getPayHop(c);
+        const walkBob = moving ? -Math.abs(Math.sin(c.walkAnim)) * 3 : 0;
+        const idle = moving ? 0 : Math.sin(globalGameTime * 2.2 + c.id) * 0.6;
         const cx = c.x;
-        const cy = c.y + walkBob;
+        const cy = c.y + walkBob + idle + hop.dy;
+        if (moving) gfxGroundShadow(cx, c.y + 17, 15, 4, 0.22);
+        const justPaid = typeof c.paidAt === 'number' && globalGameTime - c.paidAt < 1.2;
+        drawCatFigure({
+          x: cx, y: cy, s: 0.82,
+          fur: c.breed.fur, ear: c.breed.ear, eye: c.breed.eye, stripe: c.breed.stripe,
+          breedId: c.breed.id, seed: c.id * 2.3 + 0.5,
+          squash: hop.squash,
+          happy: c.state === 'eating' || justPaid
+        });
 
-        // Хвостик
-        ctx.strokeStyle = c.breed.fur;
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(cx - 12, cy + 7);
-        ctx.quadraticCurveTo(cx - 18, cy, cx - 16, cy - 9 + Math.sin(globalGameTime * 5) * 3);
-        ctx.stroke();
-
-        // Тело (пропорциональное 18x18)
-        ctx.fillStyle = c.breed.fur;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, 18, 18, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Ушки
-        ctx.beginPath();
-        ctx.moveTo(cx - 13, cy - 7); ctx.lineTo(cx - 6, cy - 20); ctx.lineTo(cx - 1, cy - 9);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(cx + 13, cy - 7); ctx.lineTo(cx + 6, cy - 20); ctx.lineTo(cx + 1, cy - 9);
-        ctx.fill();
-
-        ctx.fillStyle = c.breed.ear;
-        ctx.beginPath();
-        ctx.moveTo(cx - 11, cy - 8); ctx.lineTo(cx - 6, cy - 17); ctx.lineTo(cx - 3, cy - 9);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(cx + 11, cy - 8); ctx.lineTo(cx + 6, cy - 17); ctx.lineTo(cx + 3, cy - 9);
-        ctx.fill();
-
-        // Глазки
-        ctx.fillStyle = c.breed.eye;
-        ctx.beginPath();
-        ctx.arc(cx - 6, cy - 3, 2.6, 0, Math.PI * 2);
-        ctx.arc(cx + 6, cy - 3, 2.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(cx - 7, cy - 4, 0.9, 0, Math.PI * 2);
-        ctx.arc(cx + 5, cy - 4, 0.9, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Носик
-        ctx.fillStyle = c.breed.ear;
-        ctx.beginPath();
-        ctx.arc(cx, cy + 1, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Усики
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 17, cy - 1);
-        ctx.moveTo(cx + 8, cy); ctx.lineTo(cx + 17, cy - 1);
-        ctx.stroke();
-
-        // Облачко заказа или сердечко
         if (c.state === 'waiting_order') {
           drawThoughtBubble(cx, cy - 30, c.dish.icon, false, false, 0, 1, 20, 20, false);
           if (c.isGroupCustomer) {
             ctx.save();
-            ctx.fillStyle = '#1565c0';
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(cx - 24, cy - 49, 48, 12, 3);
-            else ctx.rect(cx - 24, cy - 49, 48, 12);
+            const g = ctx.createLinearGradient(0, cy - 55, 0, cy - 43);
+            g.addColorStop(0, '#42a5f5');
+            g.addColorStop(1, '#1565c0');
+            ctx.fillStyle = g;
+            gfxRoundRect(ctx, cx - 27, cy - 56, 54, 13, 6);
             ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#0d47a1';
+            ctx.stroke();
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 8px sans-serif';
+            ctx.font = 'bold 8px -apple-system, "Segoe UI", Roboto, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('👥 КОМПАНИЯ', cx, cy - 43);
+            ctx.fillText('КОМПАНИЯ', cx, cy - 49);
             ctx.restore();
           }
         } else if (c.state === 'eating') {
-          ctx.font = '22px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('❤️', cx, cy - 30);
+          const beat = 1 + Math.max(0, Math.sin(globalGameTime * 8)) * 0.15;
+          gfxHeart(cx, cy - 32, 19 * beat, '#e53950');
         }
-
-        ctx.restore();
       });
     }
 
     function drawBakeryWaiter() {
-      ctx.save();
       const wx = waiterCat.x;
-      const wy = waiterCat.y + Math.sin(waiterCat.walkAnim) * 2;
+      const moving = waiterCat.state !== 'idle';
+      const wy = waiterCat.y + (moving ? -Math.abs(Math.sin(waiterCat.walkAnim)) * 2.5 : Math.sin(globalGameTime * 2) * 0.6);
+      gfxGroundShadow(wx, waiterCat.y + 17, 15, 4, 0.25);
+      drawCatFigure({
+        x: wx, y: wy, s: 0.82,
+        fur: '#37474f', ear: '#f8bbd0', eye: '#fdd835', stripe: '#263238',
+        breedId: 'black', seed: 7, outfit: 'waiter',
+        tail: true, tailSide: waiterCat.targetX < wx ? 1 : -1
+      });
 
-      // Тело официанта Пончика (пропорциональное 18x18)
-      ctx.fillStyle = '#37474f';
-      ctx.beginPath();
-      ctx.ellipse(wx, wy, 18, 18, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Белая манишка
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.ellipse(wx, wy + 2, 10, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Красный галстук-бабочка 🎀
-      ctx.fillStyle = '#e53935';
-      ctx.beginPath();
-      ctx.moveTo(wx - 5, wy - 4); ctx.lineTo(wx + 5, wy); ctx.lineTo(wx + 5, wy - 4); ctx.lineTo(wx - 5, wy);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(wx, wy - 2, 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Ушки
-      ctx.fillStyle = '#37474f';
-      ctx.beginPath();
-      ctx.moveTo(wx - 13, wy - 6); ctx.lineTo(wx - 6, wy - 19); ctx.lineTo(wx - 1, wy - 8);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(wx + 13, wy - 6); ctx.lineTo(wx + 6, wy - 19); ctx.lineTo(wx + 1, wy - 8);
-      ctx.fill();
-
-      ctx.fillStyle = '#f8bbd0';
-      ctx.beginPath();
-      ctx.moveTo(wx - 11, wy - 7); ctx.lineTo(wx - 6, wy - 15); ctx.lineTo(wx - 3, wy - 8);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(wx + 11, wy - 7); ctx.lineTo(wx + 6, wy - 15); ctx.lineTo(wx + 3, wy - 8);
-      ctx.fill();
-
-      // Глазки
-      ctx.fillStyle = '#fdd835';
-      ctx.beginPath();
-      ctx.arc(wx - 5, wy - 2, 2.5, 0, Math.PI * 2);
-      ctx.arc(wx + 5, wy - 2, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(wx - 6, wy - 3, 0.9, 0, Math.PI * 2);
-      ctx.arc(wx + 4, wy - 3, 0.9, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Носик
-      ctx.fillStyle = '#ff8a80';
-      ctx.beginPath();
-      ctx.arc(wx, wy + 2, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Бейдж специализации официанта
+      // Значок специализации официанта
       const spec = state.bakery?.waiterSpec;
       if (spec) {
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(spec === 'speed' ? '⚡' : '💖', wx + 12, wy - 14);
-      }
-
-      // Серебряный поднос с выпечкой в лапках, если несёт заказ
-      if (waiterCat.carryingDish) {
-        ctx.fillStyle = '#cfd8dc';
-        ctx.strokeStyle = '#90a4ae';
-        ctx.lineWidth = 1.2;
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#bcaaa4';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.ellipse(wx + 14, wy - 3, 13, 6, 0, 0, Math.PI * 2);
+        ctx.arc(wx + 15, wy - 16, 6.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+        ctx.restore();
+        if (spec === 'speed') gfxBolt(wx + 15, wy - 16, 0.75);
+        else gfxHeart(wx + 15, wy - 15.5, 9, '#ec407a');
+      }
 
+      // Серебряный поднос с выпечкой
+      if (waiterCat.carryingDish) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(40, 40, 50, 0.2)';
+        ctx.beginPath();
+        ctx.ellipse(wx + 21, wy + 9, 13, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        const g = ctx.createLinearGradient(0, wy + 2, 0, wy + 10);
+        g.addColorStop(0, '#eceff1');
+        g.addColorStop(1, '#90a4ae');
+        ctx.fillStyle = g;
+        ctx.strokeStyle = '#607d8b';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.ellipse(wx + 20, wy + 6, 13, 5.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
         ctx.font = '18px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(waiterCat.carryingDish.icon, wx + 14, wy - 11);
+        ctx.fillText(waiterCat.carryingDish.icon, wx + 20, wy - 2);
+        ctx.restore();
       }
-
-      ctx.restore();
     }
 
     // --- 12. Интерфейс пользователя (UI Updates & Сворачивание магазина) ---
@@ -5771,6 +7348,84 @@
       }
       setTimeout(resizeCanvas, 60);
       setTimeout(resizeCanvas, 320);
+    }
+
+    // Индикатор события «Компания котов». Вызывается из updateUI() и КАЖДЫЙ КАДР
+    // из симуляции пекарни, чтобы таймер не «замирал» между оплатами заказов.
+    // DOM трогаем только при реальном изменении значений.
+    const eventBarCache = { display: '', title: '', time: '', width: '' };
+    function updateEventBar() {
+      const evBar = document.getElementById('bakery-event-active-bar');
+      if (!evBar) return;
+      const ev = (state.currentVenue === 'bakery') ? state.bakery?.activeEvent : null;
+      const display = ev ? 'flex' : 'none';
+      if (eventBarCache.display !== display) {
+        evBar.style.display = display;
+        eventBarCache.display = display;
+      }
+      if (!ev) return;
+
+      const waiting = ev.state === 'waiting_first_seat';
+      const title = `Компания котов: ${ev.servedGuests || 0}/${ev.totalGuests || 3}`;
+      const time = waiting ? '⏳ Рассадка...' : `⏳ ${Math.ceil(Math.max(0, ev.remainingSec))}с`;
+      const pct = waiting ? 100 : Math.max(0, Math.min(100, (ev.remainingSec / (ev.totalTimeSec || 1)) * 100));
+      const width = `${pct.toFixed(1)}%`;
+
+      if (eventBarCache.title !== title) {
+        const titleEl = document.getElementById('event-bar-title');
+        if (titleEl) titleEl.innerText = title;
+        eventBarCache.title = title;
+      }
+      if (eventBarCache.time !== time) {
+        const timeEl = document.getElementById('event-bar-time');
+        if (timeEl) timeEl.innerText = time;
+        eventBarCache.time = time;
+      }
+      if (eventBarCache.width !== width) {
+        const fillEl = document.getElementById('event-bar-progress-fill');
+        if (fillEl) fillEl.style.width = width;
+        eventBarCache.width = width;
+      }
+    }
+
+    // Список магазина перестраивается через innerHTML. Если перестроить его в момент,
+    // когда палец игрока лежит на кнопке «Купить», старая кнопка исчезнет и нажатие
+    // потеряется. Поэтому: 1) не трогаем DOM, если разметка не изменилась;
+    // 2) пока палец/мышь нажаты на списке, откладываем обновление до отпускания.
+    const shopListState = { lastHtml: new WeakMap(), pointerDown: false, pending: null, downSeq: 0 };
+    function setShopListHtml(listEl, html) {
+      if (!listEl) return;
+      if (shopListState.pointerDown) {
+        shopListState.pending = { listEl, html };
+        return;
+      }
+      if (shopListState.lastHtml.get(listEl) === html) return;
+      shopListState.lastHtml.set(listEl, html);
+      listEl.innerHTML = html;
+    }
+    function flushShopList() {
+      shopListState.pointerDown = false;
+      const p = shopListState.pending;
+      shopListState.pending = null;
+      if (p) setShopListHtml(p.listEl, p.html);
+    }
+    function setupShopListGuard() {
+      const listEl = document.getElementById('upgrades-list');
+      if (!listEl || listEl.dataset.guarded) return;
+      listEl.dataset.guarded = '1';
+      listEl.addEventListener('pointerdown', () => {
+        shopListState.pointerDown = true;
+        shopListState.downSeq++;
+      }, { passive: true });
+      // Небольшая задержка: click приходит после pointerup, даём ему сработать на «старой» кнопке.
+      // Если за это время был новый pointerdown — не снимаем блокировку.
+      const release = () => {
+        const seq = shopListState.downSeq;
+        setTimeout(() => { if (seq === shopListState.downSeq) flushShopList(); }, 80);
+      };
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+        listEl.addEventListener(evt, release, { passive: true });
+      });
     }
 
     function updateUI() {
@@ -5799,36 +7454,7 @@
       }
 
       // 1.1. Обновление индикатора активного события компании котов
-      const evBar = document.getElementById('bakery-event-active-bar');
-      if (evBar) {
-        if (state.currentVenue === 'bakery' && state.bakery?.activeEvent) {
-          evBar.style.display = 'flex';
-          const ev = state.bakery.activeEvent;
-          const titleEl = document.getElementById('event-bar-title');
-          const timeEl = document.getElementById('event-bar-time');
-          const fillEl = document.getElementById('event-bar-progress-fill');
-          if (titleEl) {
-            titleEl.innerText = `Компания котов: ${ev.servedGuests || 0}/${ev.totalGuests || 3}`;
-          }
-          if (timeEl) {
-            if (ev.state === 'waiting_first_seat') {
-              timeEl.innerText = '⏳ Рассадка...';
-            } else {
-              timeEl.innerText = `⏳ ${Math.ceil(ev.remainingSec)}с`;
-            }
-          }
-          if (fillEl) {
-            if (ev.state === 'waiting_first_seat') {
-              fillEl.style.width = '100%';
-            } else {
-              const pct = Math.max(0, Math.min(100, (ev.remainingSec / ev.totalTimeSec) * 100));
-              fillEl.style.width = `${pct}%`;
-            }
-          }
-        } else {
-          evBar.style.display = 'none';
-        }
-      }
+      updateEventBar();
 
       if (state.currentVenue === 'bakery') {
         if (cafeBtn) cafeBtn.classList.remove('active');
@@ -5989,7 +7615,7 @@
           `;
         }
 
-        listEl.innerHTML = waiterSpecHtml + bakeryCardsHtml;
+        setShopListHtml(listEl, waiterSpecHtml + bakeryCardsHtml);
 
         const badgeEl = document.getElementById('shop-badge');
         if (badgeEl) {
@@ -6264,7 +7890,7 @@
         `;
       }).join('');
 
-      listEl.innerHTML = featuredDishHtml + expansionHtml + decorHtml + bakeryUnlockHtml + cardsHtml;
+      setShopListHtml(listEl, featuredDishHtml + expansionHtml + decorHtml + bakeryUnlockHtml + cardsHtml);
 
       // Обновление бэйджа доступных улучшений
       const badgeEl = document.getElementById('shop-badge');
@@ -6351,8 +7977,13 @@
     // --- 13. Инициализация игры ---
     window.addEventListener('DOMContentLoaded', () => {
       loadGame();
-      resizeCanvas();
+      // Важно: сначала заполняем интерфейс (магазин меняет высоту сцены), и только потом
+      // меряем canvas. Раньше было наоборот — и сцена рисовалась сплющенной по вертикали.
       updateUI();
+      resizeCanvas();
+      setupCanvasResizeObserver();
+      setupShopListGuard();
+      setupLifecycleHandlers();
       checkOfflineEarnings();
 
       if (wasEventAbortedOnReload) {
@@ -6413,6 +8044,8 @@
         setCafeSeed,
         checkOfflineEarnings,
         checkCafeOfflineEarnings,
+        estimateCafeOfflineRate,
+        updateEventBar,
         claimOfflineEarnings,
         getPendingOfflineCoins: () => pendingOfflineCoins,
         getPendingBakeryOfflineCoins: () => pendingBakeryOfflineCoins,
