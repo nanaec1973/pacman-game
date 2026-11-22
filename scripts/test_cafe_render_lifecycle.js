@@ -146,6 +146,7 @@ async function run() {
       const res = await page.evaluate(() => {
         const g = window.__game;
         const st = g.getState();
+        st.upgrades.waiter = 1; // офлайн-доход кафе есть только с нанятым официантом
         document.querySelectorAll('.modal-overlay').forEach(m => (m.style.display = 'none'));
         const realNow = Date.now;
         let fakeNow = realNow();
@@ -280,7 +281,7 @@ async function run() {
     }
 
     // --- 8. Офлайн-доход кафе ---
-    console.log('\n--- 8. Офлайн-доход кафе не выше реальной игры ---');
+    console.log('\n--- 8. Офлайн-доход кафе не выше работы официанта без игрока ---');
     {
       const { page, errors } = await openGame(browser, 390, 844);
       allErrors.push(...errors);
@@ -292,6 +293,9 @@ async function run() {
           const seeds = [5, 6];
           for (const seed of seeds) {
             g.resetSimulationState({ stoveLevel: stove, hasHelper: helper, menuLevel: menu, seatsLevel: seats, featuredDish: 'coffee', seed });
+            g.setDemandOverride('none');
+            // Офлайн-доход — это работа нанятого официанта без игрока: сравниваем именно с ней
+            g.getState().upgrades.waiter = 1;
             g.setGourmetSpawnTimer(1e9);
             for (let t = 0; t < 600; t += 0.05) g.updateSimulation(0.05);
             orders += g.getState().ordersServed;

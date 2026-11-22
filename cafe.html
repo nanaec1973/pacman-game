@@ -871,6 +871,55 @@
     }
 
     /* Подсказка ускорения тапом (внизу игрового поля, не перекрывает повара!) */
+    #combo-hud {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      background: linear-gradient(135deg, #ff9800, #f4511e);
+      color: #fff;
+      padding: 4px 10px 5px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 3px 10px rgba(230, 81, 0, 0.35);
+      pointer-events: none;
+      z-index: 6;
+    }
+    #combo-hud.show { display: flex; animation: comboPop 0.25s ease-out; }
+    #rush-hud {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      display: none;
+      background: linear-gradient(135deg, #e53935, #8e24aa);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 3px 10px rgba(142, 36, 170, 0.35);
+      pointer-events: none;
+      z-index: 6;
+      animation: rushPulse 0.8s ease-in-out infinite;
+    }
+    #rush-hud.show { display: block; }
+    @keyframes rushPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    .combo-hud-bar { display: block; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.35); overflow: hidden; }
+    #combo-hud-fill { display: block; height: 100%; width: 100%; background: #fff; border-radius: 2px; }
+    @keyframes comboPop { from { transform: scale(0.7); } to { transform: scale(1); } }
+    .dev-drawer-toggle-btn.quest-ready {
+      background: #ffca28 !important;
+      box-shadow: 0 0 0 2px #fff3c4, 0 0 12px rgba(255, 179, 0, 0.8);
+      animation: questPulse 1s ease-in-out infinite;
+    }
+    @keyframes questPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    .howto-steps { display: flex; flex-direction: column; gap: 7px; margin: 6px 0 14px; text-align: left; }
+    .howto-step { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.35; color: var(--text-main); }
+    .howto-step > span:first-child { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+
     #tap-hint {
       position: absolute;
       bottom: 6px;
@@ -1377,7 +1426,9 @@
     <!-- Игровая сцена с анимацией котиков -->
     <main id="cafe-viewport" onclick="handleStageClick(event)">
       <canvas id="cafe-canvas"></canvas>
-      <div id="tap-hint">⚡ Тапай по кухне, чтобы ускорить готовку!</div>
+      <div id="tap-hint">👆 Облачко зелёное — тапни по котику и подай блюдо!</div>
+      <div id="rush-hud" aria-live="polite">🔔 Час пик · <span id="rush-hud-left">20</span> с · +30%</div>
+      <div id="combo-hud" aria-live="polite"><span id="combo-hud-text"></span><span class="combo-hud-bar"><span id="combo-hud-fill"></span></span></div>
     </main>
 
     <!-- Нижняя панель улучшений (сворачиваемая) -->
@@ -1398,6 +1449,23 @@
     </section>
 
     <!-- Модалка оффлайн-дохода -->
+    <!-- Модалка «Как играть»: ручная подача -->
+    <div class="modal-overlay" id="howto-modal">
+      <div class="modal-card">
+        <div class="modal-icon">🐱🍽️</div>
+        <h3 class="modal-title">Теперь официант — ты!</h3>
+        <div class="howto-steps">
+          <div class="howto-step"><span>👨‍🍳</span><span>Повар готовит заказ и ставит его на <b>раздачу</b>.</span></div>
+          <div class="howto-step"><span>🟢</span><span>Облачко гостя стало <b>зелёным</b> — тапни по котику, и блюдо полетит к нему.</span></div>
+          <div class="howto-step"><span>⏳</span><span>Кольцо вокруг облачка — <b>терпение</b>. Не успеешь — гость уйдёт без оплаты.</span></div>
+          <div class="howto-step"><span>🔥</span><span>Быстро — <b>чаевые</b>, подряд — <b>комбо</b> до +50%.</span></div>
+          <div class="howto-step"><span>⚡</span><span>Тап по плите ускоряет готовку.</span></div>
+          <div class="howto-step"><span>🎩</span><span>Найми <b>кота-официанта</b>, чтобы кафе работало и без тебя.</span></div>
+        </div>
+        <button class="modal-btn" onclick="closeHowtoModal()">ПОНЯТНО, ПОДАЁМ! 🐾</button>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="welcome-modal">
       <div class="modal-card">
         <div class="modal-icon">🐱‍🍳</div>
@@ -1625,7 +1693,7 @@
         name: 'Ароматный Кофе',
         icon: '☕',
         basePrice: 10,
-        cookTime: 3.0,
+        cookTime: 4.2,
         reqMenuLevel: 1,
         featuredPerk: {
           cookTimeMult: 0.70,     // кофе: быстрее готовится (-30% времени готовки)
@@ -1639,8 +1707,8 @@
         id: 'sandwich',
         name: 'Мяу-Сэндвич',
         icon: '🥪',
-        basePrice: 25,
-        cookTime: 3.8,
+        basePrice: 16,
+        cookTime: 5.3,
         reqMenuLevel: 2,
         featuredPerk: {
           cookTimeMult: 1.0,
@@ -1654,8 +1722,8 @@
         id: 'fish',
         name: 'Рыбка-Гриль',
         icon: '🐟',
-        basePrice: 55,
-        cookTime: 4.6,
+        basePrice: 24,
+        cookTime: 6.4,
         reqMenuLevel: 3,
         featuredPerk: {
           cookTimeMult: 1.0,
@@ -1669,8 +1737,8 @@
         id: 'cake',
         name: 'Сливочный Тортик',
         icon: '🍰',
-        basePrice: 120,
-        cookTime: 5.5,
+        basePrice: 34,
+        cookTime: 7.7,
         reqMenuLevel: 4,
         featuredPerk: {
           cookTimeMult: 1.20,     // тортик: более долгое приготовление (+20% времени готовки)
@@ -1717,7 +1785,7 @@
         desc: 'Открывает новое вкусное блюдо с повышенной ценой',
         icon: '📖',
         baseCost: 200,
-        costMult: 3.2,
+        costMult: 2.5,
         maxLevel: 4
       },
       {
@@ -1728,6 +1796,15 @@
         baseCost: 500,
         costMult: 4.0,
         maxLevel: 1
+      },
+      {
+        id: 'waiter',
+        name: 'Кот-официант Барон 🎩',
+        desc: 'Сам разносит готовые блюда (медленнее тебя, без комбо). Кафе зарабатывает и пока тебя нет.',
+        icon: '🎩',
+        baseCost: 300,
+        costMult: 2.2,
+        maxLevel: 5
       }
     ];
 
@@ -1910,8 +1987,10 @@
         profit: 1,
         seats: 1,
         menu: 1,
-        helper: 0
+        helper: 0,
+        waiter: 0
       },
+      stats: {},
       claimedQuests: [],
       expansion: 0,
       verandaDecor: 0,
@@ -2286,6 +2365,10 @@
               }
             }
             state.claimedQuests = Array.isArray(parsed.claimedQuests) ? parsed.claimedQuests : [];
+            state.questActive = (parsed.questActive && typeof parsed.questActive === 'object' && typeof parsed.questActive.id === 'string')
+              ? { id: parsed.questActive.id, baseline: finiteNum(parsed.questActive.baseline, 0), done: !!parsed.questActive.done }
+              : null;
+            state.endlessQuestN = Math.floor(finiteNonNeg(parsed.endlessQuestN, 0));
             state.stars = Math.floor(finiteNonNeg(parsed.stars, 0));
             state.claimedStars = (parsed.claimedStars && typeof parsed.claimedStars === 'object') ? parsed.claimedStars : {};
             state.expansion = Math.floor(finiteNonNeg(parsed.expansion, 0));
@@ -2294,6 +2377,7 @@
             state.gourmetsServed = Math.floor(finiteNonNeg(parsed.gourmetsServed, 0));
             state.gourmetEarned = finiteNonNeg(parsed.gourmetEarned, 0);
             state.seenHints = (parsed.seenHints && typeof parsed.seenHints === 'object') ? parsed.seenHints : {};
+            state.stats = (parsed.stats && typeof parsed.stats === 'object') ? parsed.stats : {};
             state.gourmetEventsCount = (typeof parsed.gourmetEventsCount === 'number' && Number.isFinite(parsed.gourmetEventsCount))
               ? parsed.gourmetEventsCount
               : ((parsed.seenHints && parsed.seenHints.gourmet) ? 1 : 0);
@@ -2322,7 +2406,12 @@
                   baker_helper: 0
                 }, pb.upgrades),
                 claimedQuests: Array.isArray(pb.claimedQuests) ? pb.claimedQuests : [],
-                seenHints: (pb.seenHints && typeof pb.seenHints === 'object') ? pb.seenHints : {}
+                questActive: (pb.questActive && typeof pb.questActive === 'object' && typeof pb.questActive.id === 'string')
+                  ? { id: pb.questActive.id, baseline: finiteNum(pb.questActive.baseline, 0), done: !!pb.questActive.done }
+                  : null,
+                endlessQuestN: Math.floor(finiteNonNeg(pb.endlessQuestN, 0)),
+                seenHints: (pb.seenHints && typeof pb.seenHints === 'object') ? pb.seenHints : {},
+                stats: (pb.stats && typeof pb.stats === 'object') ? pb.stats : {}
               };
               if (pb.activeEvent) {
                 wasEventAbortedOnReload = true;
@@ -2344,7 +2433,7 @@
     // --- Параметры потока гостей кафе (общие для симуляции и расчёта офлайн-дохода) ---
     const CAFE_SPAWN_MIN_SEC = 1.2;     // минимальный интервал появления гостя
     const CAFE_SPAWN_RANGE_SEC = 1.5;   // + случайная добавка 0..1.5 с
-    const CAFE_GUEST_WALK_SPEED = 75;   // px/с — скорость гостя по пути к месту
+    const CAFE_GUEST_WALK_SPEED = 95;   // px/с — скорость гостя по пути к месту
     const CAFE_GUEST_EAT_SEC = 1.5;     // сколько гость ест после подачи
     // Поправка на очереди и простои (подобрана по замерам реальной симуляции, 3 сида × 900 с)
     const CAFE_OFFLINE_QUEUE_FACTOR = 0.85;
@@ -2370,11 +2459,27 @@
       const arrivalRate = 1 / (CAFE_SPAWN_MIN_SEC + CAFE_SPAWN_RANGE_SEC / 2);
       const chefRate = chefCount / avgCook;
       const seatRate = seats / (avgWalk + avgCook + CAFE_GUEST_EAT_SEC);
-      const rawRate = Math.min(arrivalRate, chefRate, seatRate);
-      const bottleneck = rawRate === arrivalRate ? 'guests' : (rawRate === chefRate ? 'chefs' : 'seats');
+
+      // Пока игрока нет, блюда разносит только нанятый официант.
+      // Без официанта кафе в офлайне не зарабатывает вовсе.
+      const waiterLvl = getUpgradeLevel('waiter');
+      let waiterRate = 0;
+      if (waiterLvl > 0) {
+        const passX = canvasWidth / 2;
+        let distSum = 0;
+        for (let i = 0; i < seats; i++) distSum += Math.abs(getSeatPosition(i).x - passX);
+        const avgDist = seats > 0 ? distSum / seats : 80;
+        // Путь туда и обратно + время взять и поставить тарелку
+        waiterRate = 1 / ((2 * avgDist + 20) / getCafeWaiterSpeed() + 2 * CAFE_PLATE_HANDOFF_SEC);
+      }
+      const rawRate = Math.min(arrivalRate, chefRate, seatRate, waiterRate);
+      let bottleneck = rawRate === arrivalRate ? 'guests' : (rawRate === chefRate ? 'chefs' : 'seats');
+      if (rawRate === waiterRate) bottleneck = waiterLvl > 0 ? 'waiter' : 'no_waiter';
 
       return {
         ordersPerSec: rawRate * CAFE_OFFLINE_QUEUE_FACTOR,
+        waiterRate,
+        waiterLvl,
         arrivalRate,
         chefRate,
         seatRate,
@@ -2417,6 +2522,10 @@
         // Итоговый доход с 75% оффлайн-эффективностью
         const earned = Math.floor(estimatedOrders * avgDishPrice * 0.75);
 
+        if (rate.waiterLvl <= 0 && elapsedSec > 60) {
+          showToast('Пока тебя не было, кафе стояло 😿 Найми кота-официанта — тогда оно будет работать и без тебя!', 4500);
+        }
+
         if (earned > 5) {
           pendingOfflineCoins = earned;
           const modalText = document.querySelector('#welcome-modal .modal-text');
@@ -2425,7 +2534,7 @@
           if (modalTitle) modalTitle.innerText = 'С возвращением в Кафе!';
           if (modalIcon) modalIcon.innerText = '🐱‍🍳';
           if (modalText) {
-            const chefsText = hasHelper ? 'котики-повара (шеф и помощник)' : 'котик-повар';
+            const chefsText = (hasHelper ? 'котики-повара (шеф и помощник)' : 'котик-повар') + ' и официант Барон';
             const ordersStr = formatOrdersCount(estimatedOrders);
             modalText.innerText = `Пока вас не было, ${chefsText} выполнили ~${ordersStr} и заработали:`;
           }
@@ -2592,7 +2701,7 @@
         }
         return state.upgrades[upgId];
       }
-      return upgId === 'helper' ? 0 : 1;
+      return (upgId === 'helper' || upgId === 'waiter') ? 0 : 1;
     }
 
     function getUpgradeCost(upg) {
@@ -2600,6 +2709,10 @@
       if (currentLvl >= upg.maxLevel) return Infinity;
       if (upg.id === 'helper') {
         return upg.baseCost; // 500 монет найма
+      }
+      if (upg.id === 'waiter') {
+        // Уровень 0 → найм за baseCost, дальше каждый уровень скорости дороже
+        return Math.floor(upg.baseCost * Math.pow(upg.costMult, currentLvl));
       }
       return Math.floor(upg.baseCost * Math.pow(upg.costMult, currentLvl - 1));
     }
@@ -2657,6 +2770,60 @@
       renderFeaturedModal();
     }
 
+    // --- Спрос дня: одно блюдо кафе и одна выпечка «в моде» (меняется каждый календарный день) ---
+    // Гости платят за него ×2 и заказывают чаще — выбор «Блюда дня» зависит от ситуации.
+    const DAILY_DEMAND_MULT = 2;
+    const DAILY_DEMAND_EXTRA_WEIGHT = 2;
+    let demandOverride = null; // для тестов и симулятора: id блюда или 'none'
+    function getDayKey(d = new Date()) {
+      return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    }
+    function hashString(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+    function getDailyDemandDish() {
+      if (demandOverride === 'none') return null;
+      if (demandOverride) return DISHES.find(d => d.id === demandOverride) || null;
+      return DISHES[hashString('cafe|' + getDayKey()) % DISHES.length];
+    }
+    function getDailyDemandRecipe() {
+      if (demandOverride === 'none') return null;
+      if (demandOverride) return BAKERY_RECIPES.find(r => r.id === demandOverride) || null;
+      return BAKERY_RECIPES[hashString('bakery|' + getDayKey()) % BAKERY_RECIPES.length];
+    }
+    function getDemandMult(dish) {
+      const d = getDailyDemandDish();
+      return (d && dish && d.id === dish.id) ? DAILY_DEMAND_MULT : 1;
+    }
+    const DISH_SHORT_NAMES = { coffee: 'Кофе', sandwich: 'Сэндвич', fish: 'Рыбка', cake: 'Тортик', bun: 'Булочка', cookie: 'Печенье', pie: 'Пирог' };
+
+    // Раз в день (для каждого заведения) напоминаем, что сегодня в моде
+    function announceDailyDemand() {
+      const isBak = state.currentVenue === 'bakery';
+      const d = isBak ? getDailyDemandRecipe() : getDailyDemandDish();
+      if (!d) return;
+      state.seenHints = state.seenHints || {};
+      const key = (isBak ? 'demandBakery' : 'demandCafe');
+      const day = getDayKey();
+      if (state.seenHints[key] === day) return;
+      state.seenHints[key] = day;
+      const unlocked = isBak ? getBakeryUnlockedRecipes().some(r => r.id === d.id) : getAvailableDishes().some(x => x.id === d.id);
+      showToast(unlocked
+        ? `📈 Спрос дня: сегодня в моде ${d.icon} ${DISH_SHORT_NAMES[d.id] || d.name} — платят ×${DAILY_DEMAND_MULT}!${isBak ? '' : ' Сделай его блюдом дня ⭐'}`
+        : `📈 Спрос дня: ${d.icon} ${DISH_SHORT_NAMES[d.id] || d.name} (×${DAILY_DEMAND_MULT}) — открой его в меню!`, 4500);
+    }
+
+    // Вес блюда при выборе заказа: фирменное ×3, спрос дня +2
+    function getDishOrderWeight(dish, featuredId) {
+      const d = getDailyDemandDish();
+      return (dish.id === featuredId ? 3 : 1) + ((d && d.id === dish.id) ? DAILY_DEMAND_EXTRA_WEIGHT : 0);
+    }
+
     function calculateDishPayout(dish, isVIP = false, targetFeaturedId = state.featuredDish) {
       if (!dish) return 0;
       const isFeatured = (dish.id === targetFeaturedId);
@@ -2674,7 +2841,8 @@
         vipMult = (isFeatured && perk.gourmetVipMult) ? perk.gourmetVipMult : 3.0;
       }
 
-      const subtotal = Math.floor(dish.basePrice * sauceMult * decorMult * featuredMult * regularExtraMult * vipMult);
+      const demandMult = getDemandMult(dish);
+      const subtotal = Math.floor(dish.basePrice * sauceMult * decorMult * featuredMult * regularExtraMult * vipMult * demandMult);
       const flatTotal = isVIP ? Math.floor(flat * vipMult) : flat;
       return subtotal + flatTotal;
     }
@@ -2683,8 +2851,8 @@
       const available = getAvailableDishes();
       if (available.length <= 1) return available[0];
       const featuredId = state.featuredDish || available[0].id;
-      // Вес фирменного блюда = 3, остальных = 1
-      const weights = available.map(d => d.id === featuredId ? 3 : 1);
+      // Вес фирменного блюда = 3, остальных = 1, блюдо спроса дня +2
+      const weights = available.map(d => getDishOrderWeight(d, featuredId));
       const totalWeight = weights.reduce((a, b) => a + b, 0);
       let rand = cafeRandom() * totalWeight;
       for (let i = 0; i < available.length; i++) {
@@ -2698,7 +2866,7 @@
       const list = getAvailableDishes();
       if (list.length === 0) return 10;
       const featuredId = state.featuredDish || list[0].id;
-      const weights = list.map(d => d.id === featuredId ? 3 : 1);
+      const weights = list.map(d => getDishOrderWeight(d, featuredId));
       const totalWeight = weights.reduce((a, b) => a + b, 0);
       let expectedPrice = 0;
       for (let i = 0; i < list.length; i++) {
@@ -2714,7 +2882,7 @@
       const list = getAvailableDishes();
       if (list.length === 0) return 0.6;
       const featuredId = state.featuredDish || list[0].id;
-      const weights = list.map(d => d.id === featuredId ? 3 : 1);
+      const weights = list.map(d => getDishOrderWeight(d, featuredId));
       const totalWeight = weights.reduce((a, b) => a + b, 0);
       let expectedTime = 0;
       for (let i = 0; i < list.length; i++) {
@@ -2725,158 +2893,164 @@
       return expectedTime;
     }
 
-    // --- 8.1. Каталог последовательных целей развития (Quests) ---
+    // --- 8.1. Цели развития (Quests), которые ведут игрока ---
+    // kind: 'count'     — прогресс считается С МОМЕНТА, когда цель стала активной («обслужи ещё 5»);
+    //       'milestone' — разовый этап; если он уже пройден к моменту активации, цель пропускается
+    //                     без награды (раньше такие цели закрывались пачками задним числом);
+    //       'latch'     — условие нужно выполнить хотя бы раз, пока цель активна (например, комбо ×3).
+    const questUpLvl = id => state.upgrades[id] || (id === 'helper' || id === 'waiter' ? 0 : 1);
     const QUESTS = [
-      {
-        id: 'orders_5',
-        title: 'Обслужить 5 гостей',
-        icon: '🐾',
-        reward: 60,
-        getProgress: () => ({ current: Math.min(5, state.ordersServed), target: 5 }),
-        isCompleted: () => state.ordersServed >= 5
-      },
-      {
-        id: 'stove_2',
-        title: 'Улучшить плиту (Ур. 2)',
-        icon: '⚡',
-        reward: 80,
-        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.upgrades.speed || 1) - 1)), target: 1 }),
-        isCompleted: () => (state.upgrades.speed || 1) >= 2
-      },
-      {
-        id: 'dish_2',
-        title: 'Открыть второе блюдо',
-        icon: '🥪',
-        reward: 120,
-        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.upgrades.menu || 1) - 1)), target: 1 }),
-        isCompleted: () => (state.upgrades.menu || 1) >= 2
-      },
-      {
-        id: 'helper',
-        title: 'Нанять помощника Мурзика',
-        icon: '🐱',
-        reward: 180,
-        getProgress: () => ({ current: (state.upgrades.helper || 0) >= 1 ? 1 : 0, target: 1 }),
-        isCompleted: () => (state.upgrades.helper || 0) >= 1
-      },
-      {
-        id: 'expand',
-        title: 'Расширить кафе (Веранда)',
-        icon: '🌿',
-        reward: 250,
-        getProgress: () => ({ current: (state.expansion || 0) >= 1 ? 1 : 0, target: 1 }),
-        isCompleted: () => (state.expansion || 0) >= 1
-      },
-      {
-        id: 'gourmet_3',
-        title: 'Обслужить 3 гурманов',
-        icon: '👑',
-        reward: 300,
-        getProgress: () => ({ current: Math.min(3, state.gourmetsServed || 0), target: 3 }),
-        isCompleted: () => (state.gourmetsServed || 0) >= 3
-      },
-      {
-        id: 'dish_3',
-        title: 'Открыть рыбное блюдо',
-        icon: '🐟',
-        reward: 400,
-        getProgress: () => ({ current: (state.upgrades.menu || 1) >= 3 ? 1 : 0, target: 1 }),
-        isCompleted: () => (state.upgrades.menu || 1) >= 3
-      },
-      {
-        id: 'orders_100',
-        title: 'Обслужить 100 гостей',
-        icon: '🐾',
-        reward: 500,
-        getProgress: () => ({ current: Math.min(100, state.ordersServed), target: 100 }),
-        isCompleted: () => state.ordersServed >= 100
-      },
-      {
-        id: 'dish_4',
-        title: 'Открыть тортик',
-        icon: '🍰',
-        reward: 600,
-        getProgress: () => ({ current: (state.upgrades.menu || 1) >= 4 ? 1 : 0, target: 1 }),
-        isCompleted: () => (state.upgrades.menu || 1) >= 4
-      },
-      {
-        id: 'save_decor',
-        title: 'Накопить на Цветочный уголок',
-        icon: '🌸',
-        reward: 400,
-        getProgress: () => ({ current: ((state.verandaDecor || 0) >= 1) ? 1000 : Math.min(1000, state.coins), target: 1000 }),
-        isCompleted: () => state.coins >= 1000 || (state.verandaDecor || 0) >= 1
-      }
+      { id: 'orders_5', kind: 'count', title: 'Подай 5 блюд гостям', icon: '🐾', reward: 60,
+        counter: () => state.ordersServed, amount: 5 },
+      { id: 'combo_3', kind: 'latch', title: 'Сделай комбо ×3 (подавай без пауз)', icon: '🔥', reward: 80,
+        cond: () => cafeCombo.count >= 3, amount: 3, current: () => Math.min(3, cafeCombo.count) },
+      { id: 'stove_2', kind: 'milestone', title: 'Улучшить плиту (Ур. 2)', icon: '⚡', reward: 80,
+        isDone: () => questUpLvl('speed') >= 2 },
+      { id: 'dish_2', kind: 'milestone', title: 'Открыть второе блюдо', icon: '🥪', reward: 120,
+        isDone: () => questUpLvl('menu') >= 2 },
+      { id: 'waiter', kind: 'milestone', title: 'Нанять кота-официанта Барона', icon: '🎩', reward: 150,
+        isDone: () => questUpLvl('waiter') >= 1 },
+      { id: 'helper', kind: 'milestone', title: 'Нанять помощника Мурзика', icon: '🐱', reward: 180,
+        isDone: () => questUpLvl('helper') >= 1 },
+      { id: 'expand', kind: 'milestone', title: 'Расширить кафе (Веранда)', icon: '🌿', reward: 250,
+        isDone: () => (state.expansion || 0) >= 1 },
+      { id: 'gourmet_3', kind: 'count', title: 'Обслужить 3 гурманов', icon: '👑', reward: 300,
+        counter: () => state.gourmetsServed || 0, amount: 3 },
+      { id: 'dish_3', kind: 'milestone', title: 'Открыть рыбное блюдо', icon: '🐟', reward: 400,
+        isDone: () => questUpLvl('menu') >= 3 },
+      { id: 'combo_6', kind: 'latch', title: 'Сделай комбо ×6', icon: '🔥', reward: 350,
+        cond: () => cafeCombo.count >= 6, amount: 6, current: () => Math.min(6, cafeCombo.count) },
+      { id: 'orders_100', kind: 'count', title: 'Подай ещё 100 блюд', icon: '🏆', reward: 500,
+        counter: () => state.ordersServed, amount: 100 },
+      { id: 'dish_4', kind: 'milestone', title: 'Открыть тортик', icon: '🍰', reward: 600,
+        isDone: () => questUpLvl('menu') >= 4 },
+      { id: 'save_decor', kind: 'milestone', title: 'Купить Цветочный уголок', icon: '🌸', reward: 400,
+        isDone: () => (state.verandaDecor || 0) >= 1 }
     ];
 
-    // --- 8.1.1. Каталог последовательных целей пекарни (Bakery Quests) ---
+    // --- 8.1.1. Цели пекарни ---
+    const questBakeryLvl = id => state.bakery?.upgrades?.[id] || (id === 'baker_helper' ? 0 : 1);
     const BAKERY_QUESTS = [
-      {
-        id: 'bakery_orders_5',
-        title: 'Обслужить 5 гостей в пекарне',
-        icon: '🥐',
-        reward: 80,
-        getProgress: () => ({ current: Math.min(5, state.bakery?.ordersServed || 0), target: 5 }),
-        isCompleted: () => (state.bakery?.ordersServed || 0) >= 5
-      },
-      {
-        id: 'bakery_oven_2',
-        title: 'Улучшить печь (Ур. 2)',
-        icon: '🧱',
-        reward: 100,
-        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.bakery?.upgrades?.oven || 1) - 1)), target: 1 }),
-        isCompleted: () => (state.bakery?.upgrades?.oven || 1) >= 2
-      },
-      {
-        id: 'bakery_cookie',
-        title: 'Открыть «Хрустящее Печенье»',
-        icon: '🍪',
-        reward: 150,
-        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.bakery?.upgrades?.recipes || 1) - 1)), target: 1 }),
-        isCompleted: () => (state.bakery?.upgrades?.recipes || 1) >= 2
-      },
-      {
-        id: 'bakery_tables_3',
-        title: 'Поставить 3 столика',
-        icon: '🪑',
-        reward: 200,
-        getProgress: () => ({ current: Math.min(1, Math.max(0, (state.bakery?.upgrades?.tables || 1) - 1)), target: 1 }),
-        isCompleted: () => (state.bakery?.upgrades?.tables || 1) >= 2
-      },
-      {
-        id: 'bakery_helper',
-        title: 'Нанять второго пекаря Пушка',
-        icon: '👨‍🍳',
-        reward: 300,
-        getProgress: () => ({ current: (state.bakery?.upgrades?.baker_helper || 0) >= 1 ? 1 : 0, target: 1 }),
-        isCompleted: () => (state.bakery?.upgrades?.baker_helper || 0) >= 1
-      },
-      {
-        id: 'bakery_pie',
-        title: 'Открыть «Ягодный Пирог»',
-        icon: '🥧',
-        reward: 450,
-        getProgress: () => ({ current: (state.bakery?.upgrades?.recipes || 1) >= 3 ? 1 : 0, target: 1 }),
-        isCompleted: () => (state.bakery?.upgrades?.recipes || 1) >= 3
-      },
-      {
-        id: 'bakery_orders_100',
-        title: 'Обслужить 100 гостей в пекарне',
-        icon: '🏆',
-        reward: 600,
-        getProgress: () => ({ current: Math.min(100, state.bakery?.ordersServed || 0), target: 100 }),
-        isCompleted: () => (state.bakery?.ordersServed || 0) >= 100
-      }
+      { id: 'bakery_orders_5', kind: 'count', title: 'Обслужить 5 гостей в пекарне', icon: '🐾', reward: 80,
+        counter: () => state.bakery?.ordersServed || 0, amount: 5 },
+      { id: 'bakery_hand_3', kind: 'count', title: 'Подай 3 заказа сам (тап по выпечке)', icon: '👆', reward: 90,
+        counter: () => state.bakery?.stats?.manualServes || 0, amount: 3 },
+      { id: 'bakery_oven_2', kind: 'milestone', title: 'Улучшить печь (Ур. 2)', icon: '🧱', reward: 100,
+        isDone: () => questBakeryLvl('oven') >= 2 },
+      { id: 'bakery_cookie', kind: 'milestone', title: 'Открыть «Хрустящее Печенье»', icon: '🍪', reward: 150,
+        isDone: () => questBakeryLvl('recipes') >= 2 },
+      { id: 'bakery_tables_3', kind: 'milestone', title: 'Поставить 3 столика', icon: '🪑', reward: 200,
+        isDone: () => questBakeryLvl('tables') >= 2 },
+      { id: 'bakery_helper', kind: 'milestone', title: 'Нанять второго пекаря Пушка', icon: '👨‍🍳', reward: 300,
+        isDone: () => questBakeryLvl('baker_helper') >= 1 },
+      { id: 'bakery_pie', kind: 'milestone', title: 'Открыть «Ягодный Пирог»', icon: '🥧', reward: 450,
+        isDone: () => questBakeryLvl('recipes') >= 3 },
+      { id: 'bakery_orders_100', kind: 'count', title: 'Обслужить ещё 100 гостей в пекарне', icon: '🏆', reward: 600,
+        counter: () => state.bakery?.ordersServed || 0, amount: 100 }
     ];
+
+    // Бесконечные цели после основной цепочки: всегда есть, к чему стремиться
+    function makeEndlessQuest(venue, n) {
+      const scale = Math.pow(1.35, n);
+      const reward = Math.round(200 * scale / 10) * 10;
+      if (venue === 'bakery') {
+        const kinds = ['serve', 'hand', 'event'];
+        const kind = kinds[n % kinds.length];
+        if (kind === 'serve') {
+          const amount = 30 + 10 * n;
+          return { id: `bakery_endless_${n}`, kind: 'count', title: `Обслужить ещё ${amount} гостей в пекарне`, icon: '🥐', reward,
+            counter: () => state.bakery?.ordersServed || 0, amount };
+        }
+        if (kind === 'hand') {
+          const amount = 10 + 5 * n;
+          return { id: `bakery_endless_${n}`, kind: 'count', title: `Подать самому ещё ${amount} заказов`, icon: '👆', reward,
+            counter: () => state.bakery?.stats?.manualServes || 0, amount };
+        }
+        return { id: `bakery_endless_${n}`, kind: 'count', title: 'Выполнить «Компанию котов»', icon: '👥', reward,
+          counter: () => state.bakery?.eventsCompleted || 0, amount: 1 };
+      }
+      const kinds = ['serve', 'combo', 'gourmet', 'earn'];
+      const kind = kinds[n % kinds.length];
+      if (kind === 'serve') {
+        const amount = 40 + 15 * n;
+        return { id: `endless_${n}`, kind: 'count', title: `Подать ещё ${amount} блюд`, icon: '🍽️', reward,
+          counter: () => state.ordersServed, amount };
+      }
+      if (kind === 'combo') {
+        const amount = Math.min(15, 6 + Math.floor(n / 2));
+        return { id: `endless_${n}`, kind: 'latch', title: `Сделай комбо ×${amount}`, icon: '🔥', reward,
+          cond: () => cafeCombo.count >= amount, amount, current: () => Math.min(amount, cafeCombo.count) };
+      }
+      if (kind === 'gourmet') {
+        const amount = 2 + Math.floor(n / 4);
+        return { id: `endless_${n}`, kind: 'count', title: `Обслужить ещё ${amount} гурманов`, icon: '👑', reward,
+          counter: () => state.gourmetsServed || 0, amount };
+      }
+      const amount = Math.round(3000 * scale / 100) * 100;
+      return { id: `endless_${n}`, kind: 'count', title: `Заработать ${amount.toLocaleString('ru-RU')} 🪙`, icon: '💰', reward,
+        counter: () => state.totalEarned || 0, amount };
+    }
+
+    // Обёртка цели: прогресс относительно момента активации, «защёлка» для разовых условий
+    function wrapQuest(q, active) {
+      if (q.kind === 'count') {
+        return {
+          ...q,
+          getProgress: () => ({ current: Math.max(0, Math.min(q.amount, q.counter() - active.baseline)), target: q.amount }),
+          isCompleted: () => q.counter() - active.baseline >= q.amount
+        };
+      }
+      if (q.kind === 'latch') {
+        return {
+          ...q,
+          getProgress: () => ({ current: active.done ? q.amount : q.current(), target: q.amount }),
+          isCompleted: () => {
+            if (!active.done && q.cond()) active.done = true;
+            return !!active.done;
+          }
+        };
+      }
+      return {
+        ...q,
+        getProgress: () => ({ current: q.isDone() ? 1 : 0, target: 1 }),
+        isCompleted: () => q.isDone()
+      };
+    }
+
+    function resolveQuest(venue) {
+      const holder = venue === 'bakery' ? state.bakery : state;
+      if (!holder) return null;
+      if (!Array.isArray(holder.claimedQuests)) holder.claimedQuests = [];
+      const list = venue === 'bakery' ? BAKERY_QUESTS : QUESTS;
+      for (let guard = 0; guard < 80; guard++) {
+        let q = list.find(x => !holder.claimedQuests.includes(x.id));
+        if (!q) q = makeEndlessQuest(venue, holder.endlessQuestN || 0);
+        if (!holder.questActive || holder.questActive.id !== q.id) {
+          holder.questActive = { id: q.id, baseline: q.kind === 'count' ? q.counter() : 0, done: false };
+          // Этап уже пройден до того, как стал целью, — тихо пропускаем
+          if (q.kind === 'milestone' && q.isDone()) {
+            holder.claimedQuests.push(q.id);
+            holder.questActive = null;
+            continue;
+          }
+        }
+        return wrapQuest(q, holder.questActive);
+      }
+      return null;
+    }
 
     function getCurrentQuest() {
-      const claimed = state.claimedQuests || [];
-      return QUESTS.find(q => !claimed.includes(q.id)) || null;
+      return resolveQuest('cafe');
     }
 
     function getCurrentBakeryQuest() {
-      const claimed = state.bakery?.claimedQuests || [];
-      return BAKERY_QUESTS.find(q => !claimed.includes(q.id)) || null;
+      return resolveQuest('bakery');
+    }
+
+    function markQuestClaimed(holder, q) {
+      holder.claimedQuests.push(q.id);
+      holder.questActive = null;
+      if (/endless_/.test(q.id)) holder.endlessQuestN = (holder.endlessQuestN || 0) + 1;
     }
 
     function claimBakeryQuestReward() {
@@ -2886,7 +3060,7 @@
       if (!Array.isArray(state.bakery.claimedQuests)) state.bakery.claimedQuests = [];
       if (state.bakery.claimedQuests.includes(q.id)) return;
 
-      state.bakery.claimedQuests.push(q.id);
+      markQuestClaimed(state.bakery, q);
       state.bakery.coins += q.reward;
       state.bakery.totalEarned += q.reward;
       playSound('coin');
@@ -2908,7 +3082,7 @@
       if (!Array.isArray(state.claimedQuests)) state.claimedQuests = [];
       if (state.claimedQuests.includes(q.id)) return;
 
-      state.claimedQuests.push(q.id);
+      markQuestClaimed(state, q);
       state.coins += q.reward;
       state.totalEarned += q.reward;
       playSound('coin');
@@ -2990,6 +3164,20 @@
       const claimBtnEl = document.getElementById('dev-claim-btn');
       const drawerEl = document.getElementById('quests-drawer');
       const drawerArrowEl = document.getElementById('dev-drawer-arrow');
+
+      // Выполненная цель сама сообщает о себе: тост один раз и подсветка кнопки 🎯
+      {
+        const isBak = state.currentVenue === 'bakery';
+        const holder = isBak ? state.bakery : state;
+        const curQ = isBak ? getCurrentBakeryQuest() : getCurrentQuest();
+        const ready = !!(curQ && curQ.isCompleted());
+        const toggleBtn = document.getElementById('dev-drawer-toggle');
+        if (toggleBtn) toggleBtn.classList.toggle('quest-ready', ready);
+        if (ready && holder && holder.questActive && !holder.questActive.announced) {
+          holder.questActive.announced = true;
+          showToast(`🎯 Цель выполнена: «${curQ.title}». Забери +${curQ.reward} 🪙 в 🎯`, 3500);
+        }
+      }
       const drawerBodyEl = document.getElementById('quests-drawer-body');
 
       if (!starsIconEl || !nextTitleEl || !claimBtnEl) return;
@@ -3208,7 +3396,11 @@
           }
         }
 
-        showToast(`Улучшено: ${upg.name}! 🎉`);
+        if (id === 'waiter' && currentLvl === 0) {
+          showToast('🎩 Барон нанят! Он сам разносит блюда, а кафе зарабатывает, даже когда тебя нет.', 4000);
+        } else {
+          showToast(`Улучшено: ${upg.name}! 🎉`);
+        }
         updateUI();
         saveGame();
       } else {
@@ -3328,6 +3520,7 @@
       }
 
       showToast(venue === 'bakery' ? 'Добро пожаловать в Пекарню! 🥐' : 'С возвращением в Кафе! ☕');
+      setTimeout(announceDailyDemand, 2600);
       updateUI();
       saveGame();
     }
@@ -3363,6 +3556,8 @@
     function getBakeryOrderPayout(dish) {
       if (!dish) return 0;
       let price = dish.basePrice;
+      const demandRecipe = getDailyDemandRecipe();
+      if (demandRecipe && demandRecipe.id === dish.id) price *= DAILY_DEMAND_MULT;
       if (state.bakery?.waiterSpec === 'hospitality') {
         price = Math.floor(price * 1.15); // +15% к обычной оплате заказов пекарни
       }
@@ -3391,15 +3586,17 @@
     function getAverageBakeryBakeTime() {
       const recipes = getBakeryUnlockedRecipes();
       if (recipes.length === 0) return 1.0;
-      const sum = recipes.reduce((acc, r) => acc + getEffectiveBakeTime(r), 0);
-      return sum / recipes.length;
+      const totalW = recipes.reduce((acc, r) => acc + getBakeryRecipeWeight(r), 0);
+      const sum = recipes.reduce((acc, r) => acc + getEffectiveBakeTime(r) * getBakeryRecipeWeight(r), 0);
+      return sum / totalW;
     }
 
     function getAverageBakeryRecipePrice() {
       const recipes = getBakeryUnlockedRecipes();
       if (recipes.length === 0) return 15;
-      const sum = recipes.reduce((acc, r) => acc + getBakeryOrderPayout(r), 0);
-      return sum / recipes.length;
+      const totalW = recipes.reduce((acc, r) => acc + getBakeryRecipeWeight(r), 0);
+      const sum = recipes.reduce((acc, r) => acc + getBakeryOrderPayout(r) * getBakeryRecipeWeight(r), 0);
+      return sum / totalW;
     }
 
     // --- 8.6. Логика события «Компания котов» и Специализаций официанта ---
@@ -3423,6 +3620,30 @@
       const rewardCoins = Math.round(avgPrice * 3 * 1.6);
 
       return { deadlineSec, rewardCoins };
+    }
+
+    // Игрок может позвать «Компанию котов» сам, не дожидаясь случайного предложения (3–5 минут)
+    const BAKERY_INVITE_COOLDOWN_SEC = 45;
+    function getBakeryInviteState() {
+      const b = state.bakery || {};
+      if ((b.upgrades?.recipes || 1) < 2) return { ok: false, reason: 'Откроется вместе с «Хрустящим Печеньем» 🍪' };
+      if (b.activeEvent) return { ok: false, reason: 'Компания уже в пекарне' };
+      if (isBakeryEventOfferOpen) return { ok: false, reason: 'Предложение уже открыто' };
+      const since = (Date.now() - (b.lastEventEndedAt || 0)) / 1000;
+      if (since < BAKERY_INVITE_COOLDOWN_SEC) {
+        return { ok: false, reason: `Можно позвать через ${Math.ceil(BAKERY_INVITE_COOLDOWN_SEC - since)} с`, cooldown: true };
+      }
+      return { ok: true };
+    }
+
+    function inviteBakeryCompany() {
+      initAudio();
+      const st = getBakeryInviteState();
+      if (!st.ok) {
+        showToast(st.reason);
+        return;
+      }
+      showBakeryEventOffer();
     }
 
     function showBakeryEventOffer() {
@@ -3776,11 +3997,21 @@
       });
     }
 
+    function getBakeryRecipeWeight(r) {
+      const d = getDailyDemandRecipe();
+      return (d && d.id === r.id) ? 1 + DAILY_DEMAND_EXTRA_WEIGHT : 1;
+    }
+
     function chooseBakeryRecipe() {
       const recipes = getBakeryUnlockedRecipes();
       if (recipes.length === 1) return recipes[0];
-      const idx = Math.floor(cafeRandom() * recipes.length);
-      return recipes[idx];
+      const weights = recipes.map(getBakeryRecipeWeight);
+      let rand = cafeRandom() * weights.reduce((a, b) => a + b, 0);
+      for (let i = 0; i < recipes.length; i++) {
+        if (rand < weights[i]) return recipes[i];
+        rand -= weights[i];
+      }
+      return recipes[0];
     }
 
     function spawnBakeryCustomer() {
@@ -3835,6 +4066,391 @@
 
     // Всплывающие частицы и текст (+25 🪙, сердечки, пар)
     let visualParticles = [];
+
+    // --- 9.2. Ручная подача (основной игровой цикл кафе) ---
+    // Повар готовит блюдо и ставит его на раздачу. Подать его гостю должен ИГРОК:
+    // тап по котику с зелёным облачком (или по тарелке на раздаче).
+    // Гости ждут ограниченное время; быстрая подача = чаевые, подача подряд = комбо.
+    // Нанятый кот-официант разносит сам, но медленнее и без комбо.
+    const CAFE_PASS_SLOTS = 4;              // сколько готовых блюд помещается на раздаче
+    const CAFE_PATIENCE_BASE_SEC = 18;      // базовое терпение гостя
+    const CAFE_PATIENCE_PER_COOK_SEC = 2;   // + за каждую секунду базового времени готовки блюда
+    const CAFE_TIP_MAX = 0.5;               // чаевые до +50% за мгновенную подачу
+    const CAFE_COMBO_WINDOW_SEC = 5;        // столько секунд можно ждать до следующей подачи в комбо
+    const CAFE_COMBO_STEP = 0.1;            // +10% к оплате за каждую подачу в серии
+    const CAFE_COMBO_MAX = 0.5;             // максимум +50%
+    const CAFE_WAITER_TIP_FACTOR = 0.5;     // официант получает вдвое меньше чаевых
+    const CAFE_PLATE_COLD_SEC = 45;         // невостребованное блюдо остывает и убирается
+    const CAFE_PLATE_HANDOFF_SEC = 0.35;    // официант берёт/ставит тарелку
+    const CAFE_STOVE_TAP_BOOST = 0.15;      // тап по плите: +15% прогресса готовки
+    // «Час пик»: раз в 1.5–2 минуты на 20 секунд гостей вдвое больше, а платят они на 30% щедрее
+    const CAFE_RUSH_FIRST_AFTER_ORDERS = 20;
+    const CAFE_RUSH_EVERY_MIN_SEC = 100;
+    const CAFE_RUSH_EVERY_RANGE_SEC = 40;
+    const CAFE_RUSH_DURATION_SEC = 20;
+    const CAFE_RUSH_SPAWN_FACTOR = 0.45;
+    const CAFE_RUSH_PAY_BONUS = 0.3;
+    const cafeRush = { active: false, timer: 110, left: 0 };
+
+    let readyPlates = [];
+    let readyPlateIdCounter = 1;
+    let flyingPlates = [];
+    const cafeCombo = { count: 0, lastServeAt: -99, best: 0 };
+    const bakeryCombo = { count: 0, lastServeAt: -99, best: 0 };
+
+    // Индикатор комбо над сценой (HTML поверх canvas). DOM трогаем только при изменениях.
+    const comboHudCache = { show: null, text: '', fill: '' };
+    const rushHudCache = { show: null, left: '' };
+    function updateRushHud() {
+      const el = document.getElementById('rush-hud');
+      if (!el) return;
+      const show = state.currentVenue !== 'bakery' && cafeRush.active;
+      if (rushHudCache.show !== show) {
+        el.classList.toggle('show', show);
+        rushHudCache.show = show;
+      }
+      if (!show) return;
+      const left = String(Math.ceil(Math.max(0, cafeRush.left)));
+      if (rushHudCache.left !== left) {
+        document.getElementById('rush-hud-left').innerText = left;
+        rushHudCache.left = left;
+      }
+    }
+
+    function updateComboHud() {
+      updateRushHud();
+      const el = document.getElementById('combo-hud');
+      if (!el) return;
+      const combo = state.currentVenue === 'bakery' ? bakeryCombo : cafeCombo;
+      const left = CAFE_COMBO_WINDOW_SEC - (globalGameTime - combo.lastServeAt);
+      const show = combo.count >= 2 && left > 0;
+      if (comboHudCache.show !== show) {
+        el.classList.toggle('show', show);
+        comboHudCache.show = show;
+      }
+      if (!show) return;
+      const pct = Math.round(Math.min(CAFE_COMBO_MAX, CAFE_COMBO_STEP * (combo.count - 1)) * 100);
+      const text = `🔥 Комбо ×${combo.count} · +${pct}%`;
+      if (comboHudCache.text !== text) {
+        document.getElementById('combo-hud-text').innerText = text;
+        comboHudCache.text = text;
+        // Перезапуск анимации «выпрыгивания»
+        el.classList.remove('show');
+        void el.offsetWidth;
+        el.classList.add('show');
+      }
+      const fill = `${Math.max(0, Math.min(100, (left / CAFE_COMBO_WINDOW_SEC) * 100)).toFixed(0)}%`;
+      if (comboHudCache.fill !== fill) {
+        document.getElementById('combo-hud-fill').style.width = fill;
+        comboHudCache.fill = fill;
+      }
+    }
+
+    function showHowtoIfNeeded() {
+      if (state.seenHints && state.seenHints.manualServeIntro) return;
+      const modal = document.getElementById('howto-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeHowtoModal() {
+      initAudio();
+      state.seenHints = state.seenHints || {};
+      state.seenHints.manualServeIntro = true;
+      const modal = document.getElementById('howto-modal');
+      if (modal) modal.style.display = 'none';
+      saveGame();
+      setTimeout(announceDailyDemand, 600);
+    }
+    const cafeWaiter = {
+      x: 190, y: 200, tx: 190, ty: 200,
+      state: 'idle', // idle | to_pass | carrying | returning
+      plate: null,
+      target: null,
+      pauseTimer: 0,
+      walkAnim: 0
+    };
+
+    // Терпение гостя: чем известнее кафе (звёзды), тем гости требовательнее; в час пик — ещё меньше
+    function getGuestPatience(dish) {
+      const starPenalty = 2 * Math.min(3, state.stars || 0);
+      const base = CAFE_PATIENCE_BASE_SEC - starPenalty + (dish ? dish.cookTime : 3) * CAFE_PATIENCE_PER_COOK_SEC;
+      return base * (cafeRush.active ? 0.8 : 1);
+    }
+
+    function getCafeWaiterSpeed() {
+      const lvl = getUpgradeLevel('waiter');
+      return lvl > 0 ? 55 + 15 * (lvl - 1) : 0;
+    }
+
+    function getPassSlotPos(index, count) {
+      const counterY = getCounterY();
+      const n = Math.max(1, count);
+      return { x: canvasWidth / 2 + (index - (n - 1) / 2) * 30, y: counterY - 11 };
+    }
+
+    function layoutReadyPlates() {
+      readyPlates.forEach((p, i) => {
+        const pos = getPassSlotPos(i, readyPlates.length);
+        p.x = pos.x;
+        p.y = pos.y;
+      });
+    }
+
+    function isGuestWaitingForFood(c) {
+      return c && c.state === 'waiting_order' && (!c.isVIP || c.isVipAccepted);
+    }
+
+    // Есть ли на раздаче блюдо для этого гостя
+    function hasReadyPlateFor(c) {
+      return isGuestWaitingForFood(c) && readyPlates.some(p => p.dish.id === c.dish.id);
+    }
+
+    // Чей заказ кухня должна готовить следующим: самый «срочный» гость, для которого
+    // ещё нет блюда ни на раздаче, ни на плите, ни в лапах у официанта
+    function getNextGuestToCook() {
+      const covered = {};
+      const add = id => { covered[id] = (covered[id] || 0) + 1; };
+      readyPlates.forEach(p => add(p.dish.id));
+      cookingStations.forEach(s => { if (s.isCooking && s.dish) add(s.dish.id); });
+      if (cafeWaiter.plate) add(cafeWaiter.plate.dish.id);
+      const waiting = customers.filter(isGuestWaitingForFood);
+      waiting.sort((a, b) => (Number(!!b.isVIP) - Number(!!a.isVIP)) || ((a.patience ?? 99) - (b.patience ?? 99)) || (a.id - b.id));
+      for (const c of waiting) {
+        if ((covered[c.dish.id] || 0) > 0) {
+          covered[c.dish.id]--;
+          continue;
+        }
+        return c;
+      }
+      return null;
+    }
+
+    function getComboPct() {
+      return Math.min(CAFE_COMBO_MAX, CAFE_COMBO_STEP * Math.max(0, cafeCombo.count - 1));
+    }
+
+    function breakCafeCombo() {
+      if (cafeCombo.count >= 3) {
+        addVisualParticle(canvasWidth / 2, getCounterY() - 40, 'Комбо прервано 💔', '#90a4ae', 'text');
+      }
+      cafeCombo.count = 0;
+    }
+
+    // Подать блюдо гостю. byWaiter — подаёт нанятый официант (без комбо, меньше чаевых).
+    function serveCafeCustomer(c, byWaiter = false, plate = null) {
+      if (!isGuestWaitingForFood(c)) return false;
+      let p = plate;
+      let fromX;
+      let fromY;
+      if (!p) {
+        const idx = readyPlates.findIndex(pl => pl.dish.id === c.dish.id);
+        if (idx === -1) return false;
+        p = readyPlates[idx];
+        fromX = p.x;
+        fromY = p.y;
+        readyPlates.splice(idx, 1);
+        layoutReadyPlates();
+      } else {
+        fromX = cafeWaiter.x + 14;
+        fromY = cafeWaiter.y - 6;
+      }
+      if (p.dish.id !== c.dish.id) return false;
+
+      const frac = c.patienceMax > 0 ? Math.max(0, Math.min(1, c.patience / c.patienceMax)) : 0;
+      c.tipPct = CAFE_TIP_MAX * frac * (byWaiter ? CAFE_WAITER_TIP_FACTOR : 1);
+      if (!byWaiter) {
+        if (globalGameTime - cafeCombo.lastServeAt <= CAFE_COMBO_WINDOW_SEC && cafeCombo.count > 0) {
+          cafeCombo.count++;
+        } else {
+          cafeCombo.count = 1;
+        }
+        cafeCombo.lastServeAt = globalGameTime;
+        cafeCombo.best = Math.max(cafeCombo.best, cafeCombo.count);
+        state.stats = state.stats || {};
+        state.stats.bestCombo = Math.max(state.stats.bestCombo || 0, cafeCombo.count);
+        state.stats.manualServes = (state.stats.manualServes || 0) + 1;
+        c.comboPct = getComboPct();
+        if (cafeCombo.count >= 2) {
+          addVisualParticle(c.x, c.y - 62, `Комбо ×${cafeCombo.count}!`, '#ff6d00', 'text');
+        }
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+      } else {
+        c.comboPct = 0;
+      }
+      c.rushPct = cafeRush.active ? CAFE_RUSH_PAY_BONUS : 0;
+      c.servedBy = byWaiter ? 'waiter' : 'player';
+      c.state = 'eating';
+      c.eatTimer = c.eatTotalTime;
+      flyingPlates.push({ icon: p.dish.icon, x0: fromX, y0: fromY, x1: c.x, y1: c.y + 10, t0: globalGameTime, dur: byWaiter ? 0.18 : 0.3 });
+      playSound('purr');
+      return true;
+    }
+
+    // Гость не дождался и ушёл: денег нет, комбо сбрасывается
+    function cafeGuestLeavesAngry(c, label = '😾 Не дождался!') {
+      c.state = 'leaving';
+      c.angryAt = globalGameTime;
+      c.targetX = canvasWidth + 50;
+      c.targetY = Math.min(canvasHeight - 30, c.y + 35);
+      state.stats = state.stats || {};
+      state.stats.guestsLost = (state.stats.guestsLost || 0) + 1;
+      addVisualParticle(c.x, c.y - 30, label, '#78909c', 'text');
+      breakCafeCombo();
+      if (cafeWaiter.target === c) cafeWaiter.target = null;
+    }
+
+    // Тап по тарелке на раздаче: отдать её самому нетерпеливому гостю, который ждёт это блюдо
+    function servePlateToBestGuest(plate) {
+      const guests = customers.filter(c => isGuestWaitingForFood(c) && c.dish.id === plate.dish.id);
+      if (!guests.length) return false;
+      guests.sort((a, b) => (Number(!!b.isVIP) - Number(!!a.isVIP)) || (a.patience - b.patience));
+      const target = guests[0];
+      const idx = readyPlates.indexOf(plate);
+      if (idx === -1) return false;
+      // Переставляем выбранную тарелку первой, чтобы serveCafeCustomer взял именно её
+      readyPlates.splice(idx, 1);
+      readyPlates.unshift(plate);
+      return serveCafeCustomer(target, false);
+    }
+
+    // Кот-официант: берёт с раздачи блюдо для самого нетерпеливого гостя и несёт ему
+    function updateCafeWaiter(dt) {
+      const w = cafeWaiter;
+      const lvl = getUpgradeLevel('waiter');
+      const homeX = canvasWidth / 2;
+      const homeY = getCounterY() + 28;
+      if (lvl <= 0) {
+        w.x = homeX;
+        w.y = homeY;
+        return;
+      }
+      const speed = getCafeWaiterSpeed();
+      const moveTo = (tx, ty) => {
+        const dx = tx - w.x;
+        const dy = ty - w.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 2) {
+          w.x = tx;
+          w.y = ty;
+          return true;
+        }
+        const stepLen = Math.min(dist, speed * dt);
+        w.x += (dx / dist) * stepLen;
+        w.y += (dy / dist) * stepLen;
+        w.walkAnim += dt * 9;
+        return false;
+      };
+      if (w.pauseTimer > 0) {
+        w.pauseTimer -= dt;
+        return;
+      }
+
+      const pickTarget = () => {
+        const guests = customers.filter(hasReadyPlateFor);
+        guests.sort((a, b) => (Number(!!b.isVIP) - Number(!!a.isVIP)) || (a.patience - b.patience));
+        return guests[0] || null;
+      };
+
+      if (w.state === 'idle' || w.state === 'returning') {
+        const target = pickTarget();
+        if (target) {
+          w.target = target;
+          w.state = 'to_pass';
+        } else if (w.state === 'returning') {
+          if (moveTo(homeX, homeY)) w.state = 'idle';
+          return;
+        } else {
+          return;
+        }
+      }
+
+      if (w.state === 'to_pass') {
+        if (!hasReadyPlateFor(w.target)) {
+          w.target = pickTarget();
+          if (!w.target) {
+            w.state = 'returning';
+            return;
+          }
+        }
+        const plate = readyPlates.find(p => p.dish.id === w.target.dish.id);
+        if (!plate) {
+          w.state = 'returning';
+          return;
+        }
+        if (moveTo(plate.x, homeY)) {
+          readyPlates.splice(readyPlates.indexOf(plate), 1);
+          layoutReadyPlates();
+          w.plate = plate;
+          w.state = 'carrying';
+          w.pauseTimer = CAFE_PLATE_HANDOFF_SEC;
+        }
+        return;
+      }
+
+      if (w.state === 'carrying') {
+        if (!isGuestWaitingForFood(w.target) || w.target.dish.id !== w.plate.dish.id) {
+          // Гость ушёл или его уже обслужил игрок — ищем другого, кто ждёт это блюдо
+          const alt = customers.filter(c => isGuestWaitingForFood(c) && c.dish.id === w.plate.dish.id)
+            .sort((a, b) => a.patience - b.patience)[0];
+          if (alt) {
+            w.target = alt;
+          } else {
+            // Никому не нужно — возвращаем на раздачу (если есть место)
+            if (readyPlates.length < CAFE_PASS_SLOTS) {
+              w.plate.bornAt = globalGameTime;
+              readyPlates.push(w.plate);
+              layoutReadyPlates();
+            }
+            w.plate = null;
+            w.target = null;
+            w.state = 'returning';
+            return;
+          }
+        }
+        if (moveTo(w.target.x, homeY)) {
+          serveCafeCustomer(w.target, true, w.plate);
+          w.plate = null;
+          w.target = null;
+          w.state = 'returning';
+          w.pauseTimer = CAFE_PLATE_HANDOFF_SEC;
+        }
+      }
+    }
+
+    // Остывшие блюда, которые никто не ждёт, убираются с раздачи (иначе раздача может забиться)
+    function updateReadyPlates() {
+      for (let i = readyPlates.length - 1; i >= 0; i--) {
+        const p = readyPlates[i];
+        if (globalGameTime - p.bornAt < CAFE_PLATE_COLD_SEC) continue;
+        const wanted = customers.some(c => isGuestWaitingForFood(c) && c.dish.id === p.dish.id);
+        if (!wanted) {
+          addVisualParticle(p.x, p.y - 14, 'Остыло 💨', '#90a4ae', 'text');
+          readyPlates.splice(i, 1);
+        }
+      }
+      layoutReadyPlates();
+      // Анимации подачи
+      flyingPlates = flyingPlates.filter(f => globalGameTime - f.t0 < f.dur);
+      // Комбо гаснет, если долго не было подачи
+      if (cafeCombo.count > 0 && globalGameTime - cafeCombo.lastServeAt > CAFE_COMBO_WINDOW_SEC) {
+        cafeCombo.count = 0;
+      }
+    }
+
+    function resetCafeServingState() {
+      cafeRush.active = false;
+      cafeRush.timer = CAFE_RUSH_EVERY_MIN_SEC;
+      cafeRush.left = 0;
+      readyPlates.length = 0;
+      flyingPlates.length = 0;
+      cafeCombo.count = 0;
+      cafeCombo.lastServeAt = -99;
+      cafeWaiter.state = 'idle';
+      cafeWaiter.plate = null;
+      cafeWaiter.target = null;
+      cafeWaiter.pauseTimer = 0;
+    }
+
 
     // Динамическая высота барной стойки
     function getCounterY() {
@@ -3945,7 +4561,7 @@
         cat.isFeaturedOrder = (cat.dish.id === state.featuredDish);
       }
       const cookTimeEst = getEffectiveCookTime(cat.dish, cat.isFeaturedOrder);
-      cat.totalVipTimer = Math.max(16, Math.round(cookTimeEst * 1.5 + 12));
+      cat.totalVipTimer = Math.max(22, Math.round(cookTimeEst * 1.5 + 18));
       cat.vipTimer = cat.totalVipTimer;
 
       playSound('coin');
@@ -3984,6 +4600,7 @@
         updateSimulation(dt);
         renderScene();
       }
+      updateComboHud();
 
       requestAnimationFrame(gameLoop);
     }
@@ -4011,13 +4628,33 @@
         }
       }
 
+      // 2.1. «Час пик»
+      if (cafeRush.active) {
+        cafeRush.left -= dt;
+        if (cafeRush.left <= 0) {
+          cafeRush.active = false;
+          cafeRush.timer = CAFE_RUSH_EVERY_MIN_SEC + cafeRandom() * CAFE_RUSH_EVERY_RANGE_SEC;
+          addVisualParticle(canvasWidth / 2, getCounterY() - 50, 'Час пик закончился 😌', '#8d6e63', 'text');
+        }
+      } else if (state.ordersServed >= CAFE_RUSH_FIRST_AFTER_ORDERS) {
+        cafeRush.timer -= dt;
+        if (cafeRush.timer <= 0) {
+          cafeRush.active = true;
+          cafeRush.left = CAFE_RUSH_DURATION_SEC;
+          nextCustomerSpawnTimer = Math.min(nextCustomerSpawnTimer, 0.3);
+          playSound('bell');
+          showToast(`🔔 Час пик! ${CAFE_RUSH_DURATION_SEC} секунд гостей вдвое больше — и они платят +${Math.round(CAFE_RUSH_PAY_BONUS * 100)}%!`, 3000);
+          if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+        }
+      }
+
       // 3. Спавн обычных посетителей (происходит только если гурман не ждет место)
       nextCustomerSpawnTimer -= dt;
       if (nextCustomerSpawnTimer <= 0) {
         if (!isGourmetPending) {
           spawnCustomer(false);
         }
-        nextCustomerSpawnTimer = CAFE_SPAWN_MIN_SEC + cafeRandom() * CAFE_SPAWN_RANGE_SEC;
+        nextCustomerSpawnTimer = (CAFE_SPAWN_MIN_SEC + cafeRandom() * CAFE_SPAWN_RANGE_SEC) * (cafeRush.active ? CAFE_RUSH_SPAWN_FACTOR : 1);
       }
 
       // Обновление посетителей
@@ -4038,6 +4675,9 @@
               c.totalVipAcceptTimer = 20;
             } else {
               c.state = 'waiting_order';
+              // С этого момента тает терпение гостя
+              c.patienceMax = getGuestPatience(c.dish);
+              c.patience = c.patienceMax;
             }
           } else {
             // Шаг не длиннее оставшегося пути: при большом dt (подтормаживание, симуляция)
@@ -4060,25 +4700,24 @@
             }
           }
         } else if (c.state === 'waiting_order') {
-          // Обработка таймера особого заказа гурмана (время приготовления)
           if (c.isVIP && c.isVipAccepted) {
+            // Таймер особого заказа гурмана — это и есть его терпение
             c.vipTimer -= dt;
+            c.patience = c.vipTimer;
+            c.patienceMax = c.totalVipTimer;
             if (c.vipTimer <= 0) {
-              // Время вышло: гурман разочарован и уходит, монеты не списываются
-              c.state = 'leaving';
-              c.targetX = canvasWidth + 50;
-              c.targetY = Math.min(canvasHeight - 30, c.y + 35);
-              addVisualParticle(c.x, c.y - 30, '😿 Не успели...', '#78909c', 'text');
+              // Блюдо, которое готовилось для него, не пропадает: оно уйдёт на раздачу для других гостей
+              cafeGuestLeavesAngry(c, '😿 Не успели...');
               showToast('Кот-гурман ушёл, не дождавшись блюда ⏳');
-              // Освобождаем станцию готовки, если она готовила для него
-              cookingStations.forEach(st => {
-                if (st.targetCustomer === c) {
-                  st.isCooking = false;
-                  st.dish = null;
-                  st.targetCustomer = null;
-                  st.progress = 0;
-                }
-              });
+            }
+          } else if (!c.isVIP) {
+            if (typeof c.patience !== 'number') {
+              c.patienceMax = getGuestPatience(c.dish);
+              c.patience = c.patienceMax;
+            }
+            c.patience -= dt;
+            if (c.patience <= 0) {
+              cafeGuestLeavesAngry(c);
             }
           }
         } else if (c.state === 'eating') {
@@ -4088,7 +4727,11 @@
             // Закончил кушать -> оплата и уход
             // Выплата фиксируется по статусу заказа на момент его оформления
             const isFeatured = !!c.isFeaturedOrder;
-            const earnedCoins = calculateDishPayout(c.dish, c.isVIP, isFeatured ? c.dish.id : null);
+            const baseCoins = calculateDishPayout(c.dish, c.isVIP, isFeatured ? c.dish.id : null);
+            // Чаевые за скорость подачи и бонус комбо фиксируются в момент подачи
+            const tipCoins = Math.round(baseCoins * (c.tipPct || 0));
+            const comboCoins = Math.round(baseCoins * ((c.comboPct || 0) + (c.rushPct || 0)));
+            const earnedCoins = baseCoins + tipCoins + comboCoins;
             state.coins += earnedCoins;
             state.totalEarned += earnedCoins;
             state.ordersServed++;
@@ -4107,6 +4750,9 @@
               else extraTag = ' (⭐ +20%)';
             }
             addVisualParticle(c.x, c.y - 35, `+${earnedCoins} 🪙${extraTag}`, c.isVIP ? '#ffd700' : (isFeatured ? '#ff9800' : '#ffb300'), 'text');
+            if (tipCoins + comboCoins > 0) {
+              addVisualParticle(c.x, c.y - 52, `чаевые +${tipCoins + comboCoins}`, '#43a047', 'text');
+            }
             addVisualParticle(c.x, c.y - 20, c.isVIP ? '💛' : '❤️', c.isVIP ? '#ffd700' : '#e91e63', 'heart');
 
             updateUI();
@@ -4141,18 +4787,11 @@
         if (station.id === 'helper' && !hasHelper) return;
 
         if (!station.isCooking) {
-          // Ищем посетителя, ожидающего заказ, которого еще никто не готовит
-          // ПРИОРИТЕТ: сначала проверяем VIP-посетителя с принятым заказом!
-          const waitingCustomer = customers.find(c => 
-            c.isVIP && c.isVipAccepted && c.state === 'waiting_order' && 
-            !cookingStations.some(s => s.targetCustomer === c)
-          ) || customers.find(c => 
-            !c.isVIP && c.state === 'waiting_order' && 
-            !cookingStations.some(s => s.targetCustomer === c)
-          );
-
+          // Готовим заказ самого «срочного» гостя, для которого ещё нет блюда
+          const waitingCustomer = getNextGuestToCook();
           if (waitingCustomer) {
             station.isCooking = true;
+            station.isBlocked = false;
             station.dish = waitingCustomer.dish;
             station.targetCustomer = waitingCustomer;
             station.isFeaturedOrder = !!waitingCustomer.isFeaturedOrder;
@@ -4161,32 +4800,38 @@
           }
         } else {
           // Процесс приготовления блюда
-          station.progress += dt / station.totalTime;
-
-          // Спавн частичек пара/аромата во время готовки
-          if (cafeRandom() < 0.15) {
-            // Пар поднимается от сковородки на плите
-            addVisualParticle(station.x + (cafeRandom() - 0.5) * 16, station.y + 12, '♨️', '#fff', 'steam');
+          if (station.progress < 1) {
+            station.progress = Math.min(1, station.progress + dt / station.totalTime);
+            // Спавн частичек пара/аромата во время готовки
+            if (cafeRandom() < 0.15) {
+              // Пар поднимается от сковородки на плите
+              addVisualParticle(station.x + (cafeRandom() - 0.5) * 16, station.y + 12, '♨️', '#fff', 'steam');
+            }
           }
 
           if (station.progress >= 1.0) {
-            // Блюдо готово! Выдаем посетителю
-            station.progress = 1.0;
-            const cust = station.targetCustomer;
-            if (cust && cust.state === 'waiting_order') {
-              cust.state = 'eating';
-              cust.eatTimer = cust.eatTotalTime;
+            // Блюдо готово — ставим на раздачу, если там есть место
+            if (readyPlates.length < CAFE_PASS_SLOTS) {
+              readyPlates.push({ id: readyPlateIdCounter++, dish: station.dish, bornAt: globalGameTime, x: station.x, y: station.y });
+              layoutReadyPlates();
               playSound('bell');
               addVisualParticle(station.x, station.y - 30, '🛎️ Готово!', '#4caf50', 'text');
+              station.isCooking = false;
+              station.isBlocked = false;
+              station.dish = null;
+              station.targetCustomer = null;
+              station.progress = 0;
+            } else {
+              // Раздача заполнена — повар ждёт, пока игрок разнесёт блюда
+              station.isBlocked = true;
             }
-
-            station.isCooking = false;
-            station.dish = null;
-            station.targetCustomer = null;
-            station.progress = 0;
           }
         }
       });
+
+      // Кот-официант и раздача
+      updateCafeWaiter(dt);
+      updateReadyPlates();
 
       // Обновление всплывающих эффектов
       for (let i = visualParticles.length - 1; i >= 0; i--) {
@@ -4210,6 +4855,8 @@
       state.gourmetEventsCount = 0;
       state.seenHints = {};
       state.claimedQuests = [];
+      state.questActive = null;
+      state.endlessQuestN = 0;
       state.expansion = 0;
       state.verandaDecor = 0;
       state.upgrades.menu = options.menuLevel || 4;
@@ -4237,7 +4884,100 @@
         st.isFeaturedOrder = false;
       });
       visualParticles.length = 0;
+      resetCafeServingState();
       updateStationPositions();
+    }
+
+    // --- Ручная подача в пекарне ---
+    // Пончик разносит сам, но игрок может подать выпечку мгновенно: тап по блюду на витрине
+    // или по гостю. Обычные гости ждут ограниченное время (у «Компании котов» свой дедлайн события).
+    const BAKERY_PATIENCE_SEC = 40;
+
+    function applyBakeryServe(cust, dish, byPlayer, fromX, fromY) {
+      const tbl = bakeryTables[cust.tableIndex];
+      if (tbl) tbl.servedDish = dish;
+      const frac = cust.patienceMax > 0 ? Math.max(0, Math.min(1, cust.patience / cust.patienceMax)) : 0.6;
+      cust.tipPct = CAFE_TIP_MAX * frac * (byPlayer ? 1 : CAFE_WAITER_TIP_FACTOR);
+      if (byPlayer) {
+        if (globalGameTime - bakeryCombo.lastServeAt <= CAFE_COMBO_WINDOW_SEC && bakeryCombo.count > 0) bakeryCombo.count++;
+        else bakeryCombo.count = 1;
+        bakeryCombo.lastServeAt = globalGameTime;
+        bakeryCombo.best = Math.max(bakeryCombo.best, bakeryCombo.count);
+        cust.comboPct = Math.min(CAFE_COMBO_MAX, CAFE_COMBO_STEP * (bakeryCombo.count - 1));
+        state.bakery.stats = state.bakery.stats || {};
+        state.bakery.stats.manualServes = (state.bakery.stats.manualServes || 0) + 1;
+        if (bakeryCombo.count >= 2) addVisualParticle(cust.x, cust.y - 56, `Комбо ×${bakeryCombo.count}!`, '#ff6d00', 'text');
+        if (typeof fromX === 'number') {
+          flyingPlates.push({ icon: dish.icon, x0: fromX, y0: fromY, x1: tbl ? tbl.x : cust.x, y1: tbl ? tbl.y - 2 : cust.y, t0: globalGameTime, dur: 0.3 });
+        }
+        playSound('purr');
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+      } else {
+        cust.comboPct = 0;
+      }
+      cust.state = 'eating';
+      cust.eatTimer = cust.eatTotalTime;
+      if (cust.isGroupCustomer && state.bakery?.activeEvent) {
+        state.bakery.activeEvent.servedGuests = (state.bakery.activeEvent.servedGuests || 0) + 1;
+        if (state.bakery.activeEvent.servedGuests >= state.bakery.activeEvent.totalGuests) {
+          finishBakeryEvent(true);
+        }
+      }
+    }
+
+    // Игрок сам подаёт готовую выпечку с витрины её владельцу
+    function deliverBakeryOrderByPlayer(order) {
+      if (!order) return false;
+      const cust = bakeryCustomers.find(c => c.id === order.customerId && c.state === 'waiting_order');
+      if (!cust) return false;
+      const idx = readyOrders.indexOf(order);
+      if (idx === -1) return false;
+      readyOrders.splice(idx, 1);
+      updateVitrinePositions();
+      if (waiterCat.targetOrder === order && waiterCat.state === 'walking_to_vitrine') {
+        waiterCat.targetOrder = null;
+        waiterCat.state = 'returning_to_counter';
+        waiterCat.targetX = canvasWidth * 0.50;
+        waiterCat.targetY = getVitrineY() + 25;
+      }
+      applyBakeryServe(cust, order.dish, true, order.x, order.y);
+      return true;
+    }
+
+    function bakeryGuestLeavesAngry(c) {
+      const tbl = bakeryTables[c.tableIndex];
+      if (tbl && tbl.customer === c) {
+        tbl.customer = null;
+        tbl.servedDish = null;
+      }
+      for (let i = readyOrders.length - 1; i >= 0; i--) {
+        if (readyOrders[i].customerId === c.id) readyOrders.splice(i, 1);
+      }
+      updateVitrinePositions();
+      bakeryOvenStations.forEach(st => {
+        if (st.targetCustomer === c) {
+          st.isBaking = false;
+          st.dish = null;
+          st.targetCustomer = null;
+          st.progress = 0;
+        }
+      });
+      if (waiterCat.targetOrder && waiterCat.targetOrder.customerId === c.id) {
+        waiterCat.targetOrder = null;
+        waiterCat.carryingDish = null;
+        waiterCat.state = 'returning_to_counter';
+        waiterCat.targetX = canvasWidth * 0.50;
+        waiterCat.targetY = getVitrineY() + 25;
+      }
+      c.state = 'leaving';
+      c.angryAt = globalGameTime;
+      c.targetX = canvasWidth + 50;
+      c.targetY = c.y + 15;
+      state.bakery.stats = state.bakery.stats || {};
+      state.bakery.stats.guestsLost = (state.bakery.stats.guestsLost || 0) + 1;
+      addVisualParticle(c.x, c.y - 30, '😾 Не дождался!', '#78909c', 'text');
+      if (bakeryCombo.count >= 3) addVisualParticle(canvasWidth / 2, getVitrineY() - 30, 'Комбо прервано 💔', '#90a4ae', 'text');
+      bakeryCombo.count = 0;
     }
 
     // --- 10.1. Симуляция Пекарни (Bakery Simulation Cycle) ---
@@ -4295,6 +5035,10 @@
             c.x = c.targetX;
             c.y = c.targetY;
             c.state = 'waiting_order';
+            if (!c.isGroupCustomer) {
+              c.patienceMax = BAKERY_PATIENCE_SEC;
+              c.patience = BAKERY_PATIENCE_SEC;
+            }
             if (c.isGroupCustomer && state.bakery?.activeEvent && state.bakery.activeEvent.state === 'waiting_first_seat') {
               state.bakery.activeEvent.state = 'running';
               state.bakery.activeEvent.startTime = Date.now();
@@ -4309,18 +5053,27 @@
             c.y += (dy / dist) * stepLen;
           }
         } else if (c.state === 'waiting_order') {
-          // Ждёт приготовления и доставки официантом
+          // Ждёт выпечку. Терпение тает только у обычных гостей
+          if (!c.isGroupCustomer && typeof c.patience === 'number') {
+            c.patience -= dt;
+            if (c.patience <= 0) {
+              bakeryGuestLeavesAngry(c);
+            }
+          }
         } else if (c.state === 'eating') {
           c.eatTimer -= dt;
           if (c.eatTimer <= 0) {
-            // Завершил трапезу: оплата и уход
-            const earned = getBakeryOrderPayout(c.dish);
+            // Завершил трапезу: оплата (+ чаевые и комбо) и уход
+            const baseEarned = getBakeryOrderPayout(c.dish);
+            const tipEarned = Math.round(baseEarned * (c.tipPct || 0)) + Math.round(baseEarned * (c.comboPct || 0));
+            const earned = baseEarned + tipEarned;
             state.bakery.coins += earned;
             state.bakery.totalEarned += earned;
             state.bakery.ordersServed++;
             playSound('coin');
 
             addVisualParticle(c.x, c.y - 35, `+${earned} 🪙`, '#ffb300', 'text');
+            if (tipEarned > 0) addVisualParticle(c.x, c.y - 50, `чаевые +${tipEarned}`, '#43a047', 'text');
             addVisualParticle(c.x, c.y - 18, '❤️', '#e91e63', 'heart');
 
             const tbl = bakeryTables[c.tableIndex];
@@ -4432,9 +5185,16 @@
           waiterCat.state = 'walking_to_vitrine';
         }
       } else if (waiterCat.state === 'walking_to_vitrine') {
+        // Игрок уже сам отнёс этот заказ — ищем следующий
+        if (!waiterCat.targetOrder || !readyOrders.includes(waiterCat.targetOrder)) {
+          waiterCat.targetOrder = null;
+          waiterCat.state = 'returning_to_counter';
+          waiterCat.targetX = canvasWidth * 0.50;
+          waiterCat.targetY = getVitrineY() + 25;
+        }
         // Если игрок только что тапнул другой заказ и дал ему приоритет
         const prioOrder = readyOrders.find(o => o.isPriority);
-        if (prioOrder && waiterCat.targetOrder !== prioOrder) {
+        if (waiterCat.state === 'walking_to_vitrine' && prioOrder && waiterCat.targetOrder !== prioOrder) {
           waiterCat.targetOrder = prioOrder;
           waiterCat.targetTable = bakeryTables[prioOrder.tableIndex];
           waiterCat.targetX = prioOrder.x;
@@ -4444,7 +5204,9 @@
         const dx = waiterCat.targetX - waiterCat.x;
         const dy = waiterCat.targetY - waiterCat.y;
         const dist = Math.hypot(dx, dy);
-        if (dist < 5) {
+        if (waiterCat.state !== 'walking_to_vitrine') {
+          // Заказ перехватил игрок — со следующего кадра официант ищет новый
+        } else if (dist < 5) {
           // Забрал выпечку с витрины
           const order = waiterCat.targetOrder;
           const idx = readyOrders.indexOf(order);
@@ -4472,18 +5234,10 @@
         const dy = waiterCat.targetY - waiterCat.y;
         const dist = Math.hypot(dx, dy);
         if (dist < 5) {
-          // Доставил на столик!
-          waiterCat.targetTable.servedDish = waiterCat.carryingDish;
+          // Доставил на столик! (если гость ещё ждёт — иначе выпечка пропадает)
           const cust = bakeryCustomers.find(c => c.id === waiterCat.targetOrder?.customerId && c.state === 'waiting_order');
           if (cust) {
-            cust.state = 'eating';
-            cust.eatTimer = cust.eatTotalTime;
-            if (cust.isGroupCustomer && state.bakery?.activeEvent) {
-              state.bakery.activeEvent.servedGuests = (state.bakery.activeEvent.servedGuests || 0) + 1;
-              if (state.bakery.activeEvent.servedGuests >= state.bakery.activeEvent.totalGuests) {
-                finishBakeryEvent(true);
-              }
-            }
+            applyBakeryServe(cust, waiterCat.carryingDish, false);
           }
           waiterCat.carryingDish = null;
           waiterCat.targetOrder = null;
@@ -4537,6 +5291,8 @@
           visualParticles.splice(i, 1);
         }
       }
+      flyingPlates = flyingPlates.filter(f => globalGameTime - f.t0 < f.dur);
+      if (bakeryCombo.count > 0 && globalGameTime - bakeryCombo.lastServeAt > CAFE_COMBO_WINDOW_SEC) bakeryCombo.count = 0;
     }
 
     function resetBakerySimulationState(options = {}) {
@@ -4600,8 +5356,12 @@
       const clickY = (e.clientY - rect.top) * scaleY;
 
       if (state.currentVenue === 'bakery') {
-        // 1. Клик по выпечке на витрине для установки приоритета официанту
+        // 1. Клик по выпечке на витрине: игрок сам мгновенно подаёт её гостю.
+        // Если гость уже ушёл/обслужен — как раньше, отмечаем приоритет для официанта.
         const clickedOrder = readyOrders.find(o => Math.hypot(o.x - clickX, o.y - clickY) < 28);
+        if (clickedOrder && deliverBakeryOrderByPlayer(clickedOrder)) {
+          return;
+        }
         if (clickedOrder) {
           clickedOrder.isPriority = true;
           playSound('bell');
@@ -4615,8 +5375,14 @@
           return;
         }
 
-        // 2. Клик по котикам (официант, пекари или гости)
-        const clickedCustomer = bakeryCustomers.find(c => Math.hypot(c.x - clickX, c.y - clickY) < 30);
+        // 2. Клик по гостю (или его облачку): если его выпечка уже на витрине — подаём сами
+        const clickedCustomer = bakeryCustomers.find(c => Math.min(Math.hypot(c.x - clickX, c.y - clickY), Math.hypot(c.x - clickX, (c.y - 38) - clickY)) < 28);
+        if (clickedCustomer && clickedCustomer.state === 'waiting_order') {
+          const order = readyOrders.find(o => o.customerId === clickedCustomer.id);
+          if (order && deliverBakeryOrderByPlayer(order)) return;
+          clickedCustomer.nudgeAt = globalGameTime;
+          return;
+        }
         if (clickedCustomer) {
           playSound('purr');
           addVisualParticle(clickedCustomer.x, clickedCustomer.y - 30, '🐾 Мяу!', '#ff4081', 'heart');
@@ -4652,12 +5418,39 @@
         return;
       }
 
-      // 2. Проверяем клик по котикам-посетителям (ласка)
-      const clickedCat = customers.find(c => Math.hypot(c.x - clickX, c.y - clickY) < 30);
-      if (clickedCat) {
+      // 2. Подача: тап по котику (или по его облачку). Среди котиков под пальцем выбираем того,
+      // чьё блюдо уже ждёт на раздаче, затем ближайшего.
+      const hitGuests = customers
+        .filter(c => c.state !== 'leaving' && c.state !== 'walking_to_seat')
+        .map(c => ({ c, d: Math.min(Math.hypot(c.x - clickX, c.y - clickY), Math.hypot(c.x - clickX, (c.y - 44) - clickY) + 4) }))
+        .filter(h => h.d < 30)
+        .sort((a, b) => (Number(hasReadyPlateFor(b.c)) - Number(hasReadyPlateFor(a.c))) || (a.d - b.d));
+      if (hitGuests.length) {
+        const guest = hitGuests[0].c;
+        if (isGuestWaitingForFood(guest)) {
+          if (!serveCafeCustomer(guest, false)) {
+            // Блюдо ещё не готово — короткая подсказка
+            guest.nudgeAt = globalGameTime;
+            if (!state.seenHints.notReadyHint) {
+              state.seenHints.notReadyHint = true;
+              showToast('Это блюдо ещё готовится. Подавай, когда облачко загорится зелёным! 🟢');
+            }
+          }
+          return;
+        }
+        // Ест или ждёт принятия — просто ласка
         playSound('purr');
-        addVisualParticle(clickedCat.x, clickedCat.y - 30, '🐾 Мяу!', '#ff4081', 'heart');
+        addVisualParticle(guest.x, guest.y - 30, '🐾 Мяу!', '#ff4081', 'heart');
         if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        return;
+      }
+
+      // 2.1. Тап по тарелке на раздаче — отдать самому нетерпеливому гостю, который её ждёт
+      const tappedPlate = readyPlates.find(pl => Math.hypot(pl.x - clickX, pl.y - clickY) < 16);
+      if (tappedPlate) {
+        if (!servePlateToBestGuest(tappedPlate)) {
+          addVisualParticle(tappedPlate.x, tappedPlate.y - 16, 'Пока никто не ждёт', '#90a4ae', 'text');
+        }
         return;
       }
 
@@ -4672,7 +5465,7 @@
       let bestDist = Infinity;
       cookingStations.forEach(st => {
         if (st.id === 'helper' && !hasHelper) return;
-        if (!st.isCooking) return;
+        if (!st.isCooking || st.progress >= 1) return;
         const d = Math.hypot(st.x - clickX, (st.y + 10) - clickY);
         if (d < bestDist) {
           bestDist = d;
@@ -4682,7 +5475,7 @@
       // Радиус зоны: щедрый для одной плиты, поуже — когда плит две
       const maxDist = hasHelper ? 75 : 110;
       if (bestStation && bestDist <= maxDist) {
-        bestStation.progress = Math.min(0.98, bestStation.progress + 0.22);
+        bestStation.progress = Math.min(0.98, bestStation.progress + CAFE_STOVE_TAP_BOOST);
         bestStation.tapBoostAt = globalGameTime;
         playSound('sizzle');
         addVisualParticle(bestStation.x, bestStation.y - 40, '⚡ +Ускорение!', '#ffb300', 'text');
@@ -5283,6 +6076,28 @@
         });
       }
 
+      // Сердитые бровки и «вена» — гость ушёл, не дождавшись заказа
+      if (o.angry) {
+        ctx.strokeStyle = isDark ? '#ffe082' : '#3e2723';
+        ctx.lineWidth = 1.8 * s;
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          ctx.moveTo(x + dir * (eyeDX + 4 * s), eyeY - 6.5 * s);
+          ctx.lineTo(x + dir * (eyeDX - 3 * s), eyeY - 4 * s);
+          ctx.stroke();
+        });
+        const ax = x + 15 * s;
+        const ay = y - 17 * s;
+        ctx.strokeStyle = '#e53935';
+        ctx.lineWidth = 1.8 * s;
+        ctx.beginPath();
+        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => {
+          ctx.moveTo(ax + sx * 1.2 * s, ay + sy * 4 * s);
+          ctx.quadraticCurveTo(ax + sx * 1.2 * s, ay + sy * 1.2 * s, ax + sx * 4 * s, ay + sy * 1.2 * s);
+        });
+        ctx.stroke();
+      }
+
       // Румянец
       ctx.fillStyle = isDark ? 'rgba(255, 120, 150, 0.32)' : 'rgba(255, 105, 135, 0.3)';
       ctx.beginPath();
@@ -5398,7 +6213,8 @@
         up.menu || 1,
         up.profit || 1,
         state.featuredDish || '',
-        getDayPhase()
+        getDayPhase(),
+        getDailyDemandDish()?.id || ''
       ].join('|');
     }
 
@@ -5408,9 +6224,106 @@
       blitLayer(sceneLayers.bg);
       drawCafeAmbient();
       drawKitchenAndChefs();
+      drawReadyPlates();
+      drawCafeWaiter();
       drawCustomers();
+      drawFlyingPlates();
       blitLayer(sceneLayers.fg);
       drawParticles();
+    }
+
+    // Готовые блюда на раздаче (на стойке под кухней)
+    function drawReadyPlates() {
+      readyPlates.forEach(p => {
+        const age = globalGameTime - p.bornAt;
+        const pop = age < 0.25 ? 0.6 + (age / 0.25) * 0.4 + Math.sin((age / 0.25) * Math.PI) * 0.15 : 1;
+        const wanted = customers.some(c => isGuestWaitingForFood(c) && c.dish.id === p.dish.id);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.scale(pop, pop);
+        ctx.globalAlpha = wanted ? 1 : 0.65;
+        ctx.fillStyle = 'rgba(60, 30, 12, 0.22)';
+        ctx.beginPath();
+        ctx.ellipse(1, 5, 13, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#cfc2b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(0, 3, 13, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.dish.icon, 0, -4);
+        ctx.restore();
+      });
+    }
+
+    // Кот-официант Барон (если нанят)
+    function drawCafeWaiter() {
+      if (getUpgradeLevel('waiter') <= 0) return;
+      const w = cafeWaiter;
+      const moving = w.state === 'to_pass' || w.state === 'carrying' || (w.state === 'returning' && Math.hypot(w.x - canvasWidth / 2, w.y - (getCounterY() + 28)) > 2);
+      const wy = w.y + (moving ? -Math.abs(Math.sin(w.walkAnim)) * 2.5 : Math.sin(globalGameTime * 2) * 0.6);
+      gfxGroundShadow(w.x, w.y + 16, 14, 4, 0.25);
+      drawCatFigure({
+        x: w.x, y: wy, s: 0.8,
+        fur: '#8d99ae', ear: '#f8bbd0', eye: '#ffb300', stripe: '#6d7a90',
+        breedId: 'white', seed: 11, outfit: 'waiter', tail: true,
+        tailSide: w.tx < w.x ? 1 : -1
+      });
+      // Маленький цилиндр
+      ctx.save();
+      ctx.fillStyle = '#263238';
+      ctx.fillRect(w.x - 7, wy - 30, 14, 3);
+      gfxRoundRect(ctx, w.x - 5, wy - 41, 10, 12, 2);
+      ctx.fill();
+      ctx.fillStyle = '#e53935';
+      ctx.fillRect(w.x - 5, wy - 33, 10, 2);
+      ctx.restore();
+      if (w.plate) {
+        ctx.save();
+        const g = ctx.createLinearGradient(0, wy, 0, wy + 8);
+        g.addColorStop(0, '#eceff1');
+        g.addColorStop(1, '#90a4ae');
+        ctx.fillStyle = g;
+        ctx.strokeStyle = '#607d8b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(w.x + 16, wy + 4, 12, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(w.plate.dish.icon, w.x + 16, wy - 3);
+        ctx.restore();
+      }
+    }
+
+    // Анимация подачи: тарелка летит с раздачи к гостю
+    function drawFlyingPlates() {
+      flyingPlates.forEach(f => {
+        const k = Math.max(0, Math.min(1, (globalGameTime - f.t0) / f.dur));
+        const e = 1 - (1 - k) * (1 - k);
+        const x = f.x0 + (f.x1 - f.x0) * e;
+        const y = f.y0 + (f.y1 - f.y0) * e - Math.sin(k * Math.PI) * 24;
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#cfc2b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(x, y + 5, 12, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = '17px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(f.icon, x, y - 2);
+        ctx.restore();
+      });
     }
 
     function drawCozyRug(cx, cy, w, h) {
@@ -5686,6 +6599,11 @@
         const cx = x + 5 + col * cellW;
         const cy = y + 26 + row * cellH;
         const isFeat = dish.id === state.featuredDish;
+        if (getDemandMult(dish) > 1) {
+          ctx.fillStyle = 'rgba(255, 112, 67, 0.35)';
+          gfxRoundRect(ctx, cx - 1, cy - 6, cellW - 2, 12, 3);
+          ctx.fill();
+        }
         ctx.textAlign = 'left';
         ctx.font = '9px sans-serif';
         ctx.fillStyle = '#ffffff';
@@ -5974,6 +6892,33 @@
       ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
       ctx.fillRect(16, counterY - 6, W - 32, 1.4);
 
+      // 8.1. Раздача: металлический поднос под готовые блюда
+      {
+        const trayW = CAFE_PASS_SLOTS * 30 + 14;
+        const tx0 = W / 2 - trayW / 2;
+        const tg2 = ctx.createLinearGradient(0, counterY - 9, 0, counterY - 3);
+        tg2.addColorStop(0, '#eceff1');
+        tg2.addColorStop(1, '#90a4ae');
+        ctx.fillStyle = 'rgba(40, 20, 8, 0.25)';
+        gfxRoundRect(ctx, tx0 + 1, counterY - 7, trayW, 6, 3);
+        ctx.fill();
+        ctx.fillStyle = tg2;
+        gfxRoundRect(ctx, tx0, counterY - 9, trayW, 6, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#78909c';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        // Латунная табличка «раздача» на фасаде стойки
+        ctx.fillStyle = '#d4a650';
+        gfxRoundRect(ctx, W / 2 - 24, counterY + 8, 48, 10, 3);
+        ctx.fill();
+        ctx.fillStyle = '#5d3a12';
+        ctx.font = 'bold 7px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('РАЗДАЧА', W / 2, counterY + 13.5);
+      }
+
       // 9. Растения на концах стойки (веранда)
       if (isExpanded) {
         drawPottedPlant(26, counterY - 7, hasDecor, 1);
@@ -6190,6 +7135,19 @@
         const shake = Math.sin(globalGameTime * 12 + sx) * 1.2;
         drawFryingPan(sx, sy - 10, shake, station.id === 'helper');
       }
+      // Раздача заполнена — повар ждёт
+      if (station.isBlocked && Math.sin(globalGameTime * 6) > -0.3) {
+        ctx.font = 'bold 9px -apple-system, "Segoe UI", Roboto, sans-serif';
+        const label = 'Раздача полна!';
+        const tw = ctx.measureText(label).width + 12;
+        ctx.fillStyle = '#e53935';
+        gfxRoundRect(ctx, sx - tw / 2, sy + 15, tw, 13, 6);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, sx, sy + 21.5);
+      }
       // Вспышка от тапа-ускорения
       if (station.tapBoostAt && globalGameTime - station.tapBoostAt < 0.35) {
         const k = (globalGameTime - station.tapBoostAt) / 0.35;
@@ -6224,27 +7182,7 @@
         const isEating = c.state === 'eating';
         const justPaid = typeof c.paidAt === 'number' && globalGameTime - c.paidAt < 1.2;
 
-        // Блюдо на стойке перед котиком
-        if (isEating) {
-          ctx.save();
-          ctx.fillStyle = 'rgba(60, 30, 12, 0.2)';
-          ctx.beginPath();
-          ctx.ellipse(cx + 1, counterY - 4, 13, 3.5, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#cfc2b8';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.ellipse(cx, counterY - 6, 12, 3.6, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.font = '20px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(c.dish.icon, cx, counterY - 14);
-          ctx.restore();
-        }
-
+        const isAngry = typeof c.angryAt === 'number';
         drawCatFigure({
           x: cx, y: cy, s: 1,
           fur: c.breed.fur, ear: c.breed.ear, eye: c.breed.eye, stripe: c.breed.stripe,
@@ -6252,14 +7190,38 @@
           seed: c.id * 1.7,
           squash: hop.squash,
           crown: !!c.isVIP,
-          happy: isEating || justPaid
+          happy: !isAngry && (isEating || justPaid),
+          angry: isAngry
         });
 
-        // Облачко заказа над посетителем
+        // Котик ест с тарелки в лапках
+        if (isEating) {
+          ctx.save();
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#cfc2b8';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy + 15, 13, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.font = '17px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(c.dish.icon, cx, cy + 9);
+          ctx.restore();
+        }
+
+        // Облачко заказа над посетителем: кольцо терпения и зелёная подсветка, когда блюдо готово
+        const bubbleExtra = {
+          patienceFrac: c.patienceMax > 0 ? c.patience / c.patienceMax : null,
+          ready: hasReadyPlateFor(c),
+          nudge: typeof c.nudgeAt === 'number' ? globalGameTime - c.nudgeAt : 99,
+          beingServed: cafeWaiter.target === c && cafeWaiter.state === 'carrying'
+        };
         if (c.state === 'waiting_vip_accept') {
           drawThoughtBubble(cx, cy - 36, c.dish.icon, true, false, 0, 1, c.vipAcceptTimer, c.totalVipAcceptTimer, isFeatured);
         } else if (c.state === 'waiting_order') {
-          drawThoughtBubble(cx, cy - 36, c.dish.icon, c.isVIP, c.isVIP && c.isVipAccepted, c.vipTimer, c.totalVipTimer, 0, 20, isFeatured);
+          drawThoughtBubble(cx, cy - 36, c.dish.icon, c.isVIP, c.isVIP && c.isVipAccepted, c.vipTimer, c.totalVipTimer, 0, 20, isFeatured, bubbleExtra);
         } else if (isEating) {
           const beat = 1 + Math.max(0, Math.sin(globalGameTime * 8)) * 0.15;
           gfxHeart(cx, cy - 38, 20 * beat, c.isVIP ? '#ffc107' : '#e53950');
@@ -6267,11 +7229,29 @@
       });
     }
 
-    function drawThoughtBubble(x, y, icon, isVIP = false, showCookingTimer = false, vipTimer = 0, totalVipTimer = 1, vipAcceptTimer = 20, totalAcceptTimer = 20, isFeatured = false) {
+    function drawThoughtBubble(x, y, icon, isVIP = false, showCookingTimer = false, vipTimer = 0, totalVipTimer = 1, vipAcceptTimer = 20, totalAcceptTimer = 20, isFeatured = false, extra = null) {
       ctx.save();
-      const edge = isVIP ? '#e0a800' : '#c7b2a3';
-      const breathe = 1 + Math.sin(globalGameTime * 3 + x * 0.05) * 0.025;
+      const ready = !!(extra && extra.ready);
+      // «Нет, ещё не готово» — облачко коротко трясётся
+      if (extra && extra.nudge < 0.35) {
+        x += Math.sin(extra.nudge * 60) * 3 * (1 - extra.nudge / 0.35);
+      }
+      const edge = ready ? '#2e7d32' : (isVIP ? '#e0a800' : '#c7b2a3');
+      const breathe = ready
+        ? 1 + Math.abs(Math.sin(globalGameTime * 5 + x * 0.05)) * 0.07
+        : 1 + Math.sin(globalGameTime * 3 + x * 0.05) * 0.025;
       const r = 22 * breathe;
+
+      // Готово к подаче: зелёное свечение вокруг облачка
+      if (ready) {
+        const glow = ctx.createRadialGradient(x, y - 8, r * 0.6, x, y - 8, r + 12);
+        glow.addColorStop(0, 'rgba(102, 187, 106, 0.55)');
+        glow.addColorStop(1, 'rgba(102, 187, 106, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y - 8, r + 12, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Тень облачка
       ctx.fillStyle = 'rgba(70, 35, 15, 0.14)';
@@ -6293,7 +7273,7 @@
       // Само облачко с мягким объёмом
       const g = ctx.createRadialGradient(x - 8, y - 17, 3, x, y - 8, r + 2);
       g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, isVIP ? '#ffefb0' : '#f2eae4');
+      g.addColorStop(1, ready ? '#c8f0c9' : (isVIP ? '#ffefb0' : '#f2eae4'));
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(x, y - 8, r, 0, Math.PI * 2);
@@ -6309,11 +7289,61 @@
         ctx.stroke();
       }
 
+      // Кольцо терпения: зелёное → жёлтое → красное
+      if (extra && typeof extra.patienceFrac === 'number' && !(isVIP && showCookingTimer)) {
+        const pf = Math.max(0, Math.min(1, extra.patienceFrac));
+        const ringCol = pf > 0.5 ? '#43a047' : (pf > 0.25 ? '#fbc02d' : '#e53935');
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(90, 60, 40, 0.15)';
+        ctx.beginPath();
+        ctx.arc(x, y - 8, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = ringCol;
+        ctx.beginPath();
+        ctx.arc(x, y - 8, r + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pf);
+        ctx.stroke();
+        if (pf < 0.25) {
+          // Последние секунды — мигающий восклицательный знак
+          if (Math.sin(globalGameTime * 12) > 0) {
+            ctx.fillStyle = '#e53935';
+            ctx.beginPath();
+            ctx.arc(x - r + 2, y - r - 2, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px -apple-system, "Segoe UI", Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('!', x - r + 2, y - r - 1.5);
+          }
+        }
+      }
+
       // Иконка блюда
       ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(icon, x, y - 7);
+
+      // Галочка «можно подавать»
+      if (ready) {
+        ctx.fillStyle = '#2e7d32';
+        ctx.beginPath();
+        ctx.arc(x + r - 3, y + 6, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x + r - 6.5, y + 6);
+        ctx.lineTo(x + r - 4, y + 8.5);
+        ctx.lineTo(x + r + 0.5, y + 3.5);
+        ctx.stroke();
+      }
+      if (extra && extra.beingServed) {
+        gfxSparkle(x - r + 4, y + 4, 4, '#ffffff');
+      }
 
       if (isFeatured) gfxStar(x + 15, y - 22, 5.5);
 
@@ -6440,6 +7470,7 @@
       drawBakeryCustomers();
       drawBakeryTables();
       drawBakeryWaiter();
+      drawFlyingPlates();
       blitLayer(sceneLayers.fg);
       drawParticles();
     }
@@ -7238,16 +8269,23 @@
         const cy = c.y + walkBob + idle + hop.dy;
         if (moving) gfxGroundShadow(cx, c.y + 17, 15, 4, 0.22);
         const justPaid = typeof c.paidAt === 'number' && globalGameTime - c.paidAt < 1.2;
+        const isAngry = typeof c.angryAt === 'number';
         drawCatFigure({
           x: cx, y: cy, s: 0.82,
           fur: c.breed.fur, ear: c.breed.ear, eye: c.breed.eye, stripe: c.breed.stripe,
           breedId: c.breed.id, seed: c.id * 2.3 + 0.5,
           squash: hop.squash,
-          happy: c.state === 'eating' || justPaid
+          happy: !isAngry && (c.state === 'eating' || justPaid),
+          angry: isAngry
         });
 
         if (c.state === 'waiting_order') {
-          drawThoughtBubble(cx, cy - 30, c.dish.icon, false, false, 0, 1, 20, 20, false);
+          const ready = readyOrders.some(o => o.customerId === c.id);
+          drawThoughtBubble(cx, cy - 30, c.dish.icon, false, false, 0, 1, 20, 20, false, {
+            patienceFrac: c.patienceMax > 0 ? c.patience / c.patienceMax : null,
+            ready,
+            nudge: typeof c.nudgeAt === 'number' ? globalGameTime - c.nudgeAt : 99
+          });
           if (c.isGroupCustomer) {
             ctx.save();
             const g = ctx.createLinearGradient(0, cy - 55, 0, cy - 43);
@@ -7459,7 +8497,7 @@
       if (state.currentVenue === 'bakery') {
         if (cafeBtn) cafeBtn.classList.remove('active');
         if (bakeryBtn) bakeryBtn.classList.add('active');
-        if (tapHintEl) tapHintEl.innerText = 'Нажми на блюдо — официант подаст его первым';
+        if (tapHintEl) tapHintEl.innerText = '👆 Тапни по выпечке на витрине — подашь сам, быстрее Пончика!';
         if (shopTitleEl) shopTitleEl.innerText = '🥐 Улучшения пекарни';
 
         // Заголовок со звёздами
@@ -7482,7 +8520,8 @@
         const featStatEl = document.getElementById('featured-stat-name');
         if (featStatEl) {
           const unlockedRecs = getBakeryUnlockedRecipes().length;
-          featStatEl.innerText = `Рецепты: ${unlockedRecs} из 3`;
+          const demandRec = getDailyDemandRecipe();
+          featStatEl.innerText = `Рецепты: ${unlockedRecs} из 3${demandRec ? ` · 📈 ${demandRec.icon}×${DAILY_DEMAND_MULT}` : ''}`;
         }
         const featPillEl = document.getElementById('featured-stat-pill');
         if (featPillEl) {
@@ -7615,7 +8654,25 @@
           `;
         }
 
-        setShopListHtml(listEl, waiterSpecHtml + bakeryCardsHtml);
+        // Карточка «Позвать компанию котов»
+        let inviteHtml = '';
+        if ((state.bakery?.upgrades?.recipes || 1) >= 2) {
+          const inv = getBakeryInviteState();
+          inviteHtml = `
+            <div class="upgrade-card ${inv.ok ? 'can-afford' : ''}">
+              <div class="upgrade-info">
+                <div class="upgrade-icon-wrap">👥</div>
+                <div class="upgrade-texts">
+                  <div class="upgrade-name">Позвать «Компанию котов»</div>
+                  <div class="upgrade-desc">Трое гостей с общим дедлайном и бонусной наградой. Подавай им сам — успеешь быстрее Пончика.</div>
+                  <div class="upgrade-level">${inv.ok ? 'Готовы прийти!' : inv.reason}</div>
+                </div>
+              </div>
+              <button class="upgrade-btn" onclick="inviteBakeryCompany()" ${inv.ok ? '' : 'disabled'}>Позвать</button>
+            </div>`;
+        }
+
+        setShopListHtml(listEl, inviteHtml + waiterSpecHtml + bakeryCardsHtml);
 
         const badgeEl = document.getElementById('shop-badge');
         if (badgeEl) {
@@ -7632,7 +8689,12 @@
       // --- РЕЖИМ КАФЕ ---
       if (cafeBtn) cafeBtn.classList.add('active');
       if (bakeryBtn) bakeryBtn.classList.remove('active');
-      if (tapHintEl) tapHintEl.innerText = '⚡ Тапай по кухне, чтобы ускорить готовку!';
+      if (tapHintEl) {
+        const serves = state.stats?.manualServes || 0;
+        tapHintEl.innerText = serves < 8
+          ? '👆 Облачко зелёное — тапни по котику и подай блюдо!'
+          : '⚡ Тап по плите ускоряет готовку · 🔥 подача подряд — комбо';
+      }
       if (shopTitleEl) shopTitleEl.innerText = '🛠️ Улучшения кафе';
 
       // 1. Монеты и счетчик заказов с правильным склонением
@@ -7667,7 +8729,9 @@
         let bonusTag = '+20%';
         if (curFeatured.id === 'cake') bonusTag = '+50%';
         else if (curFeatured.id === 'sandwich') bonusTag = '+20% +6 🪙';
-        featStatEl.innerText = `${curFeatured.icon} ${curFeatured.name} (${bonusTag})`;
+        const demandDish = getDailyDemandDish();
+        const demandTag = demandDish ? ` · 📈 ${demandDish.icon}×${DAILY_DEMAND_MULT}` : '';
+        featStatEl.innerText = `${curFeatured.icon} ${DISH_SHORT_NAMES[curFeatured.id] || curFeatured.name} (${bonusTag})${demandTag}`;
       }
       const featPillEl = document.getElementById('featured-stat-pill');
       if (featPillEl) {
@@ -7825,6 +8889,9 @@
             levelLabel = '<span style="color:#8d6e63; font-weight:700;">Не нанят</span>';
             btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
           }
+        } else if (upg.id === 'waiter' && currentLvl === 0) {
+          levelLabel = '<span style="color:#8d6e63; font-weight:700;">Не нанят — без тебя кафе стоит</span>';
+          btnContent = `<span class="upgrade-cost-text">${cost.toLocaleString('ru-RU')} 🪙</span>`;
         } else {
           levelLabel = `Ур. ${currentLvl}`;
           if (isMax) {
@@ -7870,6 +8937,15 @@
           }
         } else if (upg.id === 'helper') {
           deltaHtml = `<div class="upgrade-delta">🐾 Второй повар готовит второй заказ</div>`;
+        } else if (upg.id === 'waiter') {
+          if (currentLvl === 0) {
+            deltaHtml = `<div class="upgrade-delta">🎩 Будет разносить блюда сам + офлайн-доход</div>`;
+          } else if (!isMax) {
+            const curSpeed = 55 + 15 * (currentLvl - 1);
+            deltaHtml = `<div class="upgrade-delta">🎩 Скорость официанта: ${curSpeed} → ${curSpeed + 15}</div>`;
+          } else {
+            deltaHtml = `<div class="upgrade-delta">🎩 Барон бегает на максимальной скорости!</div>`;
+          }
         }
 
         return `
@@ -7945,7 +9021,7 @@
             <div class="featured-dish-left">
               <span class="featured-dish-icon">${dish.icon}</span>
               <div class="featured-dish-info">
-                <div class="featured-dish-name">${dish.name} ${isSelected ? '⭐' : ''}</div>
+                <div class="featured-dish-name">${dish.name} ${isSelected ? '⭐' : ''}${getDemandMult(dish) > 1 ? ` <span style="color:#e65100;">📈 спрос дня ×${DAILY_DEMAND_MULT}</span>` : ''}</div>
                 <div class="featured-dish-price">
                   Выплата: <b>${futurePayout} 🪙</b> (${bonusLabel}) • ⚡ <b>${cookTimeStr}</b>
                 </div>
@@ -7963,7 +9039,8 @@
     }
 
     let toastTimeout = null;
-    function showToast(msg) {
+    // duration раньше передавался во многих вызовах, но игнорировался (тост всегда жил 2.4 с)
+    function showToast(msg, duration = 2400) {
       const toastEl = document.getElementById('toast-msg');
       if (!toastEl) return;
       toastEl.innerText = msg;
@@ -7971,7 +9048,7 @@
       if (toastTimeout) clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
         toastEl.classList.remove('show');
-      }, 2400);
+      }, Math.max(1200, Number(duration) || 2400));
     }
 
     // --- 13. Инициализация игры ---
@@ -7985,6 +9062,12 @@
       setupShopListGuard();
       setupLifecycleHandlers();
       checkOfflineEarnings();
+      showHowtoIfNeeded();
+      // Спрос дня объявляем позже, чтобы не перебить сообщение об офлайне; если открыто окно правил — после него
+      setTimeout(() => {
+        const howto = document.getElementById('howto-modal');
+        if (!howto || howto.style.display !== 'flex') announceDailyDemand();
+      }, 5000);
 
       if (wasEventAbortedOnReload) {
         showToast('Событие «Компания котов» было отменено из-за перезагрузки страницы.', 4000);
@@ -8045,6 +9128,16 @@
         checkOfflineEarnings,
         checkCafeOfflineEarnings,
         estimateCafeOfflineRate,
+        serveCafeCustomer,
+        getReadyPlates: () => readyPlates,
+        getCafeCombo: () => cafeCombo,
+        getCafeWaiter: () => cafeWaiter,
+        deliverBakeryOrderByPlayer,
+        inviteBakeryCompany,
+        getBakeryInviteState,
+        getDailyDemandDish,
+        getDailyDemandRecipe,
+        setDemandOverride: (id) => { demandOverride = id; invalidateSceneCache(); },
         updateEventBar,
         claimOfflineEarnings,
         getPendingOfflineCoins: () => pendingOfflineCoins,
